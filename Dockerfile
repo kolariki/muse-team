@@ -6,12 +6,14 @@ WORKDIR /web
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend ./
+# the «Anuncios» gallery plays the ad composition that lives with the renderer (vite alias @ads → ../backend/video/src)
+COPY backend/video/src /backend/video/src
 RUN npm run build
 
 FROM python:3.12-slim-bookworm
 ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1
-# node (for the agents, builds and Expo/Vite projects), git (own repos), chromium (reference captures)
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git chromium zip unzip \
+# node (for the agents, builds and Expo/Vite projects), git (own repos), chromium (reference captures), ffmpeg (the Ad Studio)
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git chromium ffmpeg zip unzip \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y --no-install-recommends nodejs \
     && npm install -g @anthropic-ai/claude-code @openai/codex pnpm @railway/cli \
     && apt-get clean && rm -rf /var/lib/apt/lists/*

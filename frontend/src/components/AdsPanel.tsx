@@ -1,7 +1,8 @@
-import { AlertTriangle, CheckCircle2, Clapperboard, CloudUpload, Download, ExternalLink, KeyRound, Link2, Loader2, Megaphone, Pencil, RefreshCw, Trash2, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { AlertTriangle, CheckCircle2, Clapperboard, CloudUpload, Download, ExternalLink, KeyRound, Link2, Loader2, Megaphone, Pencil, RefreshCw, ScanSearch, Trash2, X } from 'lucide-react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useBuild } from '../buildStore'
-import { api, type Ad, type AdScript, type AdsPayload, type MetaPublish } from '../lib/api'
+import { api, type Ad, type AdScript, type AdsPayload, type AppSummary, type MetaPublish } from '../lib/api'
+import catalog from '@ads/templates.json'
 import { tr, useT } from '../lib/i18n'
 import { useArena } from '../store'
 import { PanelLoader } from './HomeLoader'
@@ -13,6 +14,16 @@ const PRIMARY = 'flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg
 const INPUT = 'w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13.5px] text-ink outline-none transition focus:border-accent'
 const LABEL = 'block text-[11.5px] font-semibold uppercase tracking-wide text-ink-3'
 const WORKING: Ad['status'][] = ['capturing', 'writing', 'queued', 'rendering']
+const LISTS: Record<string, [string, string]> = {
+  lines: ['Subtítulos', 'Captions'], notes: ['Ítems de la nota', 'Note items'], before: ['Antes', 'Before'], after: ['Ahora', 'Now'], steps: ['Pasos', 'Steps'],
+  marquee: ['Palabras del cartel', 'Marquee words'], notes_title: ['Título de la nota', 'Note title'], query: ['Búsqueda', 'Search'], pov: ['POV', 'POV'],
+  problem: ['Lo que se tacha («Basta de…»)', 'What gets struck out («Stop…»)'], question: ['Pregunta', 'Question'], answer: ['Respuesta', 'Answer'],
+}
+const ANALYZING = ['capturing', 'summarizing', 'recommending']
+// the template gallery plays the Remotion composition live: loaded only when this pane opens
+const TemplatePicker = lazy(() => import('./AdTemplates'))
+type Look = import('./AdTemplates').Look
+const tplName = (id: string | undefined, en: boolean) => { const t = catalog.templates.find((x) => x.id === id); return t ? (en ? t.name.en : t.name.es) : '' }
 const CTAS: [string, string, string][] = [['LEARN_MORE', 'Más información', 'Learn more'], ['SIGN_UP', 'Registrarte', 'Sign up'], ['SHOP_NOW', 'Comprar', 'Shop now'], ['BOOK_NOW', 'Reservar', 'Book now'],
   ['GET_OFFER', 'Obtener oferta', 'Get offer'], ['SUBSCRIBE', 'Suscribirte', 'Subscribe'], ['DOWNLOAD', 'Descargar', 'Download'], ['CONTACT_US', 'Contactarnos', 'Contact us'], ['ORDER_NOW', 'Pedir ahora', 'Order now'], ['APPLY_NOW', 'Postularte', 'Apply now']]
 
@@ -24,7 +35,10 @@ export default function AdsPanel() {
   const [data, setData] = useState<AdsPayload | null>(null)
   const [ask, setAsk] = useState('')
   const [busy, setBusy] = useState(false)
+  const [pick, setPick] = useState<string | null>(null)
+  const [look, setLook] = useState<Look>({})
   const timer = useRef<number | undefined>(undefined)
+  const asked = useRef(false)
 
   const load = async () => {
     if (!b.sessionId || !b.id) return
@@ -33,7 +47,19 @@ export default function AdsPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [b.sessionId, b.id, b.cloudApp?.status])
   // while something is being made or published, follow it
-  const live = !!data?.ads.some((a) => WORKING.includes(a.status) || a.meta?.status === 'publishing')
+  const live = !!data && (ANALYZING.includes(data.app.status) || data.ads.some((a) => WORKING.includes(a.status) || a.meta?.status === 'publishing'))
+  // the first time the pane opens, the team reads the app on its own (one less step for the user)
+  useEffect(() => {
+    if (!data || asked.current || !b.sessionId || !b.id || data.app.status !== 'none' || !Object.keys(b.files).length) return
+    asked.current = true
+    api.adsAnalyze(b.sessionId, b.id).then(setData).catch(() => {})
+  }, [data?.app.status]) // eslint-disable-line react-hooks/exhaustive-deps
+  const recommended = data?.app.recommended ?? []
+  useEffect(() => { if (!pick && recommended[0]) setPick(recommended[0].id) }, [recommended[0]?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  // the ad starts in the app's own colours when the team found them (tokens, CSS or its screens)
+  const appPal = data?.app.palette
+  useEffect(() => { if (appPal) setLook((l) => (Object.keys(l).length ? l : { palette: appPal, theme: 'auto' })) }, [appPal?.bg, appPal?.accent]) // eslint-disable-line react-hooks/exhaustive-deps
+  const screens = useMemo(() => (data?.app.screens ?? []).map((x) => ({ url: api.adFileUrl(b.sessionId ?? '', b.id ?? '', 'app', x.file, data?.app.updated ?? ''), kind: x.kind, ratio: x.ratio, bg: x.bg })), [data?.app.screens, data?.app.updated]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     window.clearInterval(timer.current)
     if (live) timer.current = window.setInterval(load, 2500)
@@ -56,7 +82,7 @@ export default function AdsPanel() {
   const create = async () => {
     if (!b.sessionId || !b.id) return
     setBusy(true)
-    try { setData(await api.adsNew(b.sessionId, b.id, ask.trim())); setAsk('') } catch (e) { toast.error(T('No se pudo empezar el anuncio', 'Could not start the ad'), (e as Error).message) } finally { setBusy(false) }
+    try { setData(await api.adsNew(b.sessionId, b.id, ask.trim(), pick, look)); setAsk('') } catch (e) { toast.error(T('No se pudo empezar el anuncio', 'Could not start the ad'), (e as Error).message) } finally { setBusy(false) }
   }
   const making = data.ads.some((a) => WORKING.includes(a.status))
   const src = data.source
@@ -88,17 +114,26 @@ export default function AdsPanel() {
               {!data.writer && <button onClick={() => useArena.getState().set({ view: 'settings' })} className={PILL}><KeyRound size={14} /> {T('Agregar clave', 'Add key')}</button>}
             </div>
           </div>
+          <AppCard data={data} onData={setData} screens={screens.map((x) => x.url)} />
+          {data.app.status === 'ready' && data.engine && (
+            <div className="mt-5">
+              <h3 className="mb-3 text-[15px] font-bold text-ink">{T('Elegí la plantilla', 'Pick the template')}</h3>
+              <Suspense fallback={<div className="flex items-center gap-2 py-6 text-[13px] text-ink-3"><Loader2 size={14} className="animate-spin" /> {T('Cargando las plantillas…', 'Loading the templates…')}</div>}>
+                <TemplatePicker recommended={recommended} summary={data.app.summary} screens={screens} selected={pick} onPick={setPick} look={look} onLook={setLook} appPalette={data.app.palette ?? null} />
+              </Suspense>
+            </div>
+          )}
           {!data.engine ? (
             <p className="mt-4 rounded-xl border border-danger/30 bg-danger/5 px-3 py-2 text-[13px] text-danger">{T('Este servidor no tiene el motor de video instalado.', 'This server does not have the video engine installed.')}</p>
           ) : (
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className={`mt-4 flex flex-col gap-2 sm:flex-row sm:items-end ${ANALYZING.includes(data.app.status) ? 'opacity-50' : ''}`}>
               <label className="min-w-0 flex-1">
                 <span className={LABEL}>{T('¿Algo en especial? (opcional)', 'Anything in particular? (optional)')}</span>
                 <input value={ask} onChange={(e) => setAsk(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !busy) create() }} maxLength={600} className={`${INPUT} mt-1`}
                   placeholder={T('Ej.: apuntá a dueñas de estudios, mencioná la seña con Mercado Pago', 'E.g.: aim at studio owners, mention the deposit')} />
               </label>
               <button onClick={create} disabled={busy} className={`${PRIMARY} h-10 justify-center`}>
-                {busy ? <Loader2 size={15} className="animate-spin" /> : <Clapperboard size={15} />} {data.ads.length ? T('Hacer otro anuncio', 'Make another ad') : T('Crear anuncio', 'Create ad')}
+                {busy ? <Loader2 size={15} className="animate-spin" /> : <Clapperboard size={15} />} {pick ? T(`Crear con «${tplName(pick, false)}»`, `Create with «${tplName(pick, true)}»`) : T('Crear anuncio', 'Create ad')}
               </button>
             </div>
           )}
@@ -107,6 +142,74 @@ export default function AdsPanel() {
 
         {data.ads.map((ad) => <AdCard key={ad.id} ad={ad} data={data} onData={setData} reload={load} />)}
       </div>
+    </div>
+  )
+}
+
+/** «Lo que entendimos de tu app»: the summary the ads are written from, the captured screens, and the user's corrections. */
+function AppCard({ data, onData, screens }: { data: AdsPayload; onData: (d: AdsPayload) => void; screens: string[] }) {
+  const T = useT()
+  const b = useBuild()
+  const app = data.app
+  const [editing, setEditing] = useState(false)
+  const [v, setV] = useState<AppSummary | null>(null)
+  const [saving, setSaving] = useState(false)
+  const again = async () => { try { onData(await api.adsAnalyze(b.sessionId ?? '', b.id ?? '')) } catch (e) { toast.error(T('No se pudo analizar', 'Could not analyse'), (e as Error).message) } }
+  const save = async () => {
+    if (!v) return
+    setSaving(true)
+    try { onData(await api.adsSummary(b.sessionId ?? '', b.id ?? '', v)); setEditing(false) } catch (e) { toast.error(T('No se pudo guardar', 'Could not save'), (e as Error).message) } finally { setSaving(false) }
+  }
+  const s = app.summary
+  return (
+    <div className="mt-4 rounded-xl border border-line bg-surface-2/50 p-3 sm:p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <ScanSearch size={16} className="text-accent" />
+        <span className="min-w-0 flex-1 text-[14px] font-bold text-ink">{T('Lo que entendimos de tu app', 'What we understood of your app')}</span>
+        {app.status === 'ready' && !editing && <button onClick={() => { setV(s); setEditing(true) }} className={PILL}><Pencil size={13} /> {T('Corregir', 'Correct')}</button>}
+        {!ANALYZING.includes(app.status) && app.status !== 'none' && <button onClick={again} className={PILL}><RefreshCw size={13} /> {T('Volver a analizar', 'Analyse again')}</button>}
+      </div>
+      {ANALYZING.includes(app.status) || app.status === 'none' ? (
+        <div className="mt-3">
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-ink"><Loader2 size={14} className="animate-spin text-accent" /> {app.step || T('Preparando', 'Getting ready')}</div>
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            {[['capturing', T('Pantallas', 'Screens')], ['summarizing', T('Resumen', 'Summary')], ['recommending', T('Plantillas', 'Templates')]].map(([k, l], i) => {
+              const at = Math.max(0, ANALYZING.indexOf(app.status))
+              return <div key={k}><div className="h-1.5 overflow-hidden rounded-full bg-surface"><div className="h-full rounded-full bg-accent transition-all" style={{ width: i < at ? '100%' : i === at ? '45%' : '0%' }} /></div><div className="mt-1 text-[11px] text-ink-3">{l}</div></div>
+            })}
+          </div>
+        </div>
+      ) : app.status === 'error' ? (
+        <p className="mt-2 text-[13px] text-danger">{app.error}</p>
+      ) : s && !editing ? (
+        <div className="mt-2 text-[13px] leading-relaxed">
+          {app.stale && <p className="mb-2 rounded-lg border border-[#C28A12]/40 bg-[#C28A12]/10 px-2.5 py-1.5 text-[12.5px] text-ink-2">{T('Tu app cambió desde este análisis: volvé a analizarla para que los anuncios muestren lo nuevo.', 'Your app changed since this analysis: analyse it again so the ads show what is new.')}</p>}
+          <p className="text-[14px] font-semibold text-ink">{s.name} — {s.one_liner}</p>
+          <p className="mt-1 text-ink-2">{s.what}</p>
+          {s.for_whom && <p className="mt-1.5 text-ink-2"><b className="text-ink">{T('Para quién:', 'For whom:')}</b> {s.for_whom}</p>}
+          {s.problem && <p className="mt-1 text-ink-2"><b className="text-ink">{T('Qué resuelve:', 'What it solves:')}</b> {s.problem}</p>}
+          {s.features.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{s.features.map((f) => <span key={f} className="rounded-full border border-line bg-surface px-2 py-0.5 text-[12px] text-ink-2">{f}</span>)}</div>}
+          {s.proof.length > 0 && <p className="mt-2 text-[12.5px] text-ink-3"><b>{T('Datos reales:', 'Real figures:')}</b> {s.proof.join(' · ')}</p>}
+          {screens.length > 0 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scroll-thin">{screens.map((u, i) => <img key={u} src={u} alt={app.screens[i]?.route ?? ''} title={app.screens[i]?.route} className={`shrink-0 rounded-lg border border-line object-cover object-top ${app.screens[i]?.kind === 'desktop' ? 'h-24 w-40' : 'h-24 w-14'}`} />)}</div>}
+          <p className="mt-2 text-[11.5px] text-ink-4">{app.edited ? T('Corregido por vos.', 'Corrected by you.') : app.summary_by ? `${T('Escrito por', 'Written by')} ${app.summary_by}` : T('Sacado del brief (sin modelo).', 'Taken from the brief (no model).')}</p>
+        </div>
+      ) : v && (
+        <div className="mt-3 grid grid-cols-1 gap-2.5 min-[560px]:grid-cols-2">
+          {([['name', T('Nombre', 'Name'), 22], ['one_liner', T('Qué es, en una frase', 'What it is, in one line'), 140], ['for_whom', T('Para quién', 'For whom'), 200], ['offer', T('Precio u oferta', 'Price or offer'), 120]] as const).map(([k, l, n]) => (
+            <label key={k}><span className={LABEL}>{l}</span><input value={v[k]} maxLength={n} onChange={(e) => setV({ ...v, [k]: e.target.value })} className={`${INPUT} mt-1`} /></label>
+          ))}
+          {([['what', T('Qué hace', 'What it does'), 500], ['problem', T('Qué problema resuelve', 'The problem it solves'), 240]] as const).map(([k, l, n]) => (
+            <label key={k} className="min-[560px]:col-span-2"><span className={LABEL}>{l}</span><textarea value={v[k]} maxLength={n} rows={2} onChange={(e) => setV({ ...v, [k]: e.target.value })} className={`${INPUT} mt-1 resize-y`} /></label>
+          ))}
+          {([['features', T('Funciones (una por línea)', 'Features (one per line)')], ['proof', T('Datos reales: precios, tiempos, cantidades (uno por línea)', 'Real figures: prices, times, amounts (one per line)')]] as const).map(([k, l]) => (
+            <label key={k}><span className={LABEL}>{l}</span><textarea value={v[k].join('\n')} rows={4} onChange={(e) => setV({ ...v, [k]: e.target.value.split('\n') })} className={`${INPUT} mt-1 resize-y`} /></label>
+          ))}
+          <div className="flex justify-end gap-2 min-[560px]:col-span-2">
+            <button onClick={() => setEditing(false)} className={PILL}>{T('Cancelar', 'Cancel')}</button>
+            <button onClick={save} disabled={saving} className={PRIMARY}>{saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} {T('Guardar', 'Save')}</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -147,6 +250,7 @@ function AdCard({ ad, data, onData, reload }: { ad: Ad; data: AdsPayload; onData
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Megaphone size={15} className="text-accent" />
         <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-ink">{s?.angle || s?.hook || T('Anuncio nuevo', 'New ad')}</span>
+        {ad.template && <span className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-ink-3">{tplName(ad.template, T('es', 'en') === 'en')}</span>}
         <span className="text-[11.5px] text-ink-3">{new Date(ad.created * 1000).toLocaleString(T('es-AR', 'en-US'), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
         {sure ? (
           <span className="flex items-center gap-1 text-[12px]">
@@ -220,6 +324,13 @@ function EditForm({ ad, s, onSaved }: { ad: Ad; s: AdScript; onSaved: (d: AdsPay
       ))}
       {v.captions.map((c, i) => (
         <label key={`c${i}`}><span className={LABEL}>{ad.screens[i]?.kind === 'desktop' ? T('Frase de la pantalla de computadora', 'Desktop screen line') : T('Frase de la pantalla del celular', 'Phone screen line')}</span><input value={c} maxLength={50} onChange={(e) => set('captions', v.captions.map((x, j) => (j === i ? e.target.value : x)))} className={`${INPUT} mt-1`} /></label>
+      ))}
+      {(['lines', 'notes', 'before', 'after', 'steps', 'marquee'] as const).filter((k) => (v[k]?.length ?? 0) > 0).map((k) => (
+        <label key={k} className="min-[560px]:col-span-2"><span className={LABEL}>{T(...LISTS[k])} · {T('una por línea', 'one per line')}</span>
+          <textarea value={(v[k] ?? []).join('\n')} rows={Math.min(5, (v[k]?.length ?? 1) + 1)} onChange={(e) => set(k, e.target.value.split('\n'))} className={`${INPUT} mt-1 resize-y`} /></label>
+      ))}
+      {(['notes_title', 'query', 'pov', 'problem', 'question', 'answer'] as const).filter((k) => !!v[k]).map((k) => (
+        <label key={k}><span className={LABEL}>{T(...LISTS[k])}</span><input value={v[k] ?? ''} maxLength={90} onChange={(e) => set(k, e.target.value)} className={`${INPUT} mt-1`} /></label>
       ))}
       {field('cta', T('Botón del final', 'Closing button'), 24)}
       {field('cta_sub', T('Debajo del botón', 'Under the button'), 50)}

@@ -20,7 +20,18 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* the ad composition shared with backend/video (see vite.config.ts) */
+    "resolveJsonModule": true,
+    "paths": {
+      "@ads/*": ["../backend/video/src/*"],
+      "remotion": ["./node_modules/remotion"],
+      "@remotion/transitions/*": ["./node_modules/@remotion/transitions/dist/presentations/*"],
+      "@remotion/*": ["./node_modules/@remotion/*"],
+      "react": ["./node_modules/@types/react"],
+      "react/*": ["./node_modules/@types/react/*"]
+    }
   },
   "include": ["src"]
 }

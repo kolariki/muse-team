@@ -69,6 +69,7 @@ from . import lessons as lessonsmod
 from . import levels as levelsmod
 from . import ads as adsmod
 from . import meta_ads as metaads
+from . import studio as studiomod
 from . import tickets as ticketsmod
 from . import gitserver
 from . import agent_sessions
@@ -3366,9 +3367,34 @@ def market_withdraw(session_id: str, build_id: str, user: User = CurrentUser):
 def _ads_payload(user: User, b) -> dict:
     conn = metaads.connection(user.id)
     w = adsmod.writer(user.id)
+    st = adsmod.recover_app(user.id, b)
     return {"ads": [adsmod.public(a) for a in adsmod.recover(user.id, b.id)], "source": adsmod.source_for(user, b), "engine": adsmod.engine_ready(),
-            "writer": f"{provmod.PROVIDERS[w[0]].label} · {w[1]}" if w else None,
+            "writer": f"{provmod.PROVIDERS[w[0]].label} · {w[1]}" if w else None, "app": {**adsmod.public_app(st), "stale": bool(st.get("stale"))},
             "meta": {"ready": metaads.ready(), "connected": bool(conn), **(conn or {})}}
+
+
+@app.get("/api/ads/templates")
+def ads_templates(user: User = CurrentUser):
+    """The ad templates (structures and styles) with their sample content, for the gallery's live previews."""
+    return adsmod.catalog()
+
+
+@app.post("/api/sessions/{session_id}/builds/{build_id}/ads/analyze")
+async def build_ads_analyze(session_id: str, build_id: str, user: User = CurrentUser):
+    """Understand the app again: capture its screens, summarise what it does, recommend the 5 templates that fit it."""
+    b = _build_any(user, session_id, build_id)
+    if not b.files:
+        raise HTTPException(400, "Todavía no hay una app para analizar.")
+    adsmod.prepare(user, b)
+    return _ads_payload(user, b)
+
+
+@app.put("/api/sessions/{session_id}/builds/{build_id}/ads/summary")
+async def build_ads_summary(session_id: str, build_id: str, body: dict, user: User = CurrentUser):
+    """The user's corrections to the summary of the app (the ads are written from it); the recommendations follow."""
+    b = _build_any(user, session_id, build_id)
+    await adsmod.edit_summary(user, b, body or {})
+    return _ads_payload(user, b)
 
 
 @app.get("/api/sessions/{session_id}/builds/{build_id}/ads")
@@ -3386,7 +3412,7 @@ async def build_ads_new(session_id: str, build_id: str, body: dict | None = None
     if not b.files:
         raise HTTPException(400, "Todavía no hay una app para mostrar: el anuncio se hace cuando el equipo la construyó.")
     try:
-        adsmod.start(user, b, str((body or {}).get("instructions") or "").strip())
+        adsmod.start(user, b, str((body or {}).get("instructions") or "").strip(), (body or {}).get("template"), (body or {}).get("look"))
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _ads_payload(user, b)
@@ -3414,7 +3440,7 @@ async def build_ads_retry(session_id: str, build_id: str, ad_id: str, user: User
             adsmod.edit(user, b, ad_id, {})
         else:
             adsmod.remove(user.id, b.id, ad_id)
-            adsmod.start(user, b, ad.get("instructions") or "")
+            adsmod.start(user, b, ad.get("instructions") or "", ad.get("template"), ad.get("look"))
     except ValueError as e:
         raise HTTPException(400, str(e))
     return _ads_payload(user, b)
@@ -3518,6 +3544,112 @@ async def build_ads_to_meta(session_id: str, build_id: str, ad_id: str, body: di
     step("Conectando con Meta")
     spawn(job())
     return _ads_payload(user, b)
+
+
+# ------------------------------------------------------------------------------------------------ Ad Studio (own videos and images)
+
+def _studio(user: User, pid: str) -> dict:
+    try:
+        p = studiomod.recover(user.id, pid)
+    except ValueError:
+        p = None
+    if not p:
+        raise HTTPException(404, "Anuncio no encontrado")
+    return p
+
+
+@app.get("/api/studio")
+def studio_list(user: User = CurrentUser):
+    """The user's studio ads, newest first, and whether this server can make them."""
+    return {"projects": studiomod.listing(user.id), "ready": adsmod.engine_ready() and studiomod.media.available(), "agents": studiomod.AGENTS,
+            "transcriber": studiomod.stt.who(user.id), "model": bool(studiomod._who(user.id, False)), "limits": {"files": studiomod.MAX_FILES, "video_mb": studiomod.MAX_VIDEO_MB, "image_mb": studiomod.MAX_IMAGE_MB, "minutes": studiomod.MAX_MINUTES}}
+
+
+@app.post("/api/studio")
+def studio_create(body: dict, user: User = CurrentUser):
+    lang = "English" if str(body.get("lang") or "") == "en" else "español rioplatense"
+    p = studiomod.create(user, str(body.get("title") or ""), str(body.get("instructions") or ""), str(body.get("link") or ""), str(body.get("goal") or "sell"), lang)
+    return studiomod.public(p)
+
+
+@app.get("/api/studio/{pid}")
+def studio_get(pid: str, user: User = CurrentUser):
+    return studiomod.public(_studio(user, pid))
+
+
+@app.patch("/api/studio/{pid}")
+def studio_patch(pid: str, body: dict, user: User = CurrentUser):
+    _studio(user, pid)
+    fields = {k: str(body[k])[:n] for k, n in (("title", 80), ("instructions", 2000), ("link", 300)) if k in body}
+    if body.get("goal") in ("sell", "awareness", "signup"):
+        fields["goal"] = body["goal"]
+    return studiomod.public(studiomod.update(user.id, pid, **fields))
+
+
+@app.delete("/api/studio/{pid}")
+def studio_delete(pid: str, user: User = CurrentUser):
+    _studio(user, pid)
+    studiomod.remove(user.id, pid)
+    return {"ok": True}
+
+
+@app.post("/api/studio/{pid}/media")
+async def studio_upload(pid: str, file: UploadFile, user: User = CurrentUser):
+    """A video or an image for the ad, streamed to disk."""
+    _studio(user, pid)
+
+    async def chunks():
+        while data := await file.read(1 << 20):
+            yield data
+
+    try:
+        await studiomod.add_media(user, pid, file.filename or "archivo", chunks())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return studiomod.public(_studio(user, pid))
+
+
+@app.delete("/api/studio/{pid}/media/{mid}")
+def studio_media_delete(pid: str, mid: str, user: User = CurrentUser):
+    _studio(user, pid)
+    try:
+        return studiomod.public(studiomod.remove_media(user.id, pid, mid))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/studio/{pid}/run")
+async def studio_run(pid: str, user: User = CurrentUser):
+    """The five agents get to work: listen, plan, cut, improve and approve (until it is approved), then the final export."""
+    _studio(user, pid)
+    try:
+        studiomod.run(user, pid)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return studiomod.public(_studio(user, pid))
+
+
+@app.post("/api/studio/{pid}/stop")
+async def studio_stop(pid: str, user: User = CurrentUser):
+    _studio(user, pid)
+    studiomod.stop(user.id, pid)
+    return studiomod.public(_studio(user, pid))
+
+
+@app.get("/api/studio/{pid}/file/{name:path}")
+def studio_file(pid: str, name: str, request: Request, token: str = "", download: int = 0):
+    """A thumbnail, a cut or the final ad. Auth by bearer or by `token` query (it plays in a <video>)."""
+    bearer = (request.headers.get("authorization") or "").removeprefix("Bearer ").strip()
+    user = auth.user_from_token(token or bearer or None)
+    if not user:
+        raise HTTPException(401)
+    p = _studio(user, pid)
+    f = studiomod.file_for(user.id, pid, name)
+    if not f:
+        raise HTTPException(404)
+    slug = re.sub(r"[^a-z0-9]+", "-", (p.get("title") or "anuncio").lower()).strip("-") or "anuncio"
+    return FileResponse(f, media_type="video/mp4" if f.suffix == ".mp4" else "image/jpeg", headers={"cache-control": "private, max-age=600"},
+                        filename=f"{slug}-{f.name}" if download else None, content_disposition_type="attachment" if download else "inline")
 
 
 @app.get("/api/market")

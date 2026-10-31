@@ -1,12 +1,24 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { fileURLToPath } from 'node:url'
+
+const here = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 
 const API = process.env.ARENA_API ?? 'http://localhost:8000'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // the ad composition lives with the renderer (backend/video/src) and the «Anuncios» gallery plays it live: one source for both,
+  // its imports resolved from this package
+  resolve: {
+    alias: [
+      { find: '@ads', replacement: here('../backend/video/src') },
+    ],
+    dedupe: ['react', 'react-dom', 'remotion', '@remotion/player', '@remotion/transitions', '@remotion/google-fonts'],
+  },
   server: {
+    fs: { allow: ['..'] },
     port: 5173,
     proxy: {
       '/api': API,

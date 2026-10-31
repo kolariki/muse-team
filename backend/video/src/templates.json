@@ -1,0 +1,197 @@
+{
+  "updated": "2026-10-31",
+  "renew_every_days": 30,
+  "basis": "Formatos que los análisis de creatividades de Meta y TikTok de 2026 reportan con mejor rendimiento (vertical nativo, texto sin sonido, conversaciones, antes/después, problema → solución, dato primero, POV, demo en pantalla dividida). No copian anuncios de terceros: son estructuras propias.",
+  "templates": [
+    {
+      "id": "promesa", "added": "2026-10-31", "goal": "conversion", "tags": ["saas", "servicios", "consumo", "local"],
+      "name": {"es": "Promesa en movimiento", "en": "Kinetic promise"},
+      "desc": {"es": "Gancho en tipografía animada, tres beneficios, las pantallas reales y el botón.", "en": "Animated-type hook, three benefits, the real screens and the button."},
+      "why": {"es": "La estructura clásica de Reels de producto: el gancho en los 2 primeros segundos y la app funcionando.", "en": "The classic product Reel: the hook in the first 2 seconds and the app working."},
+      "scenes": ["hook", "points", "screens", "cta"],
+      "style": {"theme": "auto", "fx": "rise", "transition": "slide", "pace": 1, "bg": "blobs"}
+    },
+    {
+      "id": "sin-sonido", "added": "2026-10-31", "goal": "awareness", "tags": ["saas", "b2b", "servicios", "consumo"],
+      "name": {"es": "Explicación sin sonido", "en": "Silent explainer"},
+      "desc": {"es": "Subtítulos grandes que se leen palabra por palabra, sin audio, y la app al final.", "en": "Big captions read word by word, no audio, and the app at the end."},
+      "why": {"es": "La mayoría mira con el sonido apagado: los explicadores solo con texto rinden bien y no dependen del idioma del audio.", "en": "Most people watch muted: text-only explainers perform well and do not depend on the audio's language."},
+      "scenes": ["lines", "screen:0", "cta"],
+      "style": {"theme": "dark", "fx": "rise", "transition": "fade", "pace": 1, "bg": "solid"}
+    },
+    {
+      "id": "chat", "added": "2026-10-31", "goal": "conversion", "tags": ["consumo", "local", "servicios"],
+      "name": {"es": "Chat de mensajes", "en": "Text conversation"},
+      "desc": {"es": "Una conversación corta donde alguien cuenta el problema y le recomiendan la app.", "en": "A short conversation where someone shares the problem and gets the app recommended."},
+      "why": {"es": "Se ve como algo del celular de cualquiera, no como un aviso: el formato nativo frena el scroll.", "en": "It looks like something from anyone's phone, not an ad: native formats stop the scroll."},
+      "scenes": ["chat", "screen:0", "cta"],
+      "style": {"theme": "light", "fx": "pop", "transition": "slide", "pace": 1, "bg": "solid"}
+    },
+    {
+      "id": "notas", "added": "2026-10-31", "goal": "conversion", "tags": ["consumo", "servicios", "saas"],
+      "name": {"es": "Lista en notas", "en": "Notes list"},
+      "desc": {"es": "Una nota del celular con la lista de lo que resuelve, que se va tildando.", "en": "A phone note listing what it solves, ticked one by one."},
+      "why": {"es": "Estética de nota personal, de bajo costo y alta credibilidad: de los formatos lo-fi que mejor rinden.", "en": "A personal-note look, low-fi and credible: one of the best-performing lo-fi formats."},
+      "scenes": ["notes", "screen:0", "cta"],
+      "style": {"theme": "paper", "fx": "type", "transition": "fade", "pace": 1, "bg": "solid", "font": "rounded"}
+    },
+    {
+      "id": "antes-despues", "added": "2026-10-31", "goal": "conversion", "tags": ["saas", "servicios", "local", "b2b"],
+      "name": {"es": "Antes y después", "en": "Before and after"},
+      "desc": {"es": "Cómo era sin la app y cómo es con la app, lado a lado.", "en": "Life without the app and with it, side by side."},
+      "why": {"es": "El contraste antes/después es de las estructuras de gancho más usadas y fáciles de entender sin sonido.", "en": "Before/after contrast is one of the most used hook structures and reads without sound."},
+      "scenes": ["hook", "beforeAfter", "screen:0", "cta"],
+      "style": {"theme": "auto", "fx": "box", "transition": "wipe", "pace": 1, "bg": "grid"}
+    },
+    {
+      "id": "basta-de", "added": "2026-10-31", "goal": "conversion", "tags": ["saas", "b2b", "servicios"],
+      "name": {"es": "Basta de…", "en": "Stop doing…"},
+      "desc": {"es": "Arranca tachando el problema de siempre y muestra la salida.", "en": "Opens by striking out the usual problem and shows the way out."},
+      "why": {"es": "Problema → agitación → solución: el gancho que más se recomienda para registros en software.", "en": "Problem → agitation → solution: the most recommended hook for software sign-ups."},
+      "scenes": ["problem", "points", "screen:0", "cta"],
+      "style": {"theme": "dark", "fx": "rise", "transition": "slide", "pace": 1, "bg": "gradient"}
+    },
+    {
+      "id": "dato-primero", "added": "2026-10-31", "goal": "conversion", "tags": ["saas", "b2b"],
+      "name": {"es": "Dato primero", "en": "Stat first"},
+      "desc": {"es": "Abre con un número grande del brief (tiempo ahorrado, precio, cantidad) y lo demuestra.", "en": "Opens with a big number from the brief (time saved, price, amount) and proves it."},
+      "why": {"es": "Los ganchos con un resultado concreto primero rinden en software; solo se usa si el brief tiene un dato real.", "en": "Outcome-first hooks perform in software; only used when the brief has a real figure."},
+      "scenes": ["stat", "hook", "screen:0", "cta"],
+      "style": {"theme": "auto", "fx": "pop", "transition": "fade", "pace": 1, "bg": "blobs"}
+    },
+    {
+      "id": "busqueda", "added": "2026-10-31", "goal": "conversion", "tags": ["consumo", "local", "servicios"],
+      "name": {"es": "Lo que buscabas", "en": "What you searched for"},
+      "desc": {"es": "Una búsqueda que se escribe sola y el resultado es tu app.", "en": "A search typing itself and the result is your app."},
+      "why": {"es": "Retoma la intención de búsqueda del usuario: la respuesta aparece como algo que ya estaba buscando.", "en": "It mirrors search intent: the answer appears as something the viewer was already looking for."},
+      "scenes": ["search", "screen:0", "points", "cta"],
+      "style": {"theme": "light", "fx": "rise", "transition": "slide", "pace": 1, "bg": "solid"}
+    },
+    {
+      "id": "notificaciones", "added": "2026-10-31", "goal": "awareness", "tags": ["consumo", "local", "servicios", "saas"],
+      "name": {"es": "Notificaciones", "en": "Notification stack"},
+      "desc": {"es": "Las notificaciones que manda tu app se apilan en la pantalla.", "en": "The notifications your app sends stack up on screen."},
+      "why": {"es": "Muestra el resultado (reservas, pagos, avisos) en el idioma visual del celular.", "en": "Shows the outcome (bookings, payments, alerts) in the phone's own visual language."},
+      "scenes": ["notifs", "hook", "screen:0", "cta"],
+      "style": {"theme": "dark", "fx": "rise", "transition": "fade", "pace": 1, "bg": "gradient"}
+    },
+    {
+      "id": "pov", "added": "2026-10-31", "goal": "awareness", "tags": ["consumo", "local"],
+      "name": {"es": "POV", "en": "POV"},
+      "desc": {"es": "«POV: …» sobre la app, con el tono de un video nativo de Reels.", "en": "«POV: …» over the app, with the tone of a native Reel."},
+      "why": {"es": "El contenido con estética nativa de creador rinde mejor que la producción pulida en Reels.", "en": "Native creator-style content beats polished production on Reels."},
+      "scenes": ["pov", "screens", "cta"],
+      "style": {"theme": "dark", "fx": "rise", "transition": "cut", "pace": 0.9, "bg": "solid"}
+    },
+    {
+      "id": "tres-pasos", "added": "2026-10-31", "goal": "conversion", "tags": ["saas", "servicios", "b2b", "consumo"],
+      "name": {"es": "Cómo funciona en 3 pasos", "en": "How it works in 3 steps"},
+      "desc": {"es": "Los tres pasos para usarla, numerados, y la pantalla que lo prueba.", "en": "The three steps to use it, numbered, and the screen that proves it."},
+      "why": {"es": "Baja la fricción mostrando que es fácil: clave a mitad del embudo.", "en": "Lowers friction by showing it is easy: key mid-funnel."},
+      "scenes": ["hook", "steps", "screen:0", "cta"],
+      "style": {"theme": "light", "fx": "rise", "transition": "slide", "pace": 1, "bg": "grid"}
+    },
+    {
+      "id": "pregunta", "added": "2026-10-31", "goal": "awareness", "tags": ["consumo", "servicios", "saas", "local"],
+      "name": {"es": "Pregunta y respuesta", "en": "Question and answer"},
+      "desc": {"es": "Una pregunta que el usuario se hace y la respuesta que aparece.", "en": "A question the viewer asks themselves and the answer that appears."},
+      "why": {"es": "Pregunta → curiosidad es una de las estructuras de gancho más usadas en 2026.", "en": "Question → curiosity is one of the most used hook structures in 2026."},
+      "scenes": ["question", "screen:0", "points", "cta"],
+      "style": {"theme": "auto", "fx": "pop", "transition": "fade", "pace": 1, "bg": "blobs"}
+    },
+    {
+      "id": "pantalla-dividida", "added": "2026-10-31", "goal": "conversion", "tags": ["saas", "b2b", "consumo"],
+      "name": {"es": "Demo en pantalla dividida", "en": "Split-screen demo"},
+      "desc": {"es": "La app en uso de un lado y lo que pasa, explicado, del otro.", "en": "The app in use on one side and what happens, explained, on the other."},
+      "why": {"es": "La pantalla dividida con la grabación de la app es de los formatos de demo más usados para software.", "en": "Split screen with the app recording is one of the most used demo formats for software."},
+      "scenes": ["hook", "split", "cta"],
+      "style": {"theme": "dark", "fx": "rise", "transition": "slide", "pace": 1, "bg": "solid"}
+    },
+    {
+      "id": "cartel", "added": "2026-10-31", "goal": "awareness", "tags": ["consumo", "local", "ecommerce"],
+      "name": {"es": "Cartel en movimiento", "en": "Bold marquee"},
+      "desc": {"es": "Palabras enormes que corren por la pantalla con el color de tu marca.", "en": "Huge words running across the screen in your brand colour."},
+      "why": {"es": "Alto contraste y movimiento constante: frena el scroll y deja la marca grabada.", "en": "High contrast and constant motion: stops the scroll and makes the brand stick."},
+      "scenes": ["marquee", "hook", "screen:0", "cta"],
+      "style": {"theme": "accent", "fx": "box", "transition": "wipe", "pace": 1, "bg": "solid"}
+    },
+    {
+      "id": "zoom", "added": "2026-10-31", "goal": "conversion", "tags": ["saas", "consumo", "ecommerce"],
+      "name": {"es": "Zoom al detalle", "en": "Feature zoom"},
+      "desc": {"es": "La cámara se acerca a la parte clave de la pantalla.", "en": "The camera pushes into the key part of the screen."},
+      "why": {"es": "Mostrar una función concreta (no la app entera) es lo que mejor funciona a mitad del embudo.", "en": "Showing one concrete feature (not the whole app) works best mid-funnel."},
+      "scenes": ["hook", "zoom", "points", "cta"],
+      "style": {"theme": "auto", "fx": "rise", "transition": "fade", "pace": 1, "bg": "blobs"}
+    },
+    {
+      "id": "tres-razones", "added": "2026-10-31", "goal": "awareness", "tags": ["consumo", "servicios", "saas", "local"],
+      "name": {"es": "3 razones", "en": "3 reasons"},
+      "desc": {"es": "Una lista numerada, una razón por pantalla, con números gigantes.", "en": "A numbered list, one reason per beat, with giant numbers."},
+      "why": {"es": "Las listas numeradas retienen hasta el final: la gente quiere ver la tercera.", "en": "Numbered lists hold attention to the end: people want to see number three."},
+      "scenes": ["hook", "reasons", "screen:0", "cta"],
+      "style": {"theme": "auto", "fx": "pop", "transition": "slide", "pace": 1, "bg": "grid"}
+    },
+    {
+      "id": "editorial", "added": "2026-10-31", "goal": "awareness", "tags": ["consumo", "servicios", "ecommerce"],
+      "name": {"es": "Minimal editorial", "en": "Minimal editorial"},
+      "desc": {"es": "Tipografía con serifa, mucho aire y ritmo pausado. Para marcas premium.", "en": "Serif type, lots of air and a calm pace. For premium brands."},
+      "why": {"es": "Para belleza, salud y servicios premium: transmite calidad sin parecer oferta.", "en": "For beauty, health and premium services: says quality without looking like a deal."},
+      "scenes": ["hook", "screen:0", "cta"],
+      "style": {"theme": "light", "fx": "rise", "transition": "fade", "pace": 1.25, "bg": "solid", "font": "serif"}
+    },
+    {
+      "id": "cortes-rapidos", "added": "2026-10-31", "goal": "awareness", "tags": ["consumo", "ecommerce", "local"],
+      "name": {"es": "Cortes rápidos", "en": "Fast cuts"},
+      "desc": {"es": "Ritmo rápido, cortes secos y todas las pantallas en menos de 10 segundos.", "en": "Fast rhythm, hard cuts and every screen in under 10 seconds."},
+      "why": {"es": "Los anuncios de reconocimiento que mejor rinden duran 9–15 segundos y cambian de plano seguido.", "en": "Top awareness ads run 9–15 seconds and cut often."},
+      "scenes": ["hook", "points", "screens", "cta"],
+      "style": {"theme": "dark", "fx": "pop", "transition": "cut", "pace": 0.6, "bg": "solid"}
+    },
+    {
+      "id": "demo-web", "added": "2026-10-31", "goal": "conversion", "tags": ["saas", "b2b"],
+      "name": {"es": "Demo de producto web", "en": "Web product demo"},
+      "desc": {"es": "La versión de computadora en un navegador, con los pasos para empezar.", "en": "The desktop version in a browser, with the steps to get started."},
+      "why": {"es": "Para software de trabajo: el comprador quiere ver la pantalla real antes de registrarse.", "en": "For work software: buyers want to see the real screen before signing up."},
+      "scenes": ["hook", "screen:1", "steps", "cta"],
+      "style": {"theme": "light", "fx": "rise", "transition": "slide", "pace": 1, "bg": "grid"}
+    },
+    {
+      "id": "sin-excusas", "added": "2026-10-31", "goal": "conversion", "tags": ["saas", "servicios", "b2b", "consumo"],
+      "name": {"es": "Sin excusas", "en": "Objection buster"},
+      "desc": {"es": "Responde la duda que frena a la gente («¿y si no sé usarla?») y cierra con los beneficios.", "en": "Answers the doubt that holds people back («what if I can't use it?») and closes with the benefits."},
+      "why": {"es": "Derribar la objeción principal convierte mejor que repetir beneficios a quien ya conoce la marca.", "en": "Knocking down the main objection converts better than repeating benefits to people who know the brand."},
+      "scenes": ["question", "points", "screen:0", "cta"],
+      "style": {"theme": "dark", "fx": "box", "transition": "slide", "pace": 1, "bg": "grid"}
+    }
+  ],
+  "sample": {
+    "es": {
+      "hook": "Tus clientas reservan solas, a cualquier hora", "emphasis": "reservan solas", "sub": "Turnos online con seña, sin llamadas ni WhatsApp",
+      "points": ["Agenda abierta 24 horas", "Seña con Mercado Pago", "Recordatorios automáticos"], "captions": ["Elegí el horario en dos toques", "Tu agenda, siempre al día"],
+      "cta": "Probalo gratis", "cta_sub": "Listo en 2 minutos",
+      "lines": ["¿Seguís anotando turnos a mano?", "Tus clientas pueden reservar solas", "y pagar la seña en el momento", "Vos solo mirás la agenda"],
+      "chat": [{"me": false, "text": "Otra vez me cancelaron a último momento 😩"}, {"me": true, "text": "¿No cobrás seña?"}, {"me": false, "text": "Nunca supe cómo"}, {"me": true, "text": "Usá Turnera, la cobra sola cuando reservan"}],
+      "notes_title": "Para el estudio", "notes": ["Dejar de contestar WhatsApp a las 23 h", "Cobrar seña", "Que no falten a los turnos", "Ver la semana de un vistazo"],
+      "before": ["Turnos en un cuaderno", "Mensajes a toda hora", "Clientas que no vienen"], "after": ["Reservan solas", "Seña cobrada", "Recordatorio automático"],
+      "stat": {"value": "-60%", "label": "de clientas que faltan sin avisar"},
+      "query": "como cobrar seña de turnos", "notifs": [{"title": "Nueva reserva", "body": "Sofía · jueves 18:30 · seña pagada"}, {"title": "Recordatorio enviado", "body": "Mañana 10:00 · Carla"}, {"title": "Pago recibido", "body": "$ 4.000 · Mercado Pago"}],
+      "pov": "abriste tu estudio y la agenda ya se llenó sola", "problem": "anotar turnos en un cuaderno",
+      "steps": ["Cargás tus servicios", "Compartís tu link", "Ellas reservan y pagan"], "question": "¿Y si te faltan a un turno?", "answer": "Ya cobraste la seña.",
+      "marquee": ["Reservas", "Señas", "Agenda", "Sin llamadas"]
+    },
+    "en": {
+      "hook": "Your clients book themselves, any time", "emphasis": "book themselves", "sub": "Online bookings with deposits, no calls or texts",
+      "points": ["Open 24/7", "Deposits up front", "Automatic reminders"], "captions": ["Pick a time in two taps", "Your schedule, always up to date"],
+      "cta": "Try it free", "cta_sub": "Ready in 2 minutes",
+      "lines": ["Still writing bookings by hand?", "Your clients can book themselves", "and pay the deposit right away", "You just check the schedule"],
+      "chat": [{"me": false, "text": "Another last-minute cancellation 😩"}, {"me": true, "text": "Don't you take a deposit?"}, {"me": false, "text": "Never knew how"}, {"me": true, "text": "Use Turnera, it charges it when they book"}],
+      "notes_title": "For the studio", "notes": ["Stop answering texts at 11 pm", "Take deposits", "No more no-shows", "See the week at a glance"],
+      "before": ["Bookings in a notebook", "Messages all day", "Clients who don't show"], "after": ["They book themselves", "Deposit charged", "Automatic reminder"],
+      "stat": {"value": "-60%", "label": "fewer no-shows"},
+      "query": "how to take booking deposits", "notifs": [{"title": "New booking", "body": "Sofia · Thursday 6:30 pm · deposit paid"}, {"title": "Reminder sent", "body": "Tomorrow 10:00 · Carla"}, {"title": "Payment received", "body": "$40 · Stripe"}],
+      "pov": "you open the studio and the week is already booked", "problem": "writing bookings in a notebook",
+      "steps": ["Add your services", "Share your link", "They book and pay"], "question": "What if a client doesn't show?", "answer": "You already have the deposit.",
+      "marquee": ["Bookings", "Deposits", "Schedule", "No calls"]
+    }
+  }
+}

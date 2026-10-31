@@ -315,7 +315,10 @@ export const api = {
   ticket: (pageId: string) => j<{ id: string; title: string; url: string | null; fields: Record<string, string>; markdown: string }>(authed(`/api/tickets/${pageId}`)),
   ticketResolve: (pageId: string) => j<{ ok: boolean; build_id: string; session_id: string; branch: string; repo_url: string | null }>(post(`/api/tickets/${pageId}/resolve`, {})),
   ads: (sessionId: string, id: string) => j<AdsPayload>(authed(`/api/sessions/${sessionId}/builds/${id}/ads`)),
-  adsNew: (sessionId: string, id: string, instructions: string) => j<AdsPayload>(post(`/api/sessions/${sessionId}/builds/${id}/ads`, { instructions })),
+  adsNew: (sessionId: string, id: string, instructions: string, template?: string | null, look?: Record<string, unknown>) => j<AdsPayload>(post(`/api/sessions/${sessionId}/builds/${id}/ads`, { instructions, template, look })),
+  adsAnalyze: (sessionId: string, id: string) => j<AdsPayload>(post(`/api/sessions/${sessionId}/builds/${id}/ads/analyze`, {})),
+  adsSummary: (sessionId: string, id: string, summary: Partial<AppSummary>) =>
+    j<AdsPayload>(authed(`/api/sessions/${sessionId}/builds/${id}/ads/summary`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(summary) })),
   adsEdit: (sessionId: string, id: string, adId: string, changes: Partial<AdScript>) =>
     j<AdsPayload>(authed(`/api/sessions/${sessionId}/builds/${id}/ads/${adId}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(changes) })),
   adsRetry: (sessionId: string, id: string, adId: string) => j<AdsPayload>(post(`/api/sessions/${sessionId}/builds/${id}/ads/${adId}/retry`, {})),
@@ -326,6 +329,28 @@ export const api = {
   metaAdsStart: () => j<{ url: string }>(post('/api/meta-ads/start', {})),
   metaAdsAssets: () => j<{ accounts: { id: string; name: string; currency: string; active: boolean }[]; pages: { id: string; name: string }[] }>(authed('/api/meta-ads/assets')),
   metaAdsDisconnect: () => j<{ ok: boolean }>(authed('/api/meta-ads', { method: 'DELETE' })),
+  studioList: () => j<StudioList>(authed('/api/studio')),
+  studioCreate: (body: { title: string; instructions: string; link: string; goal: string; lang: string }) => j<StudioProject>(post('/api/studio', body)),
+  studio: (id: string) => j<StudioProject>(authed(`/api/studio/${id}`)),
+  studioPatch: (id: string, body: Partial<Pick<StudioProject, 'title' | 'instructions' | 'link' | 'goal'>>) =>
+    j<StudioProject>(authed(`/api/studio/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
+  studioDelete: (id: string) => j<{ ok: boolean }>(authed(`/api/studio/${id}`, { method: 'DELETE' })),
+  studioDeleteMedia: (id: string, mid: string) => j<StudioProject>(authed(`/api/studio/${id}/media/${mid}`, { method: 'DELETE' })),
+  studioRun: (id: string) => j<StudioProject>(post(`/api/studio/${id}/run`, {})),
+  studioStop: (id: string) => j<StudioProject>(post(`/api/studio/${id}/stop`, {})),
+  studioFileUrl: (id: string, name: string, v: number | string = '', download = false) => `/api/studio/${id}/file/${name}?token=${encodeURIComponent(getToken() ?? '')}&v=${v}${download ? '&download=1' : ''}`,
+  /** One upload with progress (XHR: fetch has no upload progress). */
+  studioUpload: (id: string, file: File, onProgress: (p: number) => void) => new Promise<StudioProject>((resolve, reject) => {
+    const x = new XMLHttpRequest()
+    x.open('POST', `/api/studio/${id}/media`)
+    x.setRequestHeader('Authorization', `Bearer ${getToken() ?? ''}`)
+    x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total) }
+    x.onload = () => { let d: { detail?: string } = {}; try { d = JSON.parse(x.responseText) } catch { /* not JSON */ } if (x.status < 300) resolve(d as StudioProject); else reject(new Error(d.detail ?? `HTTP ${x.status}`)) }
+    x.onerror = () => reject(new Error('No se pudo subir el archivo'))
+    const form = new FormData()
+    form.append('file', file, file.name)
+    x.send(form)
+  }),
   levels: (sessionId: string, id: string) => j<LevelsPayload>(authed(`/api/sessions/${sessionId}/builds/${id}/levels`)),
   marketList: (sessionId: string, id: string, body: { pitch: string; price_usd: number | null; title?: string }) =>
     j<{ ok: boolean; listing: MarketListing }>(authed(`/api/sessions/${sessionId}/builds/${id}/market`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
@@ -503,18 +528,39 @@ export interface AdScript {
   angle: string; name: string; hook: string; emphasis: string; sub: string; points: string[]; captions: string[]; cta: string; cta_sub: string
   font: 'grotesk' | 'serif' | 'rounded'; palette: { bg: string; surface: string; ink: string; muted: string; accent: string; accentInk: string }
   primary_text: string; headline: string; description: string; cta_type: string; link: string
+  lines?: string[]; notes_title?: string; notes?: string[]; before?: string[]; after?: string[]; steps?: string[]; marquee?: string[]
+  query?: string; pov?: string; problem?: string; question?: string; answer?: string; stat?: { value: string; label: string } | null
+  chat?: { me: boolean; text: string }[]; notifs?: { title: string; body: string }[]
 }
+/** What the team understood of the app (the ads are written from it); the user can correct it. */
+export interface AppSummary { name: string; one_liner: string; what: string; for_whom: string; problem: string; features: string[]; proof: string[]; tone: string; category: string; offer: string }
 export interface Ad {
   id: string; created: number; updated: number; status: 'capturing' | 'writing' | 'queued' | 'rendering' | 'ready' | 'error'; step: string; progress: number
-  instructions: string; script: AdScript | null; screens: { kind: 'phone' | 'desktop'; caption: string }[]; formats: Record<string, number>
+  instructions: string; template?: string; script: AdScript | null; screens: { kind: 'phone' | 'desktop'; caption: string }[]; formats: Record<string, number>
   error?: string | null; writer?: string | null; source?: string; version?: number
   meta: null | { status: 'publishing' | 'done' | 'error'; step?: string; error?: string; manager_url?: string; campaign_id?: string; daily_budget?: number; currency?: string; countries?: string[] }
 }
 export interface AdsPayload {
   ads: Ad[]; source: { kind: 'live' | 'design' | 'preview' | 'none'; label?: string; url?: string }; engine: boolean; writer: string | null
+  app: { status: 'none' | 'capturing' | 'summarizing' | 'recommending' | 'ready' | 'error'; step: string; error?: string | null; summary: AppSummary | null; summary_by?: string | null
+    source?: string | null; edited: boolean; stale: boolean; updated?: number; screens: { kind: 'phone' | 'desktop'; route: string; file: string; ratio: number; bg: string }[]; recommended: { id: string; why: string }[]; palette?: AdScript['palette'] | null }
   meta: { ready: boolean; connected: boolean; account?: string; expired?: boolean }
 }
 export interface MetaPublish { account_id: string; page_id: string; currency: string; daily_budget: number; countries: string[]; age_min: number; days: number | null; link: string }
+
+/** The Ad Studio: the user's own videos and images, turned into an ad by five agents (backend/app/studio.py). */
+export interface StudioMedia { id: string; name: string; kind: 'video' | 'image'; duration?: number; width?: number; height?: number; audio?: boolean; thumb?: string }
+export interface StudioEvent { agent: 'listen' | 'plan' | 'edit' | 'improve' | 'review'; text: string; kind: 'note' | 'step' | 'result' | 'verdict' | 'warn' | 'done'; round: number; ts: number
+  data: { highlights?: { video: string; start: number; end: number; quote: string; why: string }[]; plan?: { angle?: string; sequence: { type: string; media?: string; from?: number; to?: number; d?: number; title?: string; text?: string }[] }
+    notes?: string[]; approved?: boolean; score?: number; strengths?: string[]; fix?: string[]; video?: string; heard_by?: string | null } }
+export interface StudioProject {
+  id: string; title: string; created: number; updated: number; status: 'draft' | 'running' | 'done' | 'error' | 'stopped'; stage: string; error?: string | null; round: number; version: number
+  goal: 'sell' | 'awareness' | 'signup'; link: string; instructions: string; language: string; media: StudioMedia[]; running: boolean
+  timeline?: StudioEvent[]; agents?: Record<string, { status: 'waiting' | 'working' | 'done' | 'returned'; by?: string }>
+  preview?: { file: string; round: number; ts: number } | null; final?: { vertical: string; square: string; approved: boolean; ts: number } | null
+}
+export interface StudioList { projects: StudioProject[]; ready: boolean; transcriber: string | null; model: boolean; agents: { id: string; es: string; en: string; role_es: string; role_en: string }[]
+  limits: { files: number; video_mb: number; image_mb: number; minutes: number } }
 
 export interface LevelsPayload { levels: LevelsInfo; analytics: AnalyticsStats; app: CloudApp | null; listing: MarketListing | null; snippet: string }
 export interface CloudDb { provider: string; ok: boolean; vars: string[]; host: string | null; ts: number }

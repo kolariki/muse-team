@@ -7,7 +7,7 @@ import { TeamMemoryButton } from './TeamMemory'
 import { EmployeePicker, employeeToAgent } from './MyTeam'
 import { useBuild, type Activity } from '../buildStore'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, BarChart3, Bookmark, Check, Eye, FolderOpen, Gavel, Globe, Loader2, LogOut, Menu, MonitorSmartphone, Play, Plus, Puzzle, Settings2, Smartphone, Store, Trash2, Users, X, Zap } from 'lucide-react'
+import { Clapperboard, ArrowLeftRight, BarChart3, Bookmark, Check, Eye, FolderOpen, Gavel, Globe, Loader2, LogOut, Menu, MonitorSmartphone, Play, Plus, Puzzle, Settings2, Smartphone, Store, Trash2, Users, X, Zap } from 'lucide-react'
 import { toast, useConfirm, usePrompt } from './Toast'
 import SkillPicker from './SkillPicker'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -581,6 +581,9 @@ export default function Setup({ user, onLogout, onSettings, onAudit, onStart, on
             <LangSwitch />
             <button onClick={onAudit} title={T('Subí un proyecto existente y el equipo lo revisa desde cada rol', 'Upload an existing project and the team reviews it from every role')} className="flex h-10 items-center gap-2 rounded-full bg-accent px-4 text-sm font-semibold text-white shadow-md transition hover:brightness-110 hover:shadow-lg">
               <Gavel size={16} /> {T('Auditar un proyecto', 'Audit a project')}
+            </button>
+            <button onClick={() => useArena.getState().set({ view: 'studio' })} title={T('Subí tus videos e imágenes y el equipo arma un anuncio listo para Meta', 'Upload your videos and images and the team makes an ad ready for Meta')} className="flex h-10 items-center gap-2 rounded-full bg-ink px-4 text-sm font-semibold text-paper shadow-md transition hover:brightness-110 hover:shadow-lg">
+              <Clapperboard size={16} /> {T('Crear anuncio', 'Create ad')}
             </button>
             {TICKETS_ENABLED && <button onClick={() => useArena.getState().set({ view: 'tickets' })} title={T('Tus tickets de Notion: el equipo los resuelve y abre el PR', 'Your Notion tickets: the team resolves them and opens the PR')} className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm text-ink-2 shadow-sm transition hover:border-accent hover:bg-accent-soft hover:text-accent">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white ring-1 ring-black/10"><ProviderLogo provider="notion" size={14} /></span> Tickets
