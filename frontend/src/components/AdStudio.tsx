@@ -162,7 +162,7 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
                   <button onClick={() => cur && api.studioStop(cur.id).then(setCur)} className={PILL}><Square size={13} /> {T('Detener', 'Stop')}</button>
                 ) : (
                   <button onClick={run} disabled={!cur?.media.length || !!ups.some((u) => !u.err) || !list?.ready} className={PRIMARY}>
-                    {cur?.status === 'done' ? <RotateCcw size={15} /> : <Clapperboard size={15} />} {cur?.status === 'done' ? T('Hacer otra versión', 'Make another version') : T('Armar el anuncio con el equipo', 'Make the ad with the team')}
+                    {cur?.status === 'done' || cur?.status === 'error' ? <RotateCcw size={15} /> : <Clapperboard size={15} />} {cur?.status === 'done' ? T('Hacer otra versión', 'Make another version') : cur?.status === 'error' ? T('Reintentar desde donde quedó', 'Retry from where it stopped') : T('Armar el anuncio con el equipo', 'Make the ad with the team')}
                   </button>
                 )}
                 {cur && !busy && <button onClick={() => { if (window.confirm(T('¿Borrar este anuncio y sus archivos?', 'Delete this ad and its files?'))) api.studioDelete(cur.id).then(() => { fresh(); loadList() }) }} className="ml-auto flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition hover:bg-danger/10 hover:text-danger" aria-label={T('Borrar el anuncio', 'Delete the ad')}><Trash2 size={15} /></button>}
@@ -178,13 +178,13 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
                     const st = cur.agents?.[a.id]?.status ?? 'waiting'
                     const Icon = ICONS[a.id as keyof typeof ICONS] ?? Wand2
                     return (
-                      <div key={a.id} className={`rounded-xl border p-3 ${st === 'working' ? 'border-accent bg-accent-soft' : st === 'returned' ? 'border-[#C28A12]/50 bg-[#C28A12]/10' : 'border-line bg-surface'}`}>
+                      <div key={a.id} className={`rounded-xl border p-3 ${st === 'working' && busy ? 'border-accent bg-accent-soft' : st === 'error' ? 'border-danger/40 bg-danger/5' : st === 'returned' ? 'border-[#C28A12]/50 bg-[#C28A12]/10' : 'border-line bg-surface'}`}>
                         <div className="flex items-center gap-2">
-                          <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${st === 'done' ? 'bg-[#2E9E6A]/15 text-[#2E9E6A]' : 'bg-accent-soft text-accent'}`}>{st === 'working' ? <Loader2 size={15} className="animate-spin" /> : st === 'done' ? <CheckCircle2 size={15} /> : <Icon size={15} />}</span>
+                          <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${st === 'done' ? 'bg-[#2E9E6A]/15 text-[#2E9E6A]' : 'bg-accent-soft text-accent'}`}>{st === 'working' && busy ? <Loader2 size={15} className="animate-spin" /> : st === 'done' ? <CheckCircle2 size={15} /> : st === 'error' ? <AlertTriangle size={15} className="text-danger" /> : <Icon size={15} />}</span>
                           <span className="text-[13px] font-bold text-ink">{T(a.es, a.en)}</span>
                         </div>
                         <p className="mt-1.5 text-[11.5px] leading-snug text-ink-3">{T(a.role_es, a.role_en)}</p>
-                        <p className="mt-1 text-[11px] font-semibold text-ink-2">{st === 'working' ? T('trabajando', 'working') : st === 'done' ? T('listo', 'done') : st === 'returned' ? T('lo devolvió', 'sent it back') : T('en espera', 'waiting')}{cur.agents?.[a.id]?.by ? <span className="font-normal text-ink-4"> · {cur.agents[a.id].by}</span> : null}</p>
+                        <p className="mt-1 text-[11px] font-semibold text-ink-2">{st === 'error' || (st === 'working' && !busy) ? T('se trabó acá', 'stuck here') : st === 'working' ? T('trabajando', 'working') : st === 'done' ? T('listo', 'done') : st === 'returned' ? T('lo devolvió', 'sent it back') : T('en espera', 'waiting')}{cur.agents?.[a.id]?.by ? <span className="font-normal text-ink-4"> · {cur.agents[a.id].by}</span> : null}</p>
                       </div>
                     )
                   })}

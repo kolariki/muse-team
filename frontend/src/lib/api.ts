@@ -556,7 +556,7 @@ export interface StudioEvent { agent: 'listen' | 'plan' | 'edit' | 'improve' | '
 export interface StudioProject {
   id: string; title: string; created: number; updated: number; status: 'draft' | 'running' | 'done' | 'error' | 'stopped'; stage: string; error?: string | null; round: number; version: number
   goal: 'sell' | 'awareness' | 'signup'; link: string; instructions: string; language: string; media: StudioMedia[]; running: boolean
-  timeline?: StudioEvent[]; agents?: Record<string, { status: 'waiting' | 'working' | 'done' | 'returned'; by?: string }>
+  timeline?: StudioEvent[]; agents?: Record<string, { status: 'waiting' | 'working' | 'done' | 'returned' | 'error'; by?: string }>
   preview?: { file: string; round: number; ts: number } | null; final?: { vertical: string; square: string; approved: boolean; ts: number } | null
 }
 export interface StudioList { projects: StudioProject[]; ready: boolean; transcriber: string | null; model: boolean; agents: { id: string; es: string; en: string; role_es: string; role_en: string }[]

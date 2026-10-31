@@ -218,18 +218,34 @@ def _who(user_id: str, vision: bool) -> list[tuple[str, str, object]]:
     return [(pid, creds[pid].model or PROVIDERS[pid].default_model, creds[pid]) for pid in order if creds.get(pid) and creds[pid].source != "none" and PROVIDERS.get(pid)]
 
 
-async def ask(user_id: str, system: str, msg: str, images: list[bytes] | None = None, max_tokens: int = 3000) -> tuple[dict, str]:
-    """A JSON answer from the team's model; with images, the first model that can look at them (Muse first)."""
+REPAIR_SYSTEM = """Convertí la respuesta que te paso al objeto JSON que pide el formato. Respondé SOLO el JSON, completo y válido, sin texto
+alrededor ni bloques de código. Si a la respuesta le falta algo que el formato pide, completalo con lo más razonable según la misma respuesta."""
+
+
+async def _call(pid: str, model: str, cred, system: str, msg: str, images: list[bytes] | None, max_tokens: int) -> str:
+    buf: list[str] = []
+    async for kind, delta in stream(pid, model, system, msg, temperature=0.5, max_tokens=max_tokens, result=CallResult(), cred=cred, images=images or None):  # type: ignore[arg-type]
+        if kind == "text":
+            buf.append(delta)
+    return "".join(buf)
+
+
+async def ask(user_id: str, system: str, msg: str, images: list[bytes] | None = None, max_tokens: int = 8000) -> tuple[dict, str]:
+    """A JSON answer from the team's model; with images, the first model that can look at them (Muse first). When the answer
+    is not JSON (cut short, or prose), the same model turns it into the requested JSON before trying another model."""
     tried = []
     for pid, model, cred in _who(user_id, bool(images)):
         try:
-            buf: list[str] = []
-            async for kind, delta in stream(pid, model, system, msg, temperature=0.5, max_tokens=max_tokens, result=CallResult(), cred=cred, images=images or None):  # type: ignore[arg-type]
-                if kind == "text":
-                    buf.append(delta)
-            data = adsmod._json("".join(buf))
+            text = await _call(pid, model, cred, system, msg, images, max_tokens)
+            data = adsmod._json(text)
+            if not data:
+                log.warning("studio model %s answered without JSON (%d chars): %r … %r", pid, len(text), text[:400], text[-200:])
+                fmt = system[system.find("Respondé SOLO"):] if "Respondé SOLO" in system else "el JSON pedido"
+                text = await _call(pid, model, cred, REPAIR_SYSTEM, f"FORMATO PEDIDO:\n{fmt}\n\nRESPUESTA A CONVERTIR:\n{text[-12000:] or '(vacía: armala de cero con el formato y este pedido)'}\n\nPEDIDO ORIGINAL:\n{msg[:6000]}", None, max_tokens)
+                data = adsmod._json(text)
             if data:
                 return data, f"{PROVIDERS[pid].label} · {model}"
+            log.warning("studio model %s repair without JSON: %r", pid, text[:400])
             tried.append(f"{pid}: respuesta sin JSON")
         except Exception as e:  # noqa: BLE001
             log.warning("studio model %s failed: %s", pid, e)
@@ -435,6 +451,10 @@ async def _pipeline(user: User, pid: str) -> None:
         _agent(uid, pid, "listen", "working")
         videos = [m for m in proj["media"] if m["kind"] == "video"]
         transcript, heard_by = {}, None
+        prior = proj.get("transcript") or {}
+        if proj.get("listen") and all(m["id"] in prior for m in videos if m.get("audio")):  # a retry: the listener already did its part
+            transcript, heard_by = prior, proj.get("heard_by")
+            videos = [m for m in videos if not (mdir / f"{m['id']}.mp4").exists()]
         for m in videos:
             dst = mdir / f"{m['id']}.mp4"
             if not dst.exists():
@@ -449,14 +469,18 @@ async def _pipeline(user: User, pid: str) -> None:
                     segs = []
                     _say(uid, pid, "listen", tx(f"No pude transcribir «{m['name']}»: {str(e)[:160]}", f"Could not transcribe «{m['name']}»: {str(e)[:160]}"), "warn")
                 transcript[m["id"]] = segs
-        update(uid, pid, transcript=transcript)
+        update(uid, pid, transcript=transcript, heard_by=heard_by)
+        videos = [m for m in proj["media"] if m["kind"] == "video"]
         lines = "\n".join(f"[{mid} {s['start']:.1f}-{s['end']:.1f}] {s['text']}" for mid, segs in transcript.items() for s in segs)
         material = "\n".join(f"- {m['id']}: {'video' if m['kind'] == 'video' else 'imagen'} «{m['name']}»" + (f", {m['duration']} s, {m['width']}x{m['height']}, {'con' if m.get('audio') else 'sin'} sonido" if m["kind"] == "video" else f", {m['width']}x{m['height']}") for m in proj["media"])
         ask_ctx = f"PEDIDO DEL USUARIO: {proj.get('instructions') or '(sin pedido)'}\nOBJETIVO: {proj['goal']}\nLINK: {proj.get('link') or '(sin link)'}\nTÍTULO: {proj['title']}\n\nMATERIAL:\n{material}"
-        if lines:
+        if proj.get("listen") and transcript == prior and prior:
+            listen, by = proj["listen"], proj.get("listen_by")
+        elif lines:
             listen, by = await ask(uid, LISTEN_SYSTEM.format(lang=lang), f"{ask_ctx}\n\nTRANSCRIPCIÓN:\n{lines}")
         else:
             listen, by = {"summary": tx("Los videos no tienen voz (o no hay transcriptor): el anuncio se arma con lo que se ve.", "The videos have no voice (or there is no transcriber): the ad is built from what is on screen."), "highlights": []}, None
+        update(uid, pid, listen=listen, listen_by=by)
         _agent(uid, pid, "listen", "done", heard_by or by)
         _say(uid, pid, "listen", listen.get("summary") or "", "result", {"highlights": (listen.get("highlights") or [])[:8], "tone": listen.get("tone"), "heard_by": heard_by})
 
@@ -539,7 +563,12 @@ async def _pipeline(user: User, pid: str) -> None:
         raise
     except Exception as e:  # noqa: BLE001
         log.exception("studio %s", pid)
-        update(uid, pid, status="error", stage="", error=str(e)[:600])
+        proj = load(uid, pid) or {}
+        for a in (proj.get("agents") or {}).values():
+            if a.get("status") == "working":
+                a["status"] = "error"
+        proj.update(status="error", stage="", error=str(e)[:600])
+        save(uid, proj)
     finally:
         _running.pop(pid, None)
 
