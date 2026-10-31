@@ -91,7 +91,7 @@ export default function ArenaIntro({ team, onDone }: { team: IntroCompany[]; onD
             <motion.div
               key={c.key ?? c.provider}
               className="flex w-[180px] min-h-[270px] flex-col items-center rounded-2xl border px-3 py-4 text-center shadow-md"
-              style={{ background: 'rgba(255,255,255,0.86)', borderColor: t.border }}
+              style={{ background: 'color-mix(in srgb, var(--color-surface) 90%, transparent)', borderColor: t.border }}
               initial={{ opacity: 0, x: 140, scale: 0.6, filter: 'blur(6px)' }}
               animate={{ opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' }}
               transition={{ type: 'spring', stiffness: 160, damping: 18, delay: iconExitAt(i) + 0.12 }}

@@ -262,6 +262,7 @@ input[type="color"] { border: 1px solid var(--color-line); padding: 2px; }
 .look-taller .bg-\[\#F3F7FB\], .look-taller .bg-\[\#EEF1EC\], .look-taller .bg-\[\#E4ECF7\] { background-color: var(--color-surface-2); }
 .look-taller .text-\[\#1E2622\] { color: var(--color-ink); }
 .look-taller .text-\[\#0B2E66\] { color: #A9C8F5; }
+.look-taller .text-\[\#0B2E66\]\/60 { color: rgb(169 200 245 / 0.7); }
 .look-taller .text-\[\#5E6B65\] { color: var(--color-ink-3); }
 
 /* phones: a Markdown table slides sideways instead of squeezing every column to a few letters */
