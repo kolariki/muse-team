@@ -136,7 +136,7 @@ interface BuildState {
   reviewMode: 'review' | 'audit'
   mode: 'build' | 'audit'
   auditReport: string | null
-  pane: 'code' | 'preview' | 'report' | 'deploy' | 'app' | 'versions' | 'design' | 'cloud' | 'levels'
+  pane: 'code' | 'preview' | 'report' | 'deploy' | 'app' | 'versions' | 'design' | 'cloud' | 'levels' | 'ads'
   levels: LevelsInfo | null  // growth level of the project (ladder, next step's checks, %), from the snapshot and the levels endpoint
   servicesMissing: { count: number; impacts: string[] } | null  // services the app needs that are not set up (rail badge, Publish notice)
   fdeOrder: { pkg: string; notes: string } | null  // open "Pedir un developer" on this package with this text (e.g. «un experto configura Mercado Pago»)

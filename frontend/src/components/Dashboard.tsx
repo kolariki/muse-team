@@ -195,8 +195,9 @@ export default function Dashboard({ onOpen, onCouncil, onReplay, onAudit, refres
               {/* the companies that worked on this project, as soft bands with their logos behind the row */}
               <BrandStripes providers={providers} opacity={0.9} logos={false} />
               <div className="absolute inset-0 bg-surface/55" aria-hidden />
-              <div className="relative px-4 py-3">
-                <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
+              {/* the row follows the card's own width (a tablet-width window squeezed the title to nothing) */}
+              <div className="@container relative px-4 py-3">
+                <div className="flex flex-wrap items-center gap-3 @3xl:flex-nowrap @3xl:gap-4">
                   {/* mini animated scene of what the project is about (same generator as the experiment cards) */}
                   <SceneThumb sessionId={s.id} />
                   <div className="min-w-0 flex-1">
@@ -229,10 +230,10 @@ export default function Dashboard({ onOpen, onCouncil, onReplay, onAudit, refres
                     </div>
                   </div>
                   {/* the team's logos and shares live in their own column, between the title and the buttons, so nothing covers them */}
-                  <div className="hidden md:block w-[34%] max-w-[420px] shrink-0 self-stretch min-h-[44px]">
+                  <div className="hidden @4xl:block w-[34%] max-w-[420px] shrink-0 self-stretch min-h-[44px]">
                     <BrandLogoRow providers={providers} compact />
                   </div>
-                  <div className="flex w-full flex-wrap items-center justify-start gap-1.5 sm:w-auto sm:shrink-0 sm:justify-end">
+                  <div className="flex w-full flex-wrap items-center justify-start gap-1.5 @3xl:w-auto @3xl:shrink-0 @3xl:justify-end">
                     {isAudit ? (
                       <button onClick={() => go(s.id, 'builder')} disabled={!!busyAct} className={ACT_PRIMARY} title={T('Abrir el informe de auditoría', 'Open the audit report')}>{actLabel(s.id, 'builder', <HardHat size={13} />, T('Abrir', 'Open'))}</button>
                     ) : (

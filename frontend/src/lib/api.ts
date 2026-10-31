@@ -314,6 +314,18 @@ export const api = {
   ticketSetProject: (pageId: string, body: { session_id: string | null; build_id: string | null }) => j<{ ok: boolean }>(authed(`/api/tickets/${pageId}/project`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
   ticket: (pageId: string) => j<{ id: string; title: string; url: string | null; fields: Record<string, string>; markdown: string }>(authed(`/api/tickets/${pageId}`)),
   ticketResolve: (pageId: string) => j<{ ok: boolean; build_id: string; session_id: string; branch: string; repo_url: string | null }>(post(`/api/tickets/${pageId}/resolve`, {})),
+  ads: (sessionId: string, id: string) => j<AdsPayload>(authed(`/api/sessions/${sessionId}/builds/${id}/ads`)),
+  adsNew: (sessionId: string, id: string, instructions: string) => j<AdsPayload>(post(`/api/sessions/${sessionId}/builds/${id}/ads`, { instructions })),
+  adsEdit: (sessionId: string, id: string, adId: string, changes: Partial<AdScript>) =>
+    j<AdsPayload>(authed(`/api/sessions/${sessionId}/builds/${id}/ads/${adId}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(changes) })),
+  adsRetry: (sessionId: string, id: string, adId: string) => j<AdsPayload>(post(`/api/sessions/${sessionId}/builds/${id}/ads/${adId}/retry`, {})),
+  adsDelete: (sessionId: string, id: string, adId: string) => j<AdsPayload>(authed(`/api/sessions/${sessionId}/builds/${id}/ads/${adId}`, { method: 'DELETE' })),
+  adFileUrl: (sessionId: string, id: string, adId: string, name: string, v: number | string = '', download = false) =>
+    `/api/sessions/${sessionId}/builds/${id}/ads/${adId}/${name}?token=${encodeURIComponent(getToken() ?? '')}&v=${v}${download ? '&download=1' : ''}`,
+  adsToMeta: (sessionId: string, id: string, adId: string, body: MetaPublish) => j<AdsPayload>(post(`/api/sessions/${sessionId}/builds/${id}/ads/${adId}/meta`, body)),
+  metaAdsStart: () => j<{ url: string }>(post('/api/meta-ads/start', {})),
+  metaAdsAssets: () => j<{ accounts: { id: string; name: string; currency: string; active: boolean }[]; pages: { id: string; name: string }[] }>(authed('/api/meta-ads/assets')),
+  metaAdsDisconnect: () => j<{ ok: boolean }>(authed('/api/meta-ads', { method: 'DELETE' })),
   levels: (sessionId: string, id: string) => j<LevelsPayload>(authed(`/api/sessions/${sessionId}/builds/${id}/levels`)),
   marketList: (sessionId: string, id: string, body: { pitch: string; price_usd: number | null; title?: string }) =>
     j<{ ok: boolean; listing: MarketListing }>(authed(`/api/sessions/${sessionId}/builds/${id}/market`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
@@ -486,6 +498,24 @@ export interface AnalyticsDetail {
   people: AnalyticsPerson[]
   live: { path: string; country: string | null; device: string | null; ts: number }[]
 }
+/** Video ads made from the app (backend/app/ads.py) and their publication on Meta Ads (backend/app/meta_ads.py). */
+export interface AdScript {
+  angle: string; name: string; hook: string; emphasis: string; sub: string; points: string[]; captions: string[]; cta: string; cta_sub: string
+  font: 'grotesk' | 'serif' | 'rounded'; palette: { bg: string; surface: string; ink: string; muted: string; accent: string; accentInk: string }
+  primary_text: string; headline: string; description: string; cta_type: string; link: string
+}
+export interface Ad {
+  id: string; created: number; updated: number; status: 'capturing' | 'writing' | 'queued' | 'rendering' | 'ready' | 'error'; step: string; progress: number
+  instructions: string; script: AdScript | null; screens: { kind: 'phone' | 'desktop'; caption: string }[]; formats: Record<string, number>
+  error?: string | null; writer?: string | null; source?: string; version?: number
+  meta: null | { status: 'publishing' | 'done' | 'error'; step?: string; error?: string; manager_url?: string; campaign_id?: string; daily_budget?: number; currency?: string; countries?: string[] }
+}
+export interface AdsPayload {
+  ads: Ad[]; source: { kind: 'live' | 'design' | 'preview' | 'none'; label?: string; url?: string }; engine: boolean; writer: string | null
+  meta: { ready: boolean; connected: boolean; account?: string; expired?: boolean }
+}
+export interface MetaPublish { account_id: string; page_id: string; currency: string; daily_budget: number; countries: string[]; age_min: number; days: number | null; link: string }
+
 export interface LevelsPayload { levels: LevelsInfo; analytics: AnalyticsStats; app: CloudApp | null; listing: MarketListing | null; snippet: string }
 export interface CloudDb { provider: string; ok: boolean; vars: string[]; host: string | null; ts: number }
 export interface CloudLeak { service: string; url: string; env: string; files: string[]; live: boolean; own: boolean; preview: string }

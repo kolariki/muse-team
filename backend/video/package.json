@@ -1,0 +1,20 @@
+{
+  "name": "tably-ads-video",
+  "private": true,
+  "description": "Tably's ad videos: a Remotion composition driven by the ad script the team writes (backend/app/ads.py renders it with render.mjs)",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "bundle": "remotion bundle src/index.ts --out-dir build"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.535",
+    "@remotion/cli": "4.0.535",
+    "@remotion/google-fonts": "4.0.535",
+    "@remotion/renderer": "4.0.535",
+    "@remotion/transitions": "4.0.535",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.535"
+  }
+}

@@ -22,6 +22,7 @@ import asyncio
 import os
 from pathlib import Path
 import copy
+import html
 import json
 import time
 import hashlib
@@ -66,6 +67,8 @@ from . import connections as connectionsmod
 from . import leaks as leaksmod
 from . import lessons as lessonsmod
 from . import levels as levelsmod
+from . import ads as adsmod
+from . import meta_ads as metaads
 from . import tickets as ticketsmod
 from . import gitserver
 from . import agent_sessions
@@ -3356,6 +3359,165 @@ def market_withdraw(session_id: str, build_id: str, user: User = CurrentUser):
     _build_any(user, session_id, build_id)
     levelsmod.withdraw_listing(user.id, build_id)
     return {"ok": True}
+
+
+# ------------------------------------------------------------------------------------------------ ads (Remotion) and Meta Ads
+
+def _ads_payload(user: User, b) -> dict:
+    conn = metaads.connection(user.id)
+    w = adsmod.writer(user.id)
+    return {"ads": [adsmod.public(a) for a in adsmod.recover(user.id, b.id)], "source": adsmod.source_for(user, b), "engine": adsmod.engine_ready(),
+            "writer": f"{provmod.PROVIDERS[w[0]].label} · {w[1]}" if w else None,
+            "meta": {"ready": metaads.ready(), "connected": bool(conn), **(conn or {})}}
+
+
+@app.get("/api/sessions/{session_id}/builds/{build_id}/ads")
+def build_ads(session_id: str, build_id: str, user: User = CurrentUser):
+    """The project's video ads (made, being made or failed), where their screens come from and the Meta Ads connection."""
+    return _ads_payload(user, _build_any(user, session_id, build_id))
+
+
+@app.post("/api/sessions/{session_id}/builds/{build_id}/ads")
+async def build_ads_new(session_id: str, build_id: str, body: dict | None = None, user: User = CurrentUser):
+    """A new ad: capture the screens, write the script, render vertical and square. Body: {"instructions": "..."} (optional)."""
+    b = _build_any(user, session_id, build_id)
+    if not adsmod.engine_ready():
+        raise HTTPException(503, "Este servidor no tiene el motor de video instalado (backend/video).")
+    if not b.files:
+        raise HTTPException(400, "Todavía no hay una app para mostrar: el anuncio se hace cuando el equipo la construyó.")
+    try:
+        adsmod.start(user, b, str((body or {}).get("instructions") or "").strip())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _ads_payload(user, b)
+
+
+@app.put("/api/sessions/{session_id}/builds/{build_id}/ads/{ad_id}")
+async def build_ads_edit(session_id: str, build_id: str, ad_id: str, body: dict, user: User = CurrentUser):
+    """The user's changes to the texts, colours or font: the ad is rendered again with them."""
+    b = _build_any(user, session_id, build_id)
+    try:
+        adsmod.edit(user, b, ad_id, body or {})
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _ads_payload(user, b)
+
+
+@app.post("/api/sessions/{session_id}/builds/{build_id}/ads/{ad_id}/retry")
+async def build_ads_retry(session_id: str, build_id: str, ad_id: str, user: User = CurrentUser):
+    b = _build_any(user, session_id, build_id)
+    ad = adsmod.get(user.id, b.id, ad_id)
+    if not ad:
+        raise HTTPException(404)
+    try:
+        if ad.get("script") and ad.get("screens") is not None:
+            adsmod.edit(user, b, ad_id, {})
+        else:
+            adsmod.remove(user.id, b.id, ad_id)
+            adsmod.start(user, b, ad.get("instructions") or "")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _ads_payload(user, b)
+
+
+@app.delete("/api/sessions/{session_id}/builds/{build_id}/ads/{ad_id}")
+async def build_ads_delete(session_id: str, build_id: str, ad_id: str, user: User = CurrentUser):
+    b = _build_any(user, session_id, build_id)
+    adsmod.remove(user.id, b.id, ad_id)
+    return _ads_payload(user, b)
+
+
+@app.get("/api/sessions/{session_id}/builds/{build_id}/ads/{ad_id}/{name}")
+def build_ads_file(session_id: str, build_id: str, ad_id: str, name: str, request: Request, token: str = "", download: int = 0):
+    """A video or its cover. Auth by bearer or by `token` query, because the pane plays it in a <video>."""
+    bearer = (request.headers.get("authorization") or "").removeprefix("Bearer ").strip()
+    user = auth.user_from_token(token or bearer or None)
+    if not user:
+        raise HTTPException(401)
+    b = _build_any(user, session_id, build_id)
+    p = adsmod.file_for(user.id, b.id, ad_id, name)
+    if not p:
+        raise HTTPException(404)
+    ad = adsmod.get(user.id, b.id, ad_id) or {}
+    slug = re.sub(r"[^a-z0-9]+", "-", ((ad.get("script") or {}).get("name") or "anuncio").lower()).strip("-") or "anuncio"
+    return FileResponse(p, media_type="video/mp4" if name.endswith(".mp4") else "image/jpeg", headers={"cache-control": "private, max-age=3600"},
+                        filename=f"{slug}-{name}" if download else None, content_disposition_type="attachment" if download else "inline")
+
+
+@app.post("/api/meta-ads/start")
+def meta_ads_start(user: User = CurrentUser):
+    if not metaads.ready():
+        raise HTTPException(400, "La conexión con Meta Ads todavía no está habilitada en Tably.")
+    return {"url": metaads.start(user.id, cloudmod.public_url())}
+
+
+@app.get("/api/meta-ads/callback", include_in_schema=False)
+async def meta_ads_callback(code: str = "", state: str = "", error: str = "", error_description: str = ""):
+    """Meta sends the user back here (in the window Tably opened); the window tells Tably how it went and closes itself."""
+    from fastapi.responses import HTMLResponse
+
+    ok, msg = False, error_description or error or "Se canceló la conexión."
+    if code:
+        try:
+            await metaads.finish(code, state, cloudmod.public_url())
+            ok, msg = True, "Listo: tu cuenta de Meta Ads quedó conectada a Tably."
+        except Exception as e:  # noqa: BLE001
+            msg = str(e)[:300]
+    payload = json.dumps({"tablyMetaAds": "ok" if ok else "error", "message": msg})
+    page = (f"<!doctype html><meta charset=utf-8><title>Tably · Meta Ads</title><body style=\"font:16px system-ui;padding:40px;background:#10161F;color:#F1F4F8\">"
+            f"<p>{html.escape(msg)}</p><p>Ya podés cerrar esta ventana.</p><script>try{{window.opener&&window.opener.postMessage({payload},'*')}}catch(e){{}}setTimeout(function(){{window.close()}},1200)</script>")
+    return HTMLResponse(page)
+
+
+@app.delete("/api/meta-ads")
+async def meta_ads_disconnect(user: User = CurrentUser):
+    await metaads.disconnect(user.id)
+    return {"ok": True}
+
+
+@app.get("/api/meta-ads/assets")
+async def meta_ads_assets(user: User = CurrentUser):
+    """The ad accounts and Facebook Pages of the connected account, to pick where the ad goes."""
+    try:
+        return await metaads.assets(user.id)
+    except metaads.MetaError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/sessions/{session_id}/builds/{build_id}/ads/{ad_id}/meta")
+async def build_ads_to_meta(session_id: str, build_id: str, ad_id: str, body: dict, user: User = CurrentUser):
+    """Publish a ready ad to Meta Ads, PAUSED: body {account_id, page_id, currency, daily_budget, countries: [..], age_min, days, link}."""
+    b = _build_any(user, session_id, build_id)
+    ad = adsmod.get(user.id, b.id, ad_id)
+    if not ad or ad.get("status") != "ready":
+        raise HTTPException(400, "El anuncio todavía no está listo")
+    if (ad.get("meta") or {}).get("status") == "publishing":
+        raise HTTPException(409, "Ya se está publicando")
+    try:
+        budget = float(body.get("daily_budget") or 0)
+    except (TypeError, ValueError):
+        budget = 0
+    countries = [str(c).upper() for c in (body.get("countries") or []) if re.fullmatch(r"[A-Za-z]{2}", str(c))]
+    if budget <= 0 or not countries or not body.get("account_id") or not body.get("page_id"):
+        raise HTTPException(400, "Elegí la cuenta publicitaria, la página, el presupuesto diario y al menos un país")
+    opts = {**body, "daily_budget": budget, "countries": countries[:25]}
+    base = adsmod.folder(user.id, b.id) / ad_id
+
+    def step(text: str) -> None:
+        adsmod._update(user.id, b.id, ad_id, meta={"status": "publishing", "step": text})
+
+    async def job():
+        try:
+            step("Conectando con Meta")
+            res = await metaads.publish(user.id, ad, base, opts, step)
+            adsmod._update(user.id, b.id, ad_id, meta={"status": "done", **res, "published": time.time(), "daily_budget": budget, "currency": body.get("currency"), "countries": countries})
+        except Exception as e:  # noqa: BLE001
+            log.exception("meta ads publish %s", ad_id)
+            adsmod._update(user.id, b.id, ad_id, meta={"status": "error", "error": str(e)[:500]})
+
+    step("Conectando con Meta")
+    spawn(job())
+    return _ads_payload(user, b)
 
 
 @app.get("/api/market")

@@ -2,7 +2,7 @@ import DOMPurify from 'dompurify'
 import { openTeam } from './TeamMemory'
 import { srv } from '../lib/serverText'
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, Hammer, X, ArrowLeft, ArrowRight, CheckCircle2, Trophy, FlaskConical, Gauge, Home, ListChecks, Search, ShieldCheck, ChevronDown, ChevronLeft, Circle, Copy, CreditCard, Download, Maximize2, Minimize2, GitBranch, HardHat, MonitorPlay, Palette, PanelRightClose, ExternalLink, Eye, FileCode2, FileText, Folder, Gavel, KeyRound, Play, RefreshCw, Send, Square, TerminalSquare, Sparkles, Loader2, CloudUpload, Clock3, Menu, Users, Languages } from 'lucide-react'
+import { AlertTriangle, Clapperboard, Hammer, X, ArrowLeft, ArrowRight, CheckCircle2, Trophy, FlaskConical, Gauge, Home, ListChecks, Search, ShieldCheck, ChevronDown, ChevronLeft, Circle, Copy, CreditCard, Download, Maximize2, Minimize2, GitBranch, HardHat, MonitorPlay, Palette, PanelRightClose, ExternalLink, Eye, FileCode2, FileText, Folder, Gavel, KeyRound, Play, RefreshCw, Send, Square, TerminalSquare, Sparkles, Loader2, CloudUpload, Clock3, Menu, Users, Languages } from 'lucide-react'
 import { marked } from 'marked'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { reconnectBuild, useBuild, type Activity, type ChatItem, type Todo } from '../buildStore'
@@ -16,6 +16,7 @@ import { LiveReview, ReviewLauncher, ReviewRoundCard } from './ReviewPanel'
 import ServicesDeploy, { servicesMissing } from './ServicesDeploy'
 import CloudPanel from './CloudPanel'
 import LevelsPanel, { LevelBadge } from './LevelsPanel'
+import AdsPanel from './AdsPanel'
 import { fmtDur } from '../lib/duration'
 import AppRunner from './AppRunner'
 import ThemeSwitch from './ThemeSwitch'
@@ -43,6 +44,7 @@ const PANES: { id: BuildState['pane']; icon: typeof FileCode2; es: string; en: s
   { id: 'versions', icon: GitBranch, es: 'Versiones', en: 'Versions', off: (b) => b.versions.length === 0 },
   { id: 'cloud', icon: CloudUpload, es: 'Publicar', en: 'Publish', off: () => false },
   { id: 'levels', icon: Trophy, es: 'Niveles', en: 'Levels', off: () => false },
+  { id: 'ads', icon: Clapperboard, es: 'Anuncios', en: 'Ads', off: (b) => Object.keys(b.files).length === 0 },
   { id: 'deploy', icon: KeyRound, es: 'Servicios', en: 'Services', off: () => false },
   { id: 'report', icon: FileText, es: 'Informe', en: 'Report', off: (b) => !b.auditReport },
 ]
@@ -229,7 +231,9 @@ export default function Builder({ onBack, onHome }: { onBack: () => void; onHome
   }, [paneFull])
   const [treeOpen, setTreeOpen] = useState(false)
   const phone = wrapW > 0 && wrapW < 768  // on a phone a pane takes the whole width (the chat comes back when it closes)
-  const paneW = wrapW ? (paneFull || phone ? wrapW - (phone ? 48 : 56) : Math.max(560, Math.min(wrapW - 56 - 400, Math.round((wrapW - 56) * 0.6)))) : 760
+  // a tablet-width window has no room for the chat next to a 560px pane: the pane takes the width there too
+  const tight = wrapW > 0 && wrapW - 56 - 560 < 380
+  const paneW = wrapW ? (paneFull || phone || tight ? wrapW - (phone ? 48 : 56) : Math.max(560, Math.min(wrapW - 56 - 400, Math.round((wrapW - 56) * 0.6)))) : 760
 
   return (
     <div className="h-full flex flex-col bg-paper">
@@ -531,6 +535,8 @@ export default function Builder({ onBack, onHome }: { onBack: () => void; onHome
                   <span className="ml-auto text-[11px] text-ink-3 max-md:hidden">{T('hosting, base de datos, git y migración', 'hosting, database, git and migration')}</span>
                 ) : b.pane === 'levels' ? (
                   <span className="ml-auto text-[11px] text-ink-3 max-md:hidden">{T('qué nivel tiene el proyecto, qué falta para el siguiente, analytics y marketplace', 'the project level, what the next one needs, analytics and marketplace')}</span>
+                ) : b.pane === 'ads' ? (
+                  <span className="ml-auto text-[11px] text-ink-3 max-md:hidden">{T('videos para Reels, Stories y feed, y su publicación en Meta Ads', 'videos for Reels, Stories and feed, and publishing them on Meta Ads')}</span>
                 ) : b.pane === 'deploy' ? (
                   <span className="ml-auto text-[11px] text-ink-3 max-md:hidden">{T('lo que tu app necesita para cobrar, mandar emails y más', 'what your app needs to take payments, send email and more')}</span>
                 ) : b.pane === 'app' ? (
@@ -564,6 +570,8 @@ export default function Builder({ onBack, onHome }: { onBack: () => void; onHome
                 <CloudPanel />
               ) : b.pane === 'levels' ? (
                 <LevelsPanel />
+              ) : b.pane === 'ads' ? (
+                <AdsPanel />
               ) : b.pane === 'deploy' ? (
                 <ServicesDeploy onOpenSettings={() => { useArena.getState().set({ view: 'settings' }) }} />
               ) : b.pane === 'report' && b.auditReport ? (

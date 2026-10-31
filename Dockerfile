@@ -16,6 +16,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && npm install -g @anthropic-ai/claude-code @openai/codex pnpm @railway/cli \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# the ads' video engine (Remotion, backend/video): its packages, its own headless Chrome and the composition bundled once
+WORKDIR /app/backend/video
+COPY backend/video/package*.json ./
+RUN npm ci --no-audit --no-fund && node -e "require('@remotion/renderer').ensureBrowser().then(() => console.log('remotion chrome ok'))"
+COPY backend/video/src ./src
+COPY backend/video/render.mjs ./
+RUN npx remotion bundle src/index.ts --out-dir build
 # betterleaks: before publishing, Tably looks for keys written in the apps' code (see app/leaks.py); pinned and checked
 ARG BETTERLEAKS=1.9.0
 ARG BETTERLEAKS_SHA256=f8b185a39ffcece2a1ca82bf3a4e7435cd81963ffd16b7a9128daf75f35f6de7
