@@ -28,6 +28,7 @@
       "@ads/*": ["../backend/video/src/*"],
       "remotion": ["./node_modules/remotion"],
       "@remotion/transitions/*": ["./node_modules/@remotion/transitions/dist/presentations/*"],
+      "@remotion/google-fonts/*": ["./node_modules/@remotion/google-fonts/dist/cjs/*"],
       "@remotion/*": ["./node_modules/@remotion/*"],
       "react": ["./node_modules/@types/react"],
       "react/*": ["./node_modules/@types/react/*"]
