@@ -36,4 +36,4 @@ def test_foryou_profile_and_score():
     near, why = fy.score(p, {"industry": "food delivery", "country": "AR", "language": "es", "format": "ugc", "title": "Pizza a domicilio", "tier": "A", "tags": {}})
     far, _ = fy.score(p, {"industry": "automotive", "country": "US", "language": "en", "format": "brand_spot", "title": "New truck", "tier": "S", "tags": {}})
     assert near > far and "de tu país" in why
-    assert fy._looks_like_ad({"duration": 30, "title": "Comercial Pizza Hut 2024"}) and not fy._looks_like_ad({"duration": 900, "title": "Comercial largo"})
+    assert fy._looks_like_ad({"duration": 30, "title": "Comercial Pizza Hut 2024"}) and not fy._looks_like_ad({"duration": 90, "title": "Comercial largo"}) and fy._looks_like_ad({"duration": 90, "title": "Comercial largo"}, "long")

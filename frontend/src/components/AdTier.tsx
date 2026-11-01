@@ -17,7 +17,7 @@ const SELECT = 'h-9 rounded-full border border-line bg-surface px-3 text-[12.5px
 const LABEL = 'block text-[11px] font-semibold uppercase tracking-wide text-ink-3'
 type Tab = 'foryou' | 'tiers' | 'videos' | 'templates' | 'brands' | 'admin' | 'api'
 type Filters = Record<string, string>
-const DURATIONS: [string, string, string, Filters][] = [['', 'Cualquier duración', 'Any length', {}], ['15', 'Hasta 15 s', 'Up to 15 s', { max_s: '15' }], ['30', '15–30 s', '15–30 s', { min_s: '15', max_s: '30' }], ['60', '30–60 s', '30–60 s', { min_s: '30', max_s: '60' }], ['61', 'Más de 60 s', 'Over 60 s', { min_s: '60' }]]
+const DURATIONS: [string, string, string, Filters][] = [['', 'Cualquier duración', 'Any length', {}], ['reel', 'Reels · hasta 60 s', 'Reels · up to 60 s', { max_s: '60' }], ['15', 'Hasta 15 s', 'Up to 15 s', { max_s: '15' }], ['30', '15–30 s', '15–30 s', { min_s: '15', max_s: '30' }], ['60', '30–60 s', '30–60 s', { min_s: '30', max_s: '60' }], ['61', 'Más de 60 s', 'Over 60 s', { min_s: '60' }]]
 const qs = (f: Filters, extra: Filters = {}) => { const p = new URLSearchParams(Object.entries({ ...f, ...extra }).filter(([, v]) => v)); const s = p.toString(); return s ? `?${s}` : '' }
 const fmtName = (f: string | null | undefined, en: boolean) => (f ? (FORMATS[f]?.[en ? 1 : 0] ?? f) : '')
 
@@ -50,6 +50,7 @@ export default function AdTier({ onBack }: { onBack: () => void }) {
       <select value={dur} onChange={(e) => setDur(e.target.value)} className={SELECT}>{DURATIONS.map(([k, es, e2]) => <option key={k} value={k}>{T(es, e2)}</option>)}</select>
       <select value={filters.platform_origin ?? ''} onChange={(e) => set('platform_origin', e.target.value)} className={SELECT}><option value="">{T('Todas las plataformas', 'All platforms')}</option>{['tv', 'youtube', 'tiktok', 'meta'].map((k) => <option key={k} value={k}>{k === 'tv' ? 'TV' : k[0].toUpperCase() + k.slice(1)}</option>)}</select>
       <select value={filters.language ?? ''} onChange={(e) => set('language', e.target.value)} className={SELECT}><option value="">{T('Todos los idiomas', 'All languages')}</option>{home.facets.language.map((k) => <option key={k} value={k}>{k}</option>)}</select>
+      <button type="button" onClick={() => setDur(dur === 'reel' ? '' : 'reel')} className={`h-9 rounded-full border px-3 text-[12.5px] ${dur === 'reel' ? 'border-accent bg-accent text-white' : 'border-line bg-surface text-ink-2 hover:border-accent'}`}>{T('Reels · hasta 60 s', 'Reels · up to 60 s')}</button>
       <button type="button" onClick={() => set('region', filters.region === 'latam' ? '' : 'latam')} className={`h-9 rounded-full border px-3 text-[12.5px] ${filters.region === 'latam' ? 'border-accent bg-accent text-white' : 'border-line bg-surface text-ink-2 hover:border-accent'}`}>LatAm</button>
       {(Object.values(filters).some(Boolean) || dur) && <button type="button" onClick={() => { setFilters({}); setDur('') }} className="text-[12px] text-ink-3 underline">{T('Limpiar', 'Clear')}</button>}
     </div>
@@ -442,6 +443,7 @@ function ApiInfo({ base }: { base: string }) {
 const KIND_LABEL: Record<string, [string, string]> = { b2b: ['Vende a empresas (B2B)', 'Sells to businesses (B2B)'], b2c: ['Vende al público (B2C)', 'Sells to consumers (B2C)'], both: ['A empresas y al público', 'Businesses and consumers'], startup: ['Emprendimiento o startup', 'Startup'], freelance: ['Profesional independiente', 'Freelancer'], nonprofit: ['ONG o causa', 'Non-profit'], app: ['App o software', 'App or software'] }
 const GOAL_LABEL: Record<string, [string, string]> = { awareness: ['Que me conozcan', 'Get known'], leads: ['Conseguir clientes / contactos', 'Get leads'], sales: ['Vender más', 'Sell more'], downloads: ['Descargas de la app', 'App downloads'], signups: ['Registros', 'Sign-ups'] }
 const COUNTRIES: [string, string, string][] = [['AR', 'Argentina', 'Argentina'], ['MX', 'México', 'Mexico'], ['CO', 'Colombia', 'Colombia'], ['CL', 'Chile', 'Chile'], ['PE', 'Perú', 'Peru'], ['UY', 'Uruguay', 'Uruguay'], ['PY', 'Paraguay', 'Paraguay'], ['BO', 'Bolivia', 'Bolivia'], ['EC', 'Ecuador', 'Ecuador'], ['VE', 'Venezuela', 'Venezuela'], ['CR', 'Costa Rica', 'Costa Rica'], ['PA', 'Panamá', 'Panama'], ['GT', 'Guatemala', 'Guatemala'], ['DO', 'Rep. Dominicana', 'Dominican Rep.'], ['PR', 'Puerto Rico', 'Puerto Rico'], ['BR', 'Brasil', 'Brazil'], ['ES', 'España', 'Spain'], ['US', 'Estados Unidos', 'United States'], ['GB', 'Reino Unido', 'United Kingdom'], ['CA', 'Canadá', 'Canada'], ['FR', 'Francia', 'France'], ['IT', 'Italia', 'Italy'], ['DE', 'Alemania', 'Germany'], ['PT', 'Portugal', 'Portugal']]
+const PLACEMENT_LABEL: Record<string, [string, string, string, string]> = { reels: ['Reels, TikTok y Shorts', 'Reels, TikTok and Shorts', 'verticales, hasta 60 s', 'vertical, up to 60 s'], stories: ['Historias', 'Stories', 'hasta 15 s', 'up to 15 s'], long: ['YouTube o TV', 'YouTube or TV', 'piezas largas, hasta 3 min', 'longer pieces, up to 3 min'] }
 const WORKING = ['queued', 'meta', 'frames', 'transcribe', 'analyze']
 const STAGE_LABEL: Record<string, [string, string]> = { queued: ['en cola', 'queued'], meta: ['leyendo datos', 'reading metadata'], frames: ['mirando cuadros', 'looking at frames'], transcribe: ['transcribiendo', 'transcribing'], analyze: ['analizando con Muse', 'analysing with Muse'], review: ['sin revisar', 'not reviewed'], error: ['no se pudo analizar', 'could not analyse'] }
 
@@ -483,7 +485,7 @@ function ProfileWizard({ home, onCancel, onCreated }: { home: ForYouHome; onCanc
   const en = T('es', 'en') === 'en'
   const [mode, setMode] = useState<'pick' | 'tably' | 'form'>(home.projects.length ? 'pick' : 'form')
   const [busy, setBusy] = useState(false)
-  const [a, setA] = useState<Record<string, string>>({ kind: 'b2c', goal: 'sales', country: '', sector: '' })
+  const [a, setA] = useState<Record<string, string>>({ kind: 'b2c', goal: 'sales', country: '', sector: '', placement: 'reels' })
   const [doc, setDoc] = useState<{ name: string; text: string } | null>(null)
   const set = (k: string, v: string) => setA((x) => ({ ...x, [k]: v }))
   const create = async (body: Record<string, string>) => {
@@ -500,6 +502,8 @@ function ProfileWizard({ home, onCancel, onCreated }: { home: ForYouHome; onCanc
         </div>
         {onCancel && <button onClick={onCancel} className="text-[12.5px] text-ink-3 underline">{T('Cancelar', 'Cancel')}</button>}
       </div>
+      <div className="mt-4"><span className={LABEL}>{T('¿Dónde vas a publicar los anuncios?', 'Where will the ads run?')}</span>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">{Object.entries(PLACEMENT_LABEL).map(([k, [es, e2, ds, de]]) => <button type="button" key={k} onClick={() => set('placement', k)} className={chip(a.placement === k)}>{T(es, e2)} <span className="opacity-75">· {T(ds, de)}</span></button>)}</div></div>
       {mode === 'pick' && (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <button onClick={() => setMode('tably')} className="flex flex-col items-start gap-1 rounded-xl border border-line bg-paper p-4 text-left transition hover:border-accent">
@@ -518,7 +522,7 @@ function ProfileWizard({ home, onCancel, onCreated }: { home: ForYouHome; onCanc
         <div className="mt-4 flex flex-col gap-2">
           <button onClick={() => setMode('pick')} className="self-start text-[12.5px] text-ink-3 underline">← {T('Volver', 'Back')}</button>
           {home.projects.map((p) => (
-            <button key={p.session_id} disabled={busy} onClick={() => create({ session_id: p.session_id, build_id: p.build_id })} className="flex items-center gap-3 rounded-xl border border-line bg-paper px-3 py-2.5 text-left transition hover:border-accent disabled:opacity-50">
+            <button key={p.session_id} disabled={busy} onClick={() => create({ session_id: p.session_id, build_id: p.build_id, placement: a.placement })} className="flex items-center gap-3 rounded-xl border border-line bg-paper px-3 py-2.5 text-left transition hover:border-accent disabled:opacity-50">
               <Layers size={16} className="shrink-0 text-accent" />
               <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{p.title || T('Proyecto sin título', 'Untitled project')}</span>
               <span className="shrink-0 text-[11.5px] text-ink-3">{new Date(p.updated * 1000).toLocaleDateString()}</span>
@@ -608,6 +612,7 @@ function ProfileView({ id, home, onOpen, onDeleted }: { id: string; home: ForYou
           {sector && <span className="rounded-full bg-accent-soft px-2.5 py-1 font-semibold text-accent">{en ? sector.en : sector.es}</span>}
           {p.kind && <span className="rounded-full border border-line px-2.5 py-1 text-ink-2">{T(...(KIND_LABEL[p.kind] ?? [p.kind, p.kind]))}</span>}
           {country && <span className="rounded-full border border-line px-2.5 py-1 text-ink-2">{en ? country[2] : country[1]}</span>}
+          {p.placement && <span className="rounded-full border border-accent/50 px-2.5 py-1 text-accent">{T(PLACEMENT_LABEL[p.placement][0], PLACEMENT_LABEL[p.placement][1])} · {T(PLACEMENT_LABEL[p.placement][2], PLACEMENT_LABEL[p.placement][3])}</span>}
           {p.goal && <span className="rounded-full border border-line px-2.5 py-1 text-ink-2">{T(...(GOAL_LABEL[p.goal] ?? [p.goal, p.goal]))}</span>}
           {p.audience && <span className="rounded-full border border-line px-2.5 py-1 text-ink-2">{T('Para', 'For')}: {p.audience}</span>}
         </div>
@@ -617,6 +622,7 @@ function ProfileView({ id, home, onOpen, onDeleted }: { id: string; home: ForYou
           <div className="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
             <label><span className={LABEL}>{T('Sector', 'Sector')}</span><select defaultValue={p.sector} onChange={(e) => setDraft((d) => ({ ...d, sector: e.target.value }))} className={`${INPUT} mt-1`}>{home.sectors.map((s) => <option key={s.id} value={s.id}>{en ? s.en : s.es}</option>)}</select></label>
             <label><span className={LABEL}>{T('País', 'Country')}</span><select defaultValue={p.country} onChange={(e) => setDraft((d) => ({ ...d, country: e.target.value }))} className={`${INPUT} mt-1`}><option value="">—</option>{COUNTRIES.map(([c, es, e2]) => <option key={c} value={c}>{en ? e2 : es}</option>)}</select></label>
+            <label className="sm:col-span-2"><span className={LABEL}>{T('Dónde se publican', 'Where they run')}</span><select defaultValue={p.placement ?? 'reels'} onChange={(e) => setDraft((d) => ({ ...d, placement: e.target.value }))} className={`${INPUT} mt-1`}>{Object.entries(PLACEMENT_LABEL).map(([k, [es, e2, ds, de]]) => <option key={k} value={k}>{T(`${es} · ${ds}`, `${e2} · ${de}`)}</option>)}</select></label>
             <label className="sm:col-span-2"><span className={LABEL}>{T('Qué hace', 'What it does')}</span><input defaultValue={p.summary} onChange={(e) => setDraft((d) => ({ ...d, summary: e.target.value }))} className={`${INPUT} mt-1`} /></label>
             <label className="sm:col-span-2"><span className={LABEL}>{T('Palabras clave (separadas por coma)', 'Keywords (comma-separated)')}</span><input defaultValue={p.keywords.join(', ')} onChange={(e) => setDraft((d) => ({ ...d, keywords: e.target.value }))} className={`${INPUT} mt-1`} /></label>
             <button onClick={save} className={`${PRIMARY} self-start`}><CheckCircle2 size={14} /> {T('Guardar', 'Save')}</button>
@@ -626,7 +632,7 @@ function ProfileView({ id, home, onOpen, onDeleted }: { id: string; home: ForYou
 
       <section>
         <h4 className="text-[15px] font-bold text-ink">{T('Del catálogo, para vos', 'From the catalogue, for you')}</h4>
-        <p className="text-[12.5px] text-ink-3">{T('Anuncios premiados ordenados por cuánto se parecen a tu negocio: rubro, país, idioma y formato.', 'Award-winning ads ranked by how close they are to your business: sector, country, language and format.')}</p>
+        <p className="text-[12.5px] text-ink-3">{T('Anuncios premiados ordenados por cuánto se parecen a tu negocio: rubro, país, idioma y formato. Solo los de un largo que te sirve.', 'Award-winning ads ranked by how close they are to your business: sector, country, language and format. Only the ones of a useful length.')}</p>
         {m.catalog.length ? (
           <div className="mt-3 grid grid-cols-1 gap-3 min-[460px]:grid-cols-2 lg:grid-cols-4">
             {m.catalog.map((v) => (

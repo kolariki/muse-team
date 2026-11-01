@@ -46,12 +46,13 @@ SECTORS: list[tuple[str, str, str]] = [  # id, es, en
 KINDS = ("b2b", "b2c", "both", "startup", "freelance", "nonprofit", "app")
 GOALS = ("awareness", "leads", "sales", "downloads", "signups")
 LATAM = {"AR", "BR", "CL", "CO", "MX", "PE", "UY", "PY", "BO", "EC", "VE", "CR", "PA", "GT", "HN", "SV", "NI", "DO", "CU", "PR"}
-AD_WORDS = re.compile(r"\b(anuncio|comercial|publicidad|spot|campaña|campanha|propaganda|commercial|advert|ad|ads|tvc|promo)\b", re.I)
+AD_WORDS = re.compile(r"\b(anuncio|comercial|publicidad|publicitario|spot|campaña|campanha|propaganda|commercial|advert|ad|ads|tvc|promo|promocional|reel)\b", re.I)
 COUNTRY_NAMES = {"AR": "Argentina", "MX": "México", "CO": "Colombia", "CL": "Chile", "PE": "Perú", "UY": "Uruguay", "PY": "Paraguay", "BO": "Bolivia",
                  "EC": "Ecuador", "VE": "Venezuela", "CR": "Costa Rica", "PA": "Panamá", "GT": "Guatemala", "DO": "República Dominicana", "PR": "Puerto Rico",
                  "BR": "Brasil", "ES": "España", "US": "USA", "GB": "UK", "CA": "Canada", "FR": "France", "IT": "Italia", "DE": "Deutschland", "PT": "Portugal"}
 STOP = {"para", "como", "pero", "todo", "todos", "toda", "todas", "país", "familiar", "vende", "vendemos", "hace", "hacemos", "sobre", "desde", "también",
         "nuestro", "nuestra", "nuestros", "empresa", "somos", "tiene", "tenemos", "están", "esta", "este", "with", "that", "from", "online", "abierta"}
+PLACEMENTS = {"reels": (6, 60), "stories": (5, 20), "long": (6, 180)}  # where the ads will run → the length of the references (s)
 MAX_FOUND = 12  # new videos per search: each one is two analysis calls on the person's own key
 
 with _db() as _c:
@@ -159,7 +160,8 @@ que le sirvan de referencia (de su sector, su país o región y su tipo de clien
  "keywords": ["6 a 12 palabras clave del rubro, en el idioma del país"],
  "formats": ["2 o 3 de: brand_spot, ugc, demo, testimonial, explainer"],
  "queries": ["4 búsquedas de YouTube para encontrar ANUNCIOS reales de ese rubro y país, en el idioma del país, con la palabra
-             'comercial', 'publicidad' o 'anuncio' (o 'commercial'/'ad' en inglés); una puede ser de una marca líder del rubro"],
+             'comercial', 'publicidad' o 'anuncio' (o 'commercial'/'ad' en inglés); una puede ser de una marca líder del rubro.
+             Si DÓNDE SE PUBLICAN es reels o stories, buscá piezas cortas y verticales: sumá 'reel', 'shorts' o 'tiktok' a dos de ellas"],
  "why": "una oración: qué tipo de anuncios le conviene ver y por qué"}
 Si el país no aparece, dejalo vacío. Nada de texto fuera del JSON."""
 
@@ -181,6 +183,7 @@ def _clean(raw: dict, answers: dict) -> dict:
         "formats": [x for x in lst(raw.get("formats"), 3) if x in at.FORMATS],
         "queries": lst(raw.get("queries"), 4),
         "why": str(raw.get("why") or "")[:300],
+        "placement": answers.get("placement") if answers.get("placement") in PLACEMENTS else "reels",
     }
     if not out["keywords"]:  # no model: the content words of the description
         words = re.findall(r"[a-záéíóúñü]{4,}", (answers.get("description") or "").lower())
@@ -235,7 +238,7 @@ async def create(user: User, body: dict) -> dict:
     """A profile from a Tably project (session_id + build_id) or from the answers (name, description, sector, kind, country, …)."""
     now = time.time()
     sid, bid = str(body.get("session_id") or ""), str(body.get("build_id") or "")
-    answers = {k: str(body.get(k) or "")[:3000] for k in ("name", "description", "sector", "kind", "country", "audience", "goal", "website", "docs")}
+    answers = {k: str(body.get(k) or "")[:3000] for k in ("name", "description", "sector", "kind", "country", "audience", "goal", "website", "docs", "placement")}
     if sid and bid:
         title, text = _project_text(user, sid, bid)
         answers["name"] = answers["name"] or title
@@ -247,6 +250,8 @@ async def create(user: User, body: dict) -> dict:
         text = "\n".join(f"{k.upper()}: {v}" for k, v in answers.items() if v and k not in ("docs", "website"))
         text += (f"\n\nSITIO WEB ({answers['website']}):\n{site}" if site else "") + (f"\n\nDOCUMENTOS:\n{answers['docs'][:6000]}" if answers["docs"] else "")
         source = "form"
+    answers["placement"] = answers["placement"] if answers["placement"] in PLACEMENTS else "reels"
+    text += f"\n\nDÓNDE SE PUBLICAN: {answers['placement']} (reels = Instagram/Facebook Reels, TikTok y Shorts, hasta 60 s; stories = hasta 15 s; long = YouTube/TV)"
     data, by = await _write(user, text, answers)
     data["by"] = by
     pid = secrets.token_hex(6)
@@ -269,6 +274,8 @@ def update(user_id: str, pid: str, fields: dict) -> dict:
         data["sector"] = fields["sector"]
     if fields.get("kind") in KINDS:
         data["kind"] = fields["kind"]
+    if fields.get("placement") in PLACEMENTS:
+        data["placement"] = fields["placement"]
     if fields.get("goal") in GOALS:
         data["goal"] = fields["goal"]
     if "country" in fields:
@@ -329,8 +336,11 @@ def matches(user_id: str, pid: str, n: int = 24) -> dict:
     with _db() as c:
         rows = c.execute("SELECT v.* FROM adtier_videos v WHERE v.status = 'published'").fetchall()
     close, rest = [], []  # same or near sector / talks about the business first; then only same country or region
+    top = PLACEMENTS.get(p["data"].get("placement") or "reels", PLACEMENTS["reels"])[1]
     for r in rows:
         card = at.card(at._row(r))
+        if (card.get("duration_s") or 0) > top * 1.5:  # a 2-minute case film is no reference for a reel
+            continue
         pts, why = score(p["data"], card)
         item = (pts, card | {"match": round(min(100, pts)), "why": why})
         if any(w.startswith(("mismo rubro", "rubro cercano", "habla de")) for w in why):
@@ -362,9 +372,10 @@ def _yt_search(query: str, n: int = 10) -> list[dict]:
         return []
 
 
-def _looks_like_ad(e: dict) -> bool:
+def _looks_like_ad(e: dict, placement: str = "reels") -> bool:
+    lo, hi = PLACEMENTS.get(placement, PLACEMENTS["reels"])
     d = e.get("duration") or 0
-    return 6 <= d <= 180 and bool(AD_WORDS.search(e.get("title") or ""))
+    return lo <= d <= hi and bool(AD_WORDS.search(e.get("title") or ""))
 
 
 def search(user: User, pid: str) -> int:
@@ -384,7 +395,7 @@ def search(user: User, pid: str) -> int:
                 for e in await asyncio.to_thread(_yt_search, q):
                     if len(added) >= MAX_FOUND:
                         break
-                    if not _looks_like_ad(e) or not e.get("id"):
+                    if not _looks_like_ad(e, data.get("placement") or "reels") or not e.get("id"):
                         continue
                     url = f"https://www.youtube.com/watch?v={e['id']}"
                     with _db() as c:

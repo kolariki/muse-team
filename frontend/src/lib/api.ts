@@ -601,7 +601,7 @@ export interface AdTierDetail extends AdTierCard { source_url: string; embed_url
   template: AdTierTemplate | null; template_version: number | null; similar: AdTierCard[]; unreviewed?: boolean; transcript?: { start: number; end: number; text: string }[]; stage?: string; error?: string | null; embed_ok?: number }
 /** AdTier «Para vos»: a profile of the person's business and the ads that fit it (backend/app/adtier_foryou.py). */
 export interface ForYouProfileData { name: string; summary: string; sector: string; kind: string; country: string; language: string; audience: string; goal: string
-  industries: string[]; keywords: string[]; formats: string[]; queries: string[]; why: string; by: string | null }
+  industries: string[]; keywords: string[]; formats: string[]; queries: string[]; why: string; by: string | null; placement?: 'reels' | 'stories' | 'long' }
 export interface ForYouProfile { id: string; name: string; source: 'tably' | 'form'; session_id: string | null; build_id: string | null; answers: Record<string, string>; data: ForYouProfileData
   searched: number | null; created: number; updated: number; searching: boolean; found?: number }
 export interface ForYouHome { profiles: ForYouProfile[]; projects: { session_id: string; build_id: string; title: string; updated: number }[]; sectors: { id: string; es: string; en: string }[]
