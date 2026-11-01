@@ -373,6 +373,8 @@ export const api = {
   foryouEdit: (id: string, body: Record<string, unknown>) => j<ForYouMatches>(authed(`/api/adtier/foryou/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
   foryouSearch: (id: string) => j<ForYouMatches>(post(`/api/adtier/foryou/${id}/search`, {})),
   foryouIdeas: (id: string, accounts?: string[]) => j<ForYouMatches>(post(`/api/adtier/foryou/${id}/ideas`, accounts ? { accounts } : {})),
+  metaApp: () => j<MetaApp>(authed('/api/settings/meta-app')),
+  metaAppSet: (body: { app_id?: string; app_secret?: string }) => j<MetaApp>(authed('/api/settings/meta-app', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
   foryouDelete: (id: string) => j<{ ok: boolean }>(authed(`/api/adtier/foryou/${id}`, { method: 'DELETE' })),
   foryouDoc: (file: File) => { const form = new FormData(); form.append('file', file, file.name); return j<{ name: string; text: string }>(authed('/api/adtier/foryou/doc', { method: 'POST', body: form })) },
   adtierCheckEmbeds: () => j<{ checked: number; unpublished: string[] }>(post('/api/adtier/admin/check-embeds', {})),
@@ -604,13 +606,14 @@ export interface AdTierDetail extends AdTierCard { source_url: string; embed_url
 export interface ForYouProfileData { name: string; summary: string; sector: string; kind: string; country: string; language: string; audience: string; goal: string
   industries: string[]; keywords: string[]; formats: string[]; queries: string[]; why: string; by: string | null; placement?: 'reels' | 'stories' | 'long'
   accounts?: string[]; refs?: ForYouRef[]; notes?: ForYouNote[]; ideas?: ReelIdea[]; patterns?: string; ideas_by?: string | null; ideas_at?: number; ideas_error?: string | null }
+export interface MetaApp { admin: boolean; app_id: string | null; has_secret: boolean; configured: boolean; redirect_uri: string }
 export interface ForYouRef { caption: string; url: string; thumb: string | null; views?: number | null; likes?: number | null; comments?: number | null; duration?: number | null; date?: string; platform: string | null; account: string }
-export interface ForYouNote { account: string; platform: string; handle: string; via: string | null; count: number; problem: string | null; action: 'connect_meta' | null; name?: string; followers?: number | null }
+export interface ForYouNote { account: string; platform: string; handle: string; via: string | null; count: number; problem: string | null; action: 'connect_meta' | 'enable_meta' | null; name?: string; followers?: number | null }
 export interface ReelIdea { title: string; duration_s: number; based_on: number[]; why: string; hook: string; beats: { t: string; shot: string; text: string; voice: string }[]; cta: string; caption: string; audio: string }
 export interface ForYouProfile { id: string; name: string; source: 'tably' | 'form'; session_id: string | null; build_id: string | null; answers: Record<string, string>; data: ForYouProfileData
   searched: number | null; created: number; updated: number; searching: boolean; ideating?: boolean; found?: number }
 export interface ForYouHome { profiles: ForYouProfile[]; projects: { session_id: string; build_id: string; title: string; updated: number }[]; sectors: { id: string; es: string; en: string }[]
-  kinds: string[]; goals: string[]; model: boolean; meta?: { ready: boolean; connected: boolean; instagram: boolean } }
+  kinds: string[]; goals: string[]; model: boolean; meta?: { ready: boolean; connected: boolean; instagram: boolean; admin?: boolean } }
 export interface ForYouMatches { profile: ForYouProfile; catalog: (AdTierCard & { match: number; why: string[] })[]; found: (AdTierCard & { stage: string | null; error: string | null; reviewed: boolean })[]; other_length?: number; searching: boolean; ideating?: boolean }
 export interface AdTierAgreement { reviewed: number; agree: number; pct: number | null }
 export interface AdTierHome { tiers: Record<AdTierTier, AdTierCard[]>; facets: { format: string[]; industry: string[]; language: string[]; country: string[]; platform_origin: string[]; brand: string[]; counts: Record<string, number> }

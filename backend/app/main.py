@@ -2600,6 +2600,28 @@ def notion_app_set(body: dict, user: User = CurrentUser):
     return notion_app_get(user)
 
 
+@app.get("/api/settings/meta-app")
+def meta_app_get(user: User = CurrentUser):
+    """The installation's Meta app (Ads + Instagram reading): set from the UI by the admin, the secret never goes back to a browser."""
+    aid, sec = metaads.app_creds()
+    return {"admin": _is_admin(user), "app_id": aid if _is_admin(user) else None, "has_secret": bool(sec), "configured": metaads.ready(),
+            "redirect_uri": metaads.redirect_uri(cloudmod.public_url())}
+
+
+@app.put("/api/settings/meta-app")
+def meta_app_set(body: dict, user: User = CurrentUser):
+    if not _is_admin(user):
+        raise HTTPException(403, "Solo quien administra esta instalación puede cargar la app de Meta.")
+    aid, sec = str(body.get("app_id") or "").strip(), str(body.get("app_secret") or "").strip()
+    if aid and not aid.isdigit():
+        raise HTTPException(400, "El App ID de Meta son solo números (lo ves arriba en developers.facebook.com → tu app).")
+    if aid:
+        ticketsmod.set_setting("meta_ads_app_id", aid)
+    if sec:
+        ticketsmod.set_setting("meta_ads_app_secret", sec)
+    return meta_app_get(user)
+
+
 @app.get("/api/notion/oauth/url")
 def notion_oauth_url(user: User = CurrentUser):
     """«Conectar con Notion» with one click (needs the operator's public integration); null when not configured."""
@@ -3686,7 +3708,7 @@ async def adtier_home(request: Request, user: User = CurrentUser):
 def foryou_home(user: User = CurrentUser):
     return {"profiles": foryoumod.profiles(user.id), "projects": foryoumod.projects(user), "sectors": [{"id": a, "es": b, "en": c} for a, b, c in foryoumod.SECTORS],
             "kinds": foryoumod.KINDS, "goals": foryoumod.GOALS, "model": bool(adtiermod.studio_who(user.id)),
-            "meta": {"ready": metaads.ready(), "connected": bool(metaads.connection(user.id)), "instagram": metaads.has_instagram(user.id)}}
+            "meta": {"ready": metaads.ready(), "connected": bool(metaads.connection(user.id)), "instagram": metaads.has_instagram(user.id), "admin": _is_admin(user)}}
 
 
 @app.post("/api/adtier/foryou")

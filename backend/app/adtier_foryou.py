@@ -551,6 +551,7 @@ async def read_account(user: User, acc: dict) -> tuple[list[dict], dict]:
                 note["action"] = "connect_meta"
             else:
                 note["problem"] = "Instagram no deja leer reels sin la conexión con Meta, que todavía no está habilitada en Tably."
+                note["action"] = "enable_meta"
     elif plat == "facebook":
         try:
             got = await meta.page_reels(user.id, h) if meta.connection(user.id) else None
@@ -564,7 +565,7 @@ async def read_account(user: User, acc: dict) -> tuple[list[dict], dict]:
             note["problem"] = ("Meta deja leer los videos solo de las páginas que administrás." if meta.connection(user.id)
                                else "Para leer los reels de una página de Facebook, conectá tu cuenta de Meta (solo de páginas que administrás)." if meta.ready()
                                else "Facebook no deja leer los videos de una página sin la conexión con Meta, que todavía no está habilitada en Tably.")
-            note["action"] = None if meta.connection(user.id) or not meta.ready() else "connect_meta"
+            note["action"] = None if meta.connection(user.id) else "connect_meta" if meta.ready() else "enable_meta"
     elif plat == "tiktok":
         items = await asyncio.to_thread(_tiktok, h)
         note["via"] = "tiktok" if items else None
