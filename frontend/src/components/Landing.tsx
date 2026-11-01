@@ -141,7 +141,7 @@ export default function Landing({ onLogin, onSignup }: { onLogin: () => void; on
         </div>
         <div>
           <div data-hero-kicker className="text-xs uppercase tracking-[0.5em] text-accent">{T('tu equipo que diseña y construye', 'your team that designs and builds')}</div>
-          <h1 key={lang} data-hero-title className="mt-3 text-6xl md:text-7xl leading-[0.95] tracking-tight opacity-0">
+          <h1 key={lang} data-hero-title className="mt-3 text-[44px] leading-[0.98] min-[420px]:text-5xl sm:text-6xl md:text-7xl md:leading-[0.95] tracking-tight opacity-0">
             {T('Escribí tu idea.', 'Write your idea.')} <em data-hero-word className="text-accent">Tably</em> {T('la construye.', 'builds it.')}
           </h1>
           <p data-hero-copy className="mt-5 text-lg text-ink-2 leading-relaxed max-w-lg">
@@ -285,9 +285,9 @@ function Resources() {
 }
 
 /** The "made with" seal: the TT mark and the name, bottom-right, linking to the site. */
-export function MadeWith() {
+export function MadeWith() {  // on a phone it would sit on top of the content (inputs, buttons): desktop only
   return (
-    <a href="https://tablyteam.com" target="_blank" rel="noreferrer" className="fixed bottom-4 right-4 z-30 flex items-center gap-2 rounded-full border border-line bg-surface/90 py-1.5 pl-1.5 pr-3.5 text-[12px] text-ink-2 shadow-md backdrop-blur transition hover:border-accent hover:text-ink">
+    <a href="https://tablyteam.com" target="_blank" rel="noreferrer" className="fixed bottom-4 right-4 z-30 hidden items-center gap-2 rounded-full border border-line bg-surface/90 py-1.5 pl-1.5 pr-3.5 text-[12px] text-ink-2 shadow-md backdrop-blur transition hover:border-accent hover:text-ink sm:flex">
       <img src="/icon.svg" alt="" aria-hidden className="h-5 w-5 rounded-md" draggable={false} />
       <span>Made with <b className="font-semibold text-ink">Tably Team</b></span>
     </a>
