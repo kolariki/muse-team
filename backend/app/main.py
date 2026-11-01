@@ -44,6 +44,7 @@ from . import scores as scoresmod
 from . import team as teammod
 from . import portability
 from . import analytics as analyticsmod
+from . import sites as sitesmod
 from . import observability as obs
 from .tasks import spawn
 from . import research
@@ -3092,15 +3093,20 @@ async def analytics_overview(user: User = CurrentUser):
                     # the project has the snippet but the page online does not load it (read from the live URL): publish again
                     "needs_republish": installed and online is False,
                     "stats": st, "visits_7d": levelsmod.hits_for(app_["slug"], time.time() - 7 * 86400)})
+    for site in sitesmod.list_sites(user.id):  # sites outside Tably, connected only to Analytics
+        st = levelsmod.stats(site["slug"])
+        out.append({"slug": site["slug"], "title": site["title"], "url": site.get("url"), "status": "live", "provider": "external", "build_id": "", "session_id": None,
+                    "installed": st["pageviews"] > 0 or st["live"] > 0 or st["events"] > 0, "needs_republish": False, "stats": st,
+                    "visits_7d": levelsmod.hits_for(site["slug"], time.time() - 7 * 86400),
+                    "external": {"repo": site.get("repo"), "pr_url": site.get("pr_url"), "pr_error": site.get("pr_error"), "snippet": sitesmod.tag(cloudmod.public_url(), site["slug"]),
+                                 "package": f"{cloudmod.public_url()}/pkg/tably-analytics-{site['slug']}.tgz", "github": bool(keystore.get_key(user.id, "github"))}})
     return {"apps": out, "collector": cloudmod.public_url(), "collector_public": not re.match(r"https?://(localhost|127\.0\.0\.1)", cloudmod.public_url())}
 
 
 @app.get("/api/analytics/{slug}")
 def analytics_detail(slug: str, days: int = 30, user: User = CurrentUser):
     """One app's detailed analytics: visitors, sessions, countries, devices, sources, pages, what people tap, who they are."""
-    app_ = next((a for a in cloudmod.list_apps(user.id) if a["slug"] == slug), None)
-    if not app_:
-        raise HTTPException(404)
+    app_ = _my_app(user, slug)
     own = urlparse(app_.get("url") or "").hostname
     return analyticsmod.detail(slug, max(1, min(int(days), 365)), own)
 
@@ -3108,8 +3114,70 @@ def analytics_detail(slug: str, days: int = 30, user: User = CurrentUser):
 def _my_app(user: User, slug: str) -> dict:
     app_ = next((a for a in cloudmod.list_apps(user.id) if a["slug"] == slug), None)
     if not app_:
+        site = sitesmod.get(user.id, slug)  # a site outside Tably, connected only to Analytics
+        if site:
+            return sitesmod.as_app(site)
         raise HTTPException(404)
     return app_
+
+
+@app.post("/api/analytics/sites")
+def analytics_site_create(body: dict, user: User = CurrentUser):
+    """Connect a site that lives outside Tably (its own GitHub + Railway/Vercel…) to Analytics only."""
+    try:
+        return sitesmod.create(user.id, str(body.get("title") or ""), str(body.get("url") or ""), str(body.get("repo") or ""))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.patch("/api/analytics/sites/{slug}")
+def analytics_site_update(slug: str, body: dict, user: User = CurrentUser):
+    try:
+        return sitesmod.update(user.id, slug, **{k: str(body[k] or "") for k in ("title", "url", "repo") if k in body})
+    except KeyError:
+        raise HTTPException(404)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/api/analytics/sites/{slug}")
+def analytics_site_delete(slug: str, user: User = CurrentUser):
+    if not sitesmod.get(user.id, slug):
+        raise HTTPException(404)
+    sitesmod.remove(user.id, slug)
+    return {"ok": True}
+
+
+@app.post("/api/analytics/sites/{slug}/pr")
+async def analytics_site_pr(slug: str, user: User = CurrentUser):
+    """Tably opens a pull request on the site's GitHub repo with the snippet in its pages; the host deploys it on merge."""
+    site = sitesmod.get(user.id, slug)
+    if not site:
+        raise HTTPException(404)
+    token = keystore.get_key(user.id, "github")
+    if not token:
+        raise HTTPException(400, "Falta tu token de GitHub (Modelos y claves → GitHub)")
+    res = await asyncio.to_thread(sitesmod.open_pr, site, token, cloudmod.public_url())
+    sitesmod.update(user.id, slug, pr_url=res.get("url") if res.get("ok") else site.get("pr_url"), pr_error=None if res.get("ok") else res.get("error"))
+    if not res.get("ok"):
+        raise HTTPException(400, res.get("error") or "No se pudo abrir el PR")
+    return res
+
+
+@app.post("/api/analytics/sites/{slug}/check")
+async def analytics_site_check(slug: str, user: User = CurrentUser):
+    site = sitesmod.get(user.id, slug)
+    if not site:
+        raise HTTPException(404)
+    return await sitesmod.check(site, cloudmod.public_url())
+
+
+@app.get("/pkg/tably-analytics-{slug}.tgz")
+def analytics_package(slug: str):
+    """The `tably-analytics` npm package with this site inside (`npm i <this url>`, or `npx -y <this url>` to write the tag into the pages)."""
+    if not re.fullmatch(r"[a-z0-9-]{1,80}", slug) or not (sitesmod.exists(slug) or levelsmod.hits_for(slug) ):
+        raise HTTPException(404)
+    return Response(sitesmod.package(slug, cloudmod.public_url()), media_type="application/gzip", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/api/analytics/{slug}/errors")
@@ -3142,6 +3210,8 @@ def analytics_experiments(slug: str, days: int = 30, goals: str = "", user: User
 def analytics_ask(slug: str, body: dict, user: User = CurrentUser):
     """One click from Analytics: the builder sets up an A/B test or the AI-call reporting in the app."""
     app_ = _my_app(user, slug)
+    if app_.get("provider") == "external":
+        raise HTTPException(400, "Este sitio no está en Tably, así que el equipo no puede tocar su código. Pedíselo a quien lo programa con lo que dice acá.")
     found = next(iter(auth.user_dir(user.id).glob(f"*.build.{app_['build_id']}.json")), None)
     if not found:
         raise HTTPException(404, "No encontré el proyecto de esta app")

@@ -183,6 +183,11 @@ export const api = {
   analyticsAsk: (slug: string, kind: 'ab' | 'ai', text = '') => j<{ ok: boolean; build_id: string; session_id: string }>(post(`/api/analytics/${slug}/ask`, { kind, text })),
   analyticsDetail: (slug: string, days: number) => j<AnalyticsDetail>(authed(`/api/analytics/${slug}?days=${days}`)),
   analytics: () => j<{ apps: AnalyticsApp[]; collector: string; collector_public: boolean }>(authed('/api/analytics')),
+  siteCreate: (body: { title: string; url: string; repo: string }) => j<{ slug: string }>(post('/api/analytics/sites', body)),
+  siteUpdate: (slug: string, body: { title?: string; url?: string; repo?: string }) => j<{ slug: string }>(authed(`/api/analytics/sites/${slug}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
+  siteDelete: (slug: string) => j<{ ok: boolean }>(authed(`/api/analytics/sites/${slug}`, { method: 'DELETE' })),
+  sitePr: (slug: string) => j<{ ok: boolean; url: string; files: string[] }>(post(`/api/analytics/sites/${slug}/pr`, {})),
+  siteCheck: (slug: string) => j<{ hits: number; online: boolean | null; connected: boolean }>(post(`/api/analytics/sites/${slug}/check`, {})),
   teamScores: () => j<{ roles: RoleScore[] }>(authed('/api/team/scores')),
   teamMemoryDecide: (id: string, action: 'accept' | 'dismiss' | 'edit' | 'forget', text?: string) => j<TeamMemory>(post(`/api/team/memory/${id}`, { action, text })),
   fdePackages: () => j<{ packages: FdePackage[]; booking_url: string | null; stripe: StripeStatus }>(authed('/api/fde/packages')),
@@ -568,6 +573,8 @@ export interface AnalyticsApp {
   needs_republish: boolean  // the project has the snippet but the version online is older
   stats: AnalyticsStats
   visits_7d: number
+  // a site outside Tably (its own GitHub + host), connected only to Analytics
+  external?: { repo: string | null; pr_url: string | null; pr_error: string | null; snippet: string; package: string; github: boolean }
 }
 export interface AnalyticsRow { key: string; n: number }
 export interface AnalyticsPerson { id: string; email: string | null; name: string | null; first_seen: number; last_seen: number; pageviews: number; actions: number; sessions: number; country: string | null; device: string | null; os: string | null; browser: string | null }

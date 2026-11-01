@@ -6,6 +6,7 @@ import { tr, useT } from '../lib/i18n'
 import { toast } from './Toast'
 import { useArena } from '../store'
 import AnalyticsDetail from './AnalyticsDetail'
+import { ConnectSite, ExternalSetup } from './ExternalSite'
 import { LiveNow } from './LevelsPanel'
 import PageHeader from './PageHeader'
 import HomeLoader from './HomeLoader'
@@ -16,8 +17,9 @@ export default function AnalyticsPage({ onBack }: { onBack: () => void }) {
   const T = useT()
   const [data, setData] = useState<{ apps: AnalyticsApp[]; collector: string; collector_public: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const reload = () => api.analytics().then(setData).catch((e) => setError((e as Error).message))
   useEffect(() => {
-    const load = () => { if (document.visibilityState === 'visible') api.analytics().then(setData).catch((e) => setError((e as Error).message)) }
+    const load = () => { if (document.visibilityState === 'visible') reload() }
     load()
     const t = window.setInterval(load, 30000)
     return () => window.clearInterval(t)
@@ -30,7 +32,7 @@ export default function AnalyticsPage({ onBack }: { onBack: () => void }) {
     <div className="h-full overflow-y-auto scroll-thin arena-bg">
       <div className="w-full px-4 py-5 sm:px-8 sm:py-8 2xl:px-12">
         <PageHeader onBack={onBack} kicker="Tably Analytics" title={T('Analíticas', 'Analytics')}
-          subtitle={T('Visitas, eventos y errores reales de cada app que publicaste. Sin cookies ni datos personales: cada app carga el snippet /a.js y las visitas llegan acá.', 'Real visits, events and errors of every app you published. No cookies or personal data: each app loads the /a.js snippet and the visits land here.')}
+          subtitle={T('Visitas, eventos y errores reales de cada app que publicaste con Tably o que conectaste desde tu hosting. Sin cookies ni datos personales: cada app carga el script /a.js y las visitas llegan acá.', 'Real visits, events and errors of every app you published with Tably or connected from your own host. No cookies or personal data: each app loads the /a.js script and the visits land here.')}
           right={data && <span className="flex h-9 items-center gap-3 rounded-full border border-line bg-surface px-3.5 text-sm text-ink-2 shadow-sm"><span className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${live ? 'bg-ok animate-pulse' : 'bg-ink-4'}`} /> {live} {T('en vivo', 'live')}</span><span className="h-4 w-px bg-line" /><span className="flex items-center gap-1.5"><BarChart3 size={15} /> {total} {T('visitas en total', 'visits in total')}</span></span>} />
         {data && !data.collector_public && (
           <div className="mt-6 flex items-start gap-3 rounded-2xl border border-gold/40 bg-gold/10 px-4 py-3 text-[13px] text-ink-2">
@@ -40,9 +42,10 @@ export default function AnalyticsPage({ onBack }: { onBack: () => void }) {
         )}
         {error && <div className="mt-6 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-[13px] text-danger">{error}</div>}
         <AnimatePresence>{!data && !error && <HomeLoader key="loader" caption={T('Midiendo tus apps…', 'Measuring your apps…')} />}</AnimatePresence>
-        {data && !data.apps.length && <div className="mt-8 rounded-2xl border border-dashed border-line px-6 py-12 text-center text-[14px] text-ink-3">{T('Todavía no publicaste ninguna app. Cuando publiques una con Tably Cloud, sus visitas aparecen acá.', 'You have not published any app yet. Once you publish one with Tably Cloud, its visits show up here.')}</div>}
+        {data && !openApp && <div className="mt-6 flex flex-wrap items-center gap-3"><ConnectSite onDone={() => reload()} /></div>}
+        {data && !data.apps.length && <div className="mt-6 rounded-2xl border border-dashed border-line px-6 py-12 text-center text-[14px] text-ink-3">{T('Todavía no hay apps acá. Publicá una con Tably Cloud o conectá un sitio que ya tengas online (en tu GitHub y tu hosting).', 'No apps here yet. Publish one with Tably Cloud or connect a site you already have online (on your GitHub and host).')}</div>}
         {openApp ? <div className="mt-8"><AnalyticsDetail app={openApp} onBack={() => setOpen(null)} /></div>
-          : <div className="mt-8 space-y-5">{data?.apps.map((a) => <AppCard key={a.slug} a={a} onDetail={() => setOpen(a.slug)} />)}</div>}
+          : <div className="mt-8 space-y-5">{data?.apps.map((a) => <AppCard key={a.slug} a={a} onDetail={() => setOpen(a.slug)} onChange={reload} />)}</div>}
       </div>
     </div>
   )
@@ -56,7 +59,7 @@ function last14(days: { day: string; n: number }[]) {
   })
 }
 
-function AppCard({ a, onDetail }: { a: AnalyticsApp; onDetail: () => void }) {
+function AppCard({ a, onDetail, onChange }: { a: AnalyticsApp; onDetail: () => void; onChange: () => void }) {
   const T = useT()
   const days = last14(a.stats.days)
   const max = Math.max(1, ...days.map((d) => d.n))
@@ -97,7 +100,7 @@ function AppCard({ a, onDetail }: { a: AnalyticsApp; onDetail: () => void }) {
           <div className="serif truncate text-[20px] leading-tight">{a.title}</div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[12px] text-ink-3">
             {a.url ? <a href={a.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-accent hover:underline">{a.url.replace(/^https?:\/\//, '')} <ExternalLink size={11} /></a> : <span>{T('sin URL', 'no URL')}</span>}
-            <span>· {a.status === 'live' ? T('en línea', 'live') : a.status === 'deploying' ? T('desplegando', 'deploying') : a.status}</span>
+            <span>· {a.external ? T('en tu hosting', 'on your host') : a.status === 'live' ? T('en línea', 'live') : a.status === 'deploying' ? T('desplegando', 'deploying') : a.status}</span>
           </div>
         </div>
         <button onClick={onDetail} className="flex h-8 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110"><BarChart3 size={13} /> {T('Ver detalle', 'See details')}</button>
@@ -113,7 +116,8 @@ function AppCard({ a, onDetail }: { a: AnalyticsApp; onDetail: () => void }) {
           )}
         </div>
       )}
-      {!a.installed && (
+      {a.external && <ExternalSetup a={a} onChange={onChange} />}
+      {!a.installed && !a.external && (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent-soft/40 px-3.5 py-2.5 text-[12.5px] text-ink-2">
           <span className="min-w-0 flex-1">{T('Esta app todavía no tiene las analíticas instaladas, así que no registra visitas. Un clic y el equipo las instala; después la publicás de nuevo.', 'This app does not have analytics installed yet, so it records no visits. One click and the team installs them; then you publish it again.')}</span>
           {a.session_id && (
