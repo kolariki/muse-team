@@ -29,6 +29,7 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
 
   const loadList = () => api.studioList().then(setList).catch((e) => toast.error(tr('No pude leer tus anuncios', 'Could not read your ads'), (e as Error).message))
   useEffect(() => { loadList() }, [])
+  useEffect(() => { const sid = useArena.getState().studioOpen; if (sid) { useArena.getState().set({ studioOpen: null }); open(sid) } }, []) // eslint-disable-line react-hooks/exhaustive-deps
   // while the team works, follow it
   useEffect(() => {
     if (!cur?.running && cur?.status !== 'running') return

@@ -48,3 +48,17 @@ def test_foryou_short_pieces():
     assert fy._looks_like_ad({"duration": 16, "title": "Pizza Hut Maestro Pizzero"}, "stories", ["pizza"])  # only the product in the title
     assert fy._looks_like_ad({"duration": 15, "title": "Specialty Pizzas - Hold Up :15"}, "stories")
     assert not fy._looks_like_ad({"duration": 45, "title": "Comercial pizza"}, "stories") and fy.fits(45, "reels")
+
+
+def test_foryou_reference_accounts_and_ideas():
+    from app import adtier_foryou as f
+
+    assert f.parse_account("instagram.com/nike/reels/")["handle"] == "nike"
+    assert f.parse_account("@pizzeria.don")["platform"] == "instagram"
+    assert f.parse_account("https://www.tiktok.com/@natgeo")["platform"] == "tiktok"
+    assert f.parse_account("https://www.facebook.com/cocacola")["platform"] == "facebook"
+    assert f.parse_account("youtube.com/@mercadolibre")["platform"] == "youtube"
+    assert f.parse_account("https://www.instagram.com/reel/abc/") is None  # a post, not an account
+    raw = {"ideas": [{"title": "Uno", "duration_s": "999", "based_on": [1, 7, "x"], "beats": [{"t": "0-2 s", "shot": "plano"}], "hook": "h"}, {"no": "title"}]}
+    out = f._clean_ideas(raw, 3)
+    assert len(out) == 1 and out[0]["duration_s"] == 180 and out[0]["based_on"] == [1] and out[0]["beats"][0]["voice"] == ""

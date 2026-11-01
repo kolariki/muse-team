@@ -93,6 +93,7 @@ interface ArenaState {
   recording: boolean
   showVideoExport: boolean
   showBriefExport: boolean
+  studioOpen: string | null  // an ad the Ad Studio opens when it mounts (made from somewhere else, e.g. an AdTier reel idea)
   decisionNotes: string  // the closing decisions as the user edited them in the verdict (go into the brief)
   layout: Layout
   speed: number
@@ -145,6 +146,7 @@ export const useArena = create<ArenaState>((set, get) => ({
   showTeam: false,
   selectedAgent: null as string | null,
   showBriefExport: false,
+  studioOpen: null,
   decisionNotes: '',
   layout: 'wide',
   speed: 1,

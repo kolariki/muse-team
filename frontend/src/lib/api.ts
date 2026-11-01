@@ -326,7 +326,7 @@ export const api = {
   adFileUrl: (sessionId: string, id: string, adId: string, name: string, v: number | string = '', download = false) =>
     `/api/sessions/${sessionId}/builds/${id}/ads/${adId}/${name}?token=${encodeURIComponent(getToken() ?? '')}&v=${v}${download ? '&download=1' : ''}`,
   adsToMeta: (sessionId: string, id: string, adId: string, body: MetaPublish) => j<AdsPayload>(post(`/api/sessions/${sessionId}/builds/${id}/ads/${adId}/meta`, body)),
-  metaAdsStart: () => j<{ url: string }>(post('/api/meta-ads/start', {})),
+  metaAdsStart: (forWhat?: 'instagram') => j<{ url: string }>(post('/api/meta-ads/start', forWhat ? { for: forWhat } : {})),
   metaAdsAssets: () => j<{ accounts: { id: string; name: string; currency: string; active: boolean }[]; pages: { id: string; name: string }[] }>(authed('/api/meta-ads/assets')),
   metaAdsDisconnect: () => j<{ ok: boolean }>(authed('/api/meta-ads', { method: 'DELETE' })),
   studioList: () => j<StudioList>(authed('/api/studio')),
@@ -368,10 +368,11 @@ export const api = {
   adtierSeed: () => j<{ added: string[]; errors: string[] }>(post('/api/adtier/admin/seed', {})),
   adtierAutopublish: (on: boolean) => j<{ autopublish: boolean }>(authed('/api/adtier/admin/autopublish', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ on }) })),
   foryou: () => j<ForYouHome>(authed('/api/adtier/foryou')),
-  foryouCreate: (body: Record<string, string>) => j<ForYouMatches>(post('/api/adtier/foryou', body)),
+  foryouCreate: (body: Record<string, string | string[]>) => j<ForYouMatches>(post('/api/adtier/foryou', body)),
   foryouGet: (id: string) => j<ForYouMatches>(authed(`/api/adtier/foryou/${id}`)),
   foryouEdit: (id: string, body: Record<string, unknown>) => j<ForYouMatches>(authed(`/api/adtier/foryou/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
   foryouSearch: (id: string) => j<ForYouMatches>(post(`/api/adtier/foryou/${id}/search`, {})),
+  foryouIdeas: (id: string, accounts?: string[]) => j<ForYouMatches>(post(`/api/adtier/foryou/${id}/ideas`, accounts ? { accounts } : {})),
   foryouDelete: (id: string) => j<{ ok: boolean }>(authed(`/api/adtier/foryou/${id}`, { method: 'DELETE' })),
   foryouDoc: (file: File) => { const form = new FormData(); form.append('file', file, file.name); return j<{ name: string; text: string }>(authed('/api/adtier/foryou/doc', { method: 'POST', body: form })) },
   adtierCheckEmbeds: () => j<{ checked: number; unpublished: string[] }>(post('/api/adtier/admin/check-embeds', {})),
@@ -601,12 +602,16 @@ export interface AdTierDetail extends AdTierCard { source_url: string; embed_url
   template: AdTierTemplate | null; template_version: number | null; similar: AdTierCard[]; unreviewed?: boolean; transcript?: { start: number; end: number; text: string }[]; stage?: string; error?: string | null; embed_ok?: number }
 /** AdTier «Para vos»: a profile of the person's business and the ads that fit it (backend/app/adtier_foryou.py). */
 export interface ForYouProfileData { name: string; summary: string; sector: string; kind: string; country: string; language: string; audience: string; goal: string
-  industries: string[]; keywords: string[]; formats: string[]; queries: string[]; why: string; by: string | null; placement?: 'reels' | 'stories' | 'long' }
+  industries: string[]; keywords: string[]; formats: string[]; queries: string[]; why: string; by: string | null; placement?: 'reels' | 'stories' | 'long'
+  accounts?: string[]; refs?: ForYouRef[]; notes?: ForYouNote[]; ideas?: ReelIdea[]; patterns?: string; ideas_by?: string | null; ideas_at?: number; ideas_error?: string | null }
+export interface ForYouRef { caption: string; url: string; thumb: string | null; views?: number | null; likes?: number | null; comments?: number | null; duration?: number | null; date?: string; platform: string | null; account: string }
+export interface ForYouNote { account: string; platform: string; handle: string; via: string | null; count: number; problem: string | null; action: 'connect_meta' | null; name?: string; followers?: number | null }
+export interface ReelIdea { title: string; duration_s: number; based_on: number[]; why: string; hook: string; beats: { t: string; shot: string; text: string; voice: string }[]; cta: string; caption: string; audio: string }
 export interface ForYouProfile { id: string; name: string; source: 'tably' | 'form'; session_id: string | null; build_id: string | null; answers: Record<string, string>; data: ForYouProfileData
-  searched: number | null; created: number; updated: number; searching: boolean; found?: number }
+  searched: number | null; created: number; updated: number; searching: boolean; ideating?: boolean; found?: number }
 export interface ForYouHome { profiles: ForYouProfile[]; projects: { session_id: string; build_id: string; title: string; updated: number }[]; sectors: { id: string; es: string; en: string }[]
-  kinds: string[]; goals: string[]; model: boolean }
-export interface ForYouMatches { profile: ForYouProfile; catalog: (AdTierCard & { match: number; why: string[] })[]; found: (AdTierCard & { stage: string | null; error: string | null; reviewed: boolean })[]; other_length?: number; searching: boolean }
+  kinds: string[]; goals: string[]; model: boolean; meta?: { ready: boolean; connected: boolean; instagram: boolean } }
+export interface ForYouMatches { profile: ForYouProfile; catalog: (AdTierCard & { match: number; why: string[] })[]; found: (AdTierCard & { stage: string | null; error: string | null; reviewed: boolean })[]; other_length?: number; searching: boolean; ideating?: boolean }
 export interface AdTierAgreement { reviewed: number; agree: number; pct: number | null }
 export interface AdTierHome { tiers: Record<AdTierTier, AdTierCard[]>; facets: { format: string[]; industry: string[]; language: string[]; country: string[]; platform_origin: string[]; brand: string[]; counts: Record<string, number> }
   admin: boolean; formats: string[]; agreement?: AdTierAgreement; takedown_email: string | null; public_url: string; autopublish?: boolean; seed_size?: number; working?: number }

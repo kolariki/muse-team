@@ -1,6 +1,6 @@
-import { AlertTriangle, Building2, CheckCircle2, Copy, Download, ExternalLink, KeyRound, Layers, Loader2, Medal, Plus, RefreshCw, Search, ShieldCheck, Trash2, Upload, X } from 'lucide-react'
+import { AlertTriangle, Building2, CheckCircle2, Clapperboard, Copy, Download, ExternalLink, Eye, Heart, KeyRound, Layers, Link2, Loader2, Medal, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { api, type AdTierCard, type AdTierDetail, type AdTierEvidence, type AdTierHome, type AdTierMasters, type AdTierPage, type AdTierTemplate, type AdTierTier, type ForYouHome, type ForYouMatches } from '../lib/api'
+import { api, type AdTierCard, type AdTierDetail, type AdTierEvidence, type AdTierHome, type AdTierMasters, type AdTierPage, type AdTierTemplate, type AdTierTier, type ForYouHome, type ForYouMatches, type ReelIdea } from '../lib/api'
 import { tr, useT } from '../lib/i18n'
 import { useArena } from '../store'
 import PageHeader from './PageHeader'
@@ -487,10 +487,11 @@ function ProfileWizard({ home, onCancel, onCreated }: { home: ForYouHome; onCanc
   const [busy, setBusy] = useState(false)
   const [a, setA] = useState<Record<string, string>>({ kind: 'b2c', goal: 'sales', country: '', sector: '', placement: 'reels' })
   const [doc, setDoc] = useState<{ name: string; text: string } | null>(null)
+  const [accounts, setAccounts] = useState('')
   const set = (k: string, v: string) => setA((x) => ({ ...x, [k]: v }))
   const create = async (body: Record<string, string>) => {
     setBusy(true)
-    try { onCreated(await api.foryouCreate(body)) } catch (e) { toast.error(T('No pude crear el perfil', 'Could not create the profile'), (e as Error).message) } finally { setBusy(false) }
+    try { onCreated(await api.foryouCreate({ ...body, accounts: splitAccounts(accounts) })) } catch (e) { toast.error(T('No pude crear el perfil', 'Could not create the profile'), (e as Error).message) } finally { setBusy(false) }
   }
   const chip = (on: boolean) => `rounded-full border px-3 py-1.5 text-[12.5px] transition ${on ? 'border-accent bg-accent text-white' : 'border-line bg-surface text-ink-2 hover:border-accent'}`
   return (
@@ -504,6 +505,7 @@ function ProfileWizard({ home, onCancel, onCreated }: { home: ForYouHome; onCanc
       </div>
       <div className="mt-4"><span className={LABEL}>{T('¿Dónde vas a publicar los anuncios?', 'Where will the ads run?')}</span>
         <div className="mt-1.5 flex flex-wrap gap-1.5">{Object.entries(PLACEMENT_LABEL).map(([k, [es, e2, ds, de]]) => <button type="button" key={k} onClick={() => set('placement', k)} className={chip(a.placement === k)}>{T(es, e2)} <span className="opacity-75">· {T(ds, de)}</span></button>)}</div></div>
+      <div className="mt-4"><AccountsInput value={accounts} onChange={setAccounts} /></div>
       {mode === 'pick' && (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <button onClick={() => setMode('tably')} className="flex flex-col items-start gap-1 rounded-xl border border-line bg-paper p-4 text-left transition hover:border-accent">
@@ -576,7 +578,7 @@ function ProfileView({ id, home, onOpen, onDeleted }: { id: string; home: ForYou
   useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
   // while the search runs or the found ads are analysed, the list fills in by itself
   useEffect(() => {
-    if (!m || !(m.searching || m.found.some((v) => WORKING.includes(v.stage ?? '')))) return
+    if (!m || !(m.searching || m.ideating || m.found.some((v) => WORKING.includes(v.stage ?? '')))) return
     const t = window.setTimeout(load, 5000)
     return () => window.clearTimeout(t)
   }, [m]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -630,6 +632,8 @@ function ProfileView({ id, home, onOpen, onDeleted }: { id: string; home: ForYou
         )}
       </div>
 
+      <ReelIdeas m={m} home={home} onChange={setM} />
+
       <section>
         <h4 className="text-[15px] font-bold text-ink">{T('Del catálogo, para vos', 'From the catalogue, for you')}</h4>
         <p className="text-[12.5px] text-ink-3">{T('Anuncios premiados ordenados por cuánto se parecen a tu negocio: rubro, país, idioma y formato. Solo los de un largo que te sirve.', 'Award-winning ads ranked by how close they are to your business: sector, country, language and format. Only the ones of a useful length.')}</p>
@@ -661,6 +665,153 @@ function ProfileView({ id, home, onOpen, onDeleted }: { id: string; home: ForYou
           </div>
         ) : !m.searching && <p className="mt-3 rounded-xl border border-dashed border-line px-4 py-6 text-center text-[13px] text-ink-3">{m.profile.searched ? T('No encontramos anuncios con estas búsquedas. Corregí el perfil (palabras clave o sector) y buscá de nuevo.', 'We found no ads with these searches. Fix the profile (keywords or sector) and search again.') : T('Tocá «Buscar más anuncios» para empezar.', 'Tap «Find more ads» to start.')}</p>}
       </section>
+    </div>
+  )
+}
+
+const splitAccounts = (text: string) => text.split(/[\s,]+/).map((x) => x.trim()).filter((x) => /[a-z0-9]/i.test(x)).slice(0, 5)
+const PLATFORM_LABEL: Record<string, string> = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', youtube: 'YouTube Shorts' }
+const num = (n?: number | null) => (n == null ? '' : n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} M` : n >= 1000 ? `${Math.round(n / 100) / 10} k` : String(n))
+
+function AccountsInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const T = useT()
+  return (
+    <label className="block">
+      <span className={LABEL}>{T('Cuentas que te gustan (opcional)', 'Accounts you like (optional)')}</span>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} className={`${INPUT} mt-1 font-mono text-[12.5px]`}
+        placeholder={T('instagram.com/tu_competencia\nfacebook.com/tu_pagina · tiktok.com/@una_marca · @otra_cuenta', 'instagram.com/a_competitor\nfacebook.com/your_page · tiktok.com/@a_brand · @another_account')} />
+      <span className="mt-1 block text-[11.5px] text-ink-3">{T('Hasta 5 cuentas de Instagram, Facebook, TikTok o YouTube (la tuya o de marcas que admirás). Miramos sus reels y te escribimos 5 reels para grabar.', 'Up to 5 Instagram, Facebook, TikTok or YouTube accounts (yours or brands you admire). We look at their reels and write you 5 reels to shoot.')}</span>
+    </label>
+  )
+}
+
+/** «5 reels para hacer»: the reference accounts, what was read from each one and the five reels Muse writes from them. */
+function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; onChange: (m: ForYouMatches) => void }) {
+  const T = useT()
+  const p = m.profile.data
+  const id = m.profile.id
+  const [text, setText] = useState((p.accounts ?? []).join('\n'))
+  const [open, setOpen] = useState(!p.accounts?.length)
+  const [busy, setBusy] = useState(false)
+  const refs = p.refs ?? []
+  const run = async (accounts?: string[]) => {
+    setBusy(true)
+    try { onChange(await api.foryouIdeas(id, accounts)); setOpen(false) } catch (e) { toast.error(T('No pude leer esas cuentas', 'Could not read those accounts'), (e as Error).message) } finally { setBusy(false) }
+  }
+  // connecting Meta (with Instagram) happens in a popup; when it says «ok», read the accounts again
+  useEffect(() => {
+    const on = (e: MessageEvent) => { if (e.data?.tablyMetaAds === 'ok') run(); else if (e.data?.tablyMetaAds === 'error') toast.error(T('No se conectó Meta', 'Meta was not connected'), String(e.data.message || '')) }
+    window.addEventListener('message', on)
+    return () => window.removeEventListener('message', on)
+  }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+  const connect = async () => {
+    try {
+      const { url } = await api.metaAdsStart('instagram')
+      const w = window.open(url, 'tably-meta-ads', 'width=620,height=760')
+      if (!w) location.href = url
+    } catch (e) { toast.error(T('No se pudo conectar Meta', 'Could not connect Meta'), (e as Error).message) }
+  }
+  const working = busy || !!m.ideating
+  return (
+    <section className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h4 className="flex items-center gap-1.5 text-[15px] font-bold text-ink"><Sparkles size={15} className="text-accent" /> {T('5 reels para hacer', '5 reels to make')}</h4>
+          <p className="text-[12.5px] text-ink-3">{T('Pegá cuentas de Instagram, Facebook o TikTok que te gusten: miramos sus reels, vemos qué les funciona y te escribimos 5 reels para tu negocio, con gancho, tomas, texto en pantalla y cierre.', 'Paste Instagram, Facebook or TikTok accounts you like: we look at their reels, see what works for them and write 5 reels for your business, with hook, shots, on-screen text and close.')}</p>
+        </div>
+        {!open && <button onClick={() => setOpen(true)} className={PILL}><Link2 size={14} /> {p.accounts?.length ? T('Cambiar cuentas', 'Change accounts') : T('Agregar cuentas', 'Add accounts')}</button>}
+      </div>
+      {open && (
+        <div className="mt-3 flex flex-col gap-2">
+          <AccountsInput value={text} onChange={setText} />
+          <button disabled={working || !splitAccounts(text).length} onClick={() => run(splitAccounts(text))} className={`${PRIMARY} self-start`}>
+            {working ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {T('Mirar sus reels y escribir 5 ideas', 'Look at their reels and write 5 ideas')}
+          </button>
+        </div>
+      )}
+      {!!p.notes?.length && (
+        <div className="mt-3 flex flex-col gap-1.5">
+          {p.notes.map((n) => (
+            <div key={n.account} className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px] ${n.count ? 'border-line text-ink-2' : 'border-[#C28A12]/40 bg-[#C28A12]/10 text-ink-2'}`}>
+              <span className="font-semibold text-ink">@{n.handle}</span>
+              <span className="min-w-0 flex-1">
+                {n.count ? T(`${n.count} reels leídos de ${PLATFORM_LABEL[n.via ?? ''] ?? n.via}`, `${n.count} reels read from ${PLATFORM_LABEL[n.via ?? ''] ?? n.via}`) : ''}
+                {n.count && n.via !== n.platform ? T(` (en ${PLATFORM_LABEL[n.platform]} no se pudo: ${n.problem ?? 'sin reels públicos'})`, ` (${PLATFORM_LABEL[n.platform]} could not be read: ${n.problem ?? 'no public reels'})`) : ''}
+                {!n.count && n.problem}
+              </span>
+              {n.action === 'connect_meta' && <button onClick={connect} className={PRIMARY}><Link2 size={14} /> {T('Conectar Meta', 'Connect Meta')}</button>}
+            </div>
+          ))}
+          {!home.model && <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-ink-2"><AlertTriangle size={14} className="text-[#C28A12]" /> {T('Para escribir las ideas hace falta la clave de Meta Muse.', 'Writing the ideas needs the Meta Muse key.')} <button onClick={() => useArena.getState().set({ view: 'settings' })} className={PILL}><KeyRound size={14} /> {T('Agregar clave', 'Add key')}</button></div>}
+        </div>
+      )}
+      {working && <p className="mt-3 flex items-center gap-2 text-[13px] text-ink-2"><Loader2 size={14} className="animate-spin text-accent" /> {T('Mirando los reels de esas cuentas y escribiendo tus 5 reels con Muse…', 'Looking at those accounts’ reels and writing your 5 reels with Muse…')}</p>}
+      {p.ideas_error && !working && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[12.5px] text-danger">{p.ideas_error} <button onClick={() => run()} className={PILL}><RefreshCw size={14} /> {T('Probar de nuevo', 'Try again')}</button></div>
+      )}
+      {refs.length > 0 && (
+        <div className="mt-4">
+          <div className={LABEL}>{T('Sus reels que más funcionaron', 'Their best-performing reels')}</div>
+          <div className="mt-1.5 flex gap-2 overflow-x-auto pb-1 scroll-thin">
+            {refs.slice(0, 12).map((r, i) => (
+              <a key={r.url + i} href={r.url} target="_blank" rel="noreferrer" title={r.caption} className="relative aspect-[9/16] w-[92px] shrink-0 overflow-hidden rounded-lg bg-black">
+                {r.thumb && <img src={r.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover opacity-90" />}
+                <span className="absolute left-1 top-1 rounded bg-black/70 px-1 text-[9.5px] font-semibold text-white">{i + 1}</span>
+                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-1.5 pb-1 pt-4 text-[9.5px] leading-tight text-white">
+                  @{r.account}<br />{r.views ? <><Eye size={9} className="inline" /> {num(r.views)} </> : null}{r.likes ? <><Heart size={9} className="inline" /> {num(r.likes)}</> : null}
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+      {p.patterns && <p className="mt-3 text-[12.5px] text-ink-2">💡 {p.patterns}</p>}
+      {!!p.ideas?.length && (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {p.ideas.map((it, i) => <IdeaCard key={i} n={i + 1} it={it} refs={refs} goal={p.goal} />)}
+        </div>
+      )}
+      {!!p.ideas?.length && !working && <button onClick={() => run()} className={`${PILL} mt-3`}><RefreshCw size={14} /> {T('Escribir otras 5', 'Write 5 more')}</button>}
+    </section>
+  )
+}
+
+function IdeaCard({ n, it, refs, goal }: { n: number; it: ReelIdea; refs: NonNullable<ForYouMatches['profile']['data']['refs']>; goal: string }) {
+  const T = useT()
+  const [making, setMaking] = useState(false)
+  const script = [`${it.title} (${it.duration_s} s)`, `Gancho: ${it.hook}`, ...it.beats.map((b) => `${b.t}: ${b.shot}${b.text ? ` · texto: «${b.text}»` : ''}${b.voice ? ` · voz: «${b.voice}»` : ''}`),
+    `Cierre: ${it.cta}`, it.audio ? `Audio: ${it.audio}` : ''].filter(Boolean).join('\n')
+  const make = async () => {
+    setMaking(true)
+    try {
+      const sp = await api.studioCreate({ title: it.title.slice(0, 80), instructions: script.slice(0, 2000), link: '', goal: goal === 'awareness' ? 'awareness' : goal === 'signups' || goal === 'leads' || goal === 'downloads' ? 'signup' : 'sell', lang: T('es', 'en') })
+      useArena.getState().set({ studioOpen: sp.id, view: 'studio' })
+    } catch (e) { toast.error(T('No se pudo crear el anuncio', 'Could not create the ad'), (e as Error).message) } finally { setMaking(false) }
+  }
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-line bg-paper p-3.5">
+      <div className="flex items-start gap-2">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-white">{n}</span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-semibold leading-snug text-ink">{it.title}</div>
+          <div className="text-[11.5px] text-ink-3">{it.duration_s} s{it.based_on.length ? ' · ' + T('inspirado en', 'inspired by') + ' ' : ''}
+            {it.based_on.map((k, j) => refs[k - 1] ? <a key={k} href={refs[k - 1].url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{j ? ', ' : ''}#{k} @{refs[k - 1].account}</a> : null)}</div>
+        </div>
+      </div>
+      {it.why && <p className="text-[12.5px] text-ink-2">{it.why}</p>}
+      <p className="rounded-lg bg-accent-soft px-2.5 py-1.5 text-[12.5px] text-ink"><b className="text-accent">{T('Gancho', 'Hook')}:</b> {it.hook}</p>
+      <ol className="flex flex-col gap-1 text-[12.5px] text-ink-2">
+        {it.beats.map((b, j) => (
+          <li key={j} className="flex gap-2"><span className="w-[52px] shrink-0 font-mono text-[11px] text-ink-3">{b.t}</span>
+            <span className="min-w-0">{b.shot}{b.text && <span className="text-ink"> · «{b.text}»</span>}{b.voice && <span className="italic text-ink-3"> · {b.voice}</span>}</span></li>
+        ))}
+      </ol>
+      <p className="text-[12.5px] text-ink-2"><b className="text-ink">{T('Cierre', 'Close')}:</b> {it.cta}</p>
+      {it.audio && <p className="text-[12px] text-ink-3">🎵 {it.audio}</p>}
+      <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
+        <button onClick={make} disabled={making} className={PRIMARY}>{making ? <Loader2 size={14} className="animate-spin" /> : <Clapperboard size={14} />} {T('Hacer este reel', 'Make this reel')}</button>
+        <button onClick={() => navigator.clipboard.writeText(`${script}\n\n${it.caption}`).then(() => toast.ok(T('Guion copiado', 'Script copied')))} className={PILL}><Copy size={14} /> {T('Copiar guion y texto', 'Copy script and caption')}</button>
+      </div>
     </div>
   )
 }

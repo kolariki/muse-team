@@ -85,7 +85,7 @@ def profiles(user_id: str) -> list[dict]:
 def get(user_id: str, pid: str) -> dict | None:
     with _db() as c:
         r = c.execute("SELECT * FROM adtier_profiles WHERE id = ? AND user_id = ?", (pid, user_id)).fetchone()
-    return _profile(r) | {"searching": pid in _search_jobs} if r else None
+    return _profile(r) | {"searching": pid in _search_jobs, "ideating": pid in _idea_jobs} if r else None
 
 
 def remove(user_id: str, pid: str) -> None:
@@ -360,7 +360,8 @@ def matches(user_id: str, pid: str, n: int = 24) -> dict:
             other += 1
             continue
         found.append(at.card(v) | {"stage": v.get("stage"), "error": v.get("error"), "reviewed": v.get("status") == "published"})
-    return {"profile": p, "catalog": [x for _, x in ranked[:n]], "found": found, "other_length": other, "searching": pid in _search_jobs}
+    return {"profile": p, "catalog": [x for _, x in ranked[:n]], "found": found, "other_length": other, "searching": pid in _search_jobs,
+            "ideating": pid in _idea_jobs}
 
 
 # ------------------------------------------------------------------------------------------------------------ search: real ads of that sector and country
@@ -457,4 +458,249 @@ def search(user: User, pid: str) -> int:
             _search_jobs.pop(pid, None)
 
     _search_jobs[pid] = spawn(run())  # type: ignore[assignment]
+    return 1
+
+
+# ------------------------------------------------------------------------------------------------------------ ideas: reels to make, from reference accounts
+
+MAX_ACCOUNTS = 5
+RESERVED = {"p", "reel", "reels", "tv", "stories", "explore", "watch", "share", "video", "videos", "profile.php", "groups", "shorts", "channel", "c", "user"}
+_idea_jobs: dict[str, asyncio.Task] = {}
+
+
+def parse_account(raw: str) -> dict | None:
+    """An Instagram, Facebook, TikTok or YouTube link (or a bare @handle, taken as Instagram) → {platform, handle, url}."""
+    s = (raw or "").strip().rstrip("/")
+    if not s:
+        return None
+    if re.fullmatch(r"@?[A-Za-z0-9._]{2,40}", s):
+        h = s.lstrip("@")
+        return {"platform": "instagram", "handle": h, "url": f"https://www.instagram.com/{h}/"}
+    m = re.match(r"(?:https?://)?(?:[a-z]+\.)?(instagram\.com|facebook\.com|fb\.com|tiktok\.com|youtube\.com)/(.+)", s, re.I)
+    if not m:
+        return None
+    host, parts = m.group(1).lower(), [x for x in re.split(r"[/?#]", m.group(2)) if x]
+    if not parts:
+        return None
+    if host == "tiktok.com" and parts[0].startswith("@"):
+        return {"platform": "tiktok", "handle": parts[0][1:], "url": f"https://www.tiktok.com/{parts[0]}"}
+    if host == "youtube.com" and parts[0].startswith("@"):
+        return {"platform": "youtube", "handle": parts[0][1:], "url": f"https://www.youtube.com/{parts[0]}"}
+    if parts[0].lower() in RESERVED or parts[0].startswith("@"):
+        return None
+    if host == "instagram.com":
+        return {"platform": "instagram", "handle": parts[0], "url": f"https://www.instagram.com/{parts[0]}/"}
+    if host in ("facebook.com", "fb.com"):
+        return {"platform": "facebook", "handle": parts[0], "url": f"https://www.facebook.com/{parts[0]}"}
+    return None
+
+
+def _flat(url: str, n: int) -> dict:
+    import yt_dlp
+
+    with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True, "extract_flat": True, "playlistend": n}) as y:
+        return y.extract_info(url, download=False) or {}
+
+
+def _thumb(e: dict) -> str | None:
+    th = [t for t in e.get("thumbnails") or [] if t.get("url")]
+    return e.get("thumbnail") or (th[-1]["url"] if th else None)
+
+
+def _yt_shorts(handle: str, n: int = 15) -> list[dict]:
+    try:
+        res = _flat(f"https://www.youtube.com/@{handle}/shorts", n)
+    except Exception as e:  # noqa: BLE001
+        log.info("adtier shorts @%s: %s", handle, e)
+        return []
+    return [{"caption": e.get("title") or "", "url": e.get("url") or f"https://www.youtube.com/shorts/{e['id']}", "thumb": _thumb(e),
+             "views": e.get("view_count"), "duration": e.get("duration")} for e in res.get("entries") or [] if e and e.get("id")]
+
+
+def _tiktok(handle: str, n: int = 15) -> list[dict]:
+    try:
+        res = _flat(f"https://www.tiktok.com/@{handle}", n)
+    except Exception as e:  # noqa: BLE001
+        log.info("adtier tiktok @%s: %s", handle, e)
+        return []
+    return [{"caption": e.get("title") or e.get("description") or "", "url": e.get("url") or e.get("webpage_url") or "", "thumb": _thumb(e),
+             "views": e.get("view_count"), "likes": e.get("like_count"), "comments": e.get("comment_count"), "duration": e.get("duration")}
+            for e in res.get("entries") or [] if e]
+
+
+async def read_account(user: User, acc: dict) -> tuple[list[dict], dict]:
+    """The latest reels of one account and how they were read: Meta's own API for Instagram and Pages first, the public listings
+    for TikTok and YouTube, and the brand's YouTube Shorts (same handle) when the first way is closed."""
+    from . import meta_ads as meta
+
+    plat, h = acc["platform"], acc["handle"]
+    note = {"account": acc["url"], "platform": plat, "handle": h, "via": None, "count": 0, "problem": None, "action": None}
+    items: list[dict] = []
+    if plat == "instagram":
+        if meta.connection(user.id) and meta.has_instagram(user.id):
+            try:
+                got = await meta.instagram_reels(user.id, h)
+                items = [{"caption": m.get("caption") or "", "url": m.get("permalink") or "", "thumb": m.get("thumbnail_url"), "likes": m.get("like_count"),
+                          "comments": m.get("comments_count"), "date": (m.get("timestamp") or "")[:10]} for m in got["media"]]
+                note["via"], note["name"], note["followers"] = "instagram", got["name"], got.get("followers")
+            except Exception as e:  # noqa: BLE001
+                note["problem"] = str(e)[:240]
+        else:
+            if meta.ready():
+                note["problem"] = "Instagram muestra los reels solo a cuentas conectadas: conectá tu cuenta de Meta y los leemos con su API oficial."
+                note["action"] = "connect_meta"
+            else:
+                note["problem"] = "Instagram no deja leer reels sin la conexión con Meta, que todavía no está habilitada en Tably."
+    elif plat == "facebook":
+        try:
+            got = await meta.page_reels(user.id, h) if meta.connection(user.id) else None
+        except Exception as e:  # noqa: BLE001
+            got, note["problem"] = None, str(e)[:240]
+        if got:
+            items = [{"caption": m.get("description") or "", "url": f"https://www.facebook.com{m['permalink_url']}" if str(m.get("permalink_url", "")).startswith("/") else m.get("permalink_url") or "",
+                      "thumb": m.get("picture"), "duration": m.get("length"), "date": (m.get("created_time") or "")[:10]} for m in got["media"]]
+            note["via"], note["name"] = "facebook", got["name"]
+        elif not note["problem"]:
+            note["problem"] = ("Meta deja leer los videos solo de las páginas que administrás." if meta.connection(user.id)
+                               else "Para leer los reels de una página de Facebook, conectá tu cuenta de Meta (solo de páginas que administrás)." if meta.ready()
+                               else "Facebook no deja leer los videos de una página sin la conexión con Meta, que todavía no está habilitada en Tably.")
+            note["action"] = None if meta.connection(user.id) or not meta.ready() else "connect_meta"
+    elif plat == "tiktok":
+        items = await asyncio.to_thread(_tiktok, h)
+        note["via"] = "tiktok" if items else None
+    elif plat == "youtube":
+        items = await asyncio.to_thread(_yt_shorts, h)
+        note["via"] = "youtube" if items else None
+    if not items and plat != "youtube":  # the same brand usually posts the same reels as YouTube Shorts
+        items = await asyncio.to_thread(_yt_shorts, h)
+        if items:
+            note["via"] = "youtube"
+    if not items:
+        note["problem"] = (note["problem"] or "No encontré reels públicos de esa cuenta.") + (" Si la marca tiene TikTok o canal de YouTube, pegá ese link." if plat in ("instagram", "facebook") else "")
+    for it in items:
+        it.update(platform=note["via"], account=h)
+    note["count"] = len(items)
+    return items, note
+
+
+IDEAS_SYSTEM = """Sos director creativo de contenido para redes. Te paso el perfil de un negocio y los últimos reels de las cuentas que
+la persona eligió como referencia (con sus números cuando los hay). Primero mirá qué funciona en esas cuentas (ganchos, formatos,
+temas, duración, los que más vistas o me gusta tienen) y después escribí EXACTAMENTE 5 reels para que este negocio los grabe, adaptados a
+su rubro, su país y su objetivo. Que se puedan grabar con un celular. No copies: tomá el patrón. Respondé SOLO un objeto JSON:
+{"patterns": "2 o 3 oraciones: qué funciona en esas cuentas y por qué",
+ "ideas": [{"title": "nombre corto del reel", "duration_s": 15,
+            "based_on": [números de los reels de referencia que inspiran esta idea],
+            "why": "una oración: por qué le va a funcionar",
+            "hook": "los primeros 2 segundos: qué se ve y qué se dice o se lee",
+            "beats": [{"t": "0-2 s", "shot": "qué se filma", "text": "texto en pantalla", "voice": "lo que se dice (o vacío)"}],
+            "cta": "el cierre y qué tiene que hacer quien lo ve",
+            "caption": "el texto de la publicación con 3 a 5 hashtags",
+            "audio": "qué música o sonido usar"}]}
+Escribí en el idioma del negocio."""
+
+
+def _number(n) -> str:
+    return "" if n in (None, "") else f"{int(n):,}".replace(",", ".")
+
+
+async def _ideas_from(user: User, data: dict, refs: list[dict]) -> tuple[dict, str]:
+    lo, hi = PLACEMENTS.get(data.get("placement") or "reels", PLACEMENTS["reels"])
+    prof = {k: data.get(k) for k in ("name", "summary", "sector", "kind", "country", "language", "audience", "goal", "keywords")}
+    lines = []
+    for i, r in enumerate(refs, 1):
+        nums = " · ".join(x for x in [f"{_number(r.get('views'))} vistas" if r.get("views") else "", f"{_number(r.get('likes'))} me gusta" if r.get("likes") else "",
+                                       f"{_number(r.get('comments'))} comentarios" if r.get("comments") else "", f"{round(r['duration'])} s" if r.get("duration") else ""] if x)
+        lines.append(f"{i}. @{r.get('account')} ({r.get('platform')}){' · ' + nums if nums else ''}: {(r.get('caption') or '(sin texto)')[:300]}")
+    if not lines:  # nothing could be read: the best ads found for the profile are the reference
+        for i, v in enumerate([at.get(x) for x in found_ids(data.get("_pid") or "")][:10], 1):
+            if v:
+                lines.append(f"{i}. {v.get('brand') or ''} (anuncio de YouTube · {round(v.get('duration_s') or 0)} s): {v.get('title') or ''}")
+    msg = (f"PERFIL DEL NEGOCIO:\n{json.dumps(prof, ensure_ascii=False)}\n\nLARGO: entre {lo} y {hi} segundos (dónde se publican: {data.get('placement') or 'reels'})\n\n"
+           f"REELS DE REFERENCIA:\n" + ("\n".join(lines) or "(no se pudieron leer: basate en el perfil)") + "\n\nLas imágenes son las portadas de los primeros reels, en orden.")
+    images: list[bytes] = []
+    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as cx:
+        for r in refs[:6]:
+            if not r.get("thumb"):
+                continue
+            try:
+                res = await cx.get(r["thumb"])
+                if res.status_code == 200 and res.headers.get("content-type", "").startswith("image/") and len(res.content) < 2_000_000:
+                    images.append(res.content)
+            except Exception:  # noqa: BLE001
+                pass
+    try:
+        return await at._ask(user.id, IDEAS_SYSTEM, msg, images or None, 0.6)
+    except RuntimeError:
+        if not images:
+            raise
+        return await at._ask(user.id, IDEAS_SYSTEM, msg, None, 0.6)
+
+
+def _clean_ideas(raw: dict, n_refs: int) -> list[dict]:
+    out = []
+    for it in (raw.get("ideas") if isinstance(raw.get("ideas"), list) else [])[:5]:
+        if not isinstance(it, dict) or not it.get("title"):
+            continue
+        beats = [{k: str(b.get(k) or "")[:240] for k in ("t", "shot", "text", "voice")} for b in (it.get("beats") or []) if isinstance(b, dict)][:8]
+        based = [int(x) for x in (it.get("based_on") or []) if str(x).isdigit() and 1 <= int(x) <= n_refs][:3]
+        try:
+            dur = max(3, min(180, int(float(it.get("duration_s") or 15))))
+        except (TypeError, ValueError):
+            dur = 15
+        out.append({"title": str(it["title"])[:90], "duration_s": dur, "based_on": based, "why": str(it.get("why") or "")[:300],
+                    "hook": str(it.get("hook") or "")[:300], "beats": beats, "cta": str(it.get("cta") or "")[:240],
+                    "caption": str(it.get("caption") or "")[:600], "audio": str(it.get("audio") or "")[:160]})
+    return out
+
+
+def _save_data(pid: str, data: dict) -> None:
+    with _db() as c:
+        c.execute("UPDATE adtier_profiles SET data = ?, updated = ? WHERE id = ?", (json.dumps(data, ensure_ascii=False), time.time(), pid))
+
+
+def ideas(user: User, pid: str, accounts: list[str] | None = None) -> int:
+    """Read the reference accounts and write 5 reels to make (in the background). Returns 1 if it started."""
+    p = get(user.id, pid)
+    if not p:
+        raise ValueError("Perfil no encontrado")
+    data = p["data"]
+    if accounts is not None:
+        parsed = [a for a in (parse_account(x) for x in accounts) if a]
+        bad = [x for x in accounts if x.strip() and not parse_account(x)]
+        if bad:
+            raise ValueError(f"No reconozco «{bad[0][:80]}»: pegá el link del perfil de Instagram, Facebook, TikTok o YouTube (no de un posteo)")
+        data["accounts"] = [a["url"] for a in {a["url"]: a for a in parsed}.values()][:MAX_ACCOUNTS]
+        _save_data(pid, data)
+    if not data.get("accounts"):
+        raise ValueError("Pegá al menos una cuenta de Instagram, Facebook, TikTok o YouTube")
+    if pid in _idea_jobs:
+        return 0
+    from .tasks import spawn
+
+    async def run():
+        d = data
+        try:
+            refs, notes = [], []
+            for url in d["accounts"]:
+                items, note = await read_account(user, parse_account(url) or {})
+                notes.append(note)
+                items.sort(key=lambda x: -((x.get("views") or 0) + 20 * (x.get("likes") or 0)))  # the ones that worked best first
+                refs.extend(items[:8])
+            d = (get(user.id, pid) or {}).get("data") or d
+            d.update(refs=refs[:24], notes=notes, ideas_error=None)
+            try:
+                raw, by = await _ideas_from(user, d | {"_pid": pid}, refs[:24])
+                d.update(ideas=_clean_ideas(raw, len(refs[:24])), patterns=str(raw.get("patterns") or "")[:600], ideas_by=by, ideas_at=time.time())
+                if not d["ideas"]:
+                    d["ideas_error"] = "El modelo no devolvió ideas: probá de nuevo."
+            except Exception as e:  # noqa: BLE001
+                d["ideas_error"] = ("Para escribir las ideas hace falta la clave de Meta Muse (o de otro modelo) en Configuración."
+                                    if "Agregá tu clave" in str(e) else f"No pude escribir las ideas: {str(e)[:240]}")
+            _save_data(pid, d)
+        except Exception:  # noqa: BLE001
+            log.exception("adtier ideas %s", pid)
+        finally:
+            _idea_jobs.pop(pid, None)
+
+    _idea_jobs[pid] = spawn(run())  # type: ignore[assignment]
     return 1

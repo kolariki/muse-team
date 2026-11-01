@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import secrets
 import time
 from pathlib import Path
@@ -29,9 +30,12 @@ log = logging.getLogger("arena.meta_ads")
 
 PROVIDER = "meta-ads"
 SCOPES = ("ads_management", "ads_read", "business_management", "pages_show_list", "pages_read_engagement")
+# AdTier reads the reels of the accounts a person gives as reference (Instagram Business Discovery): asked only from there, so an
+# app without Instagram access still connects for ads
+IG_SCOPES = SCOPES + ("instagram_basic",)
 # currencies Meta counts without cents (budgets go in the currency's minimum unit)
 NO_CENTS = {"CLP", "COP", "CRC", "HUF", "ISK", "IDR", "JPY", "KRW", "PYG", "TWD", "VND"}
-_STATES: dict[str, tuple[str, float]] = {}  # state → (user_id, expires)
+_STATES: dict[str, tuple[str, float, tuple[str, ...]]] = {}  # state → (user_id, expires, scopes)
 
 
 class MetaError(Exception):
@@ -69,14 +73,14 @@ def connection(user_id: str) -> dict | None:
     return {"account": r["account"], "since": r["created"], "expired": bool(r["expires"] and r["expires"] < time.time())}
 
 
-def start(user_id: str, public_url: str) -> str:
+def start(user_id: str, public_url: str, scopes: tuple[str, ...] = SCOPES) -> str:
     now = time.time()
     for k in [k for k, v in _STATES.items() if v[1] < now]:
         _STATES.pop(k, None)
     state = secrets.token_urlsafe(24)
-    _STATES[state] = (user_id, now + 600)
+    _STATES[state] = (user_id, now + 600, scopes)
     return f"https://www.facebook.com/{version()}/dialog/oauth?" + urlencode({
-        "client_id": app_creds()[0], "redirect_uri": redirect_uri(public_url), "state": state, "response_type": "code", "scope": ",".join(SCOPES)})
+        "client_id": app_creds()[0], "redirect_uri": redirect_uri(public_url), "state": state, "response_type": "code", "scope": ",".join(scopes)})
 
 
 def _check(r: httpx.Response) -> dict:
@@ -104,11 +108,13 @@ async def finish(code: str, state: str, public_url: str) -> str:
         me = _check(await cx.get(f"{graph()}/me", params={"fields": "name", "access_token": token}))
     now = time.time()
     expires = now + int(long.get("expires_in") or 60 * 86400) - 3600
-    with _db() as c:
+    with _db() as c:  # what was granted before stays granted (a reconnect for ads does not take Instagram away)
+        old = c.execute("SELECT scopes FROM user_connections WHERE user_id = ? AND provider = ?", (user_id, PROVIDER)).fetchone()
+        scopes = list(dict.fromkeys([*hit[2], *((old["scopes"] or "").split(",") if old else [])]))
         c.execute("""INSERT INTO user_connections (user_id, provider, account, enc_refresh, enc_access, expires, scopes, created, updated)
                      VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?) ON CONFLICT(user_id, provider) DO UPDATE SET account = excluded.account,
                      enc_access = excluded.enc_access, expires = excluded.expires, scopes = excluded.scopes, updated = excluded.updated""",
-                  (user_id, PROVIDER, me.get("name"), _fernet.encrypt(token.encode()), expires, ",".join(SCOPES), now, now))
+                  (user_id, PROVIDER, me.get("name"), _fernet.encrypt(token.encode()), expires, ",".join(x for x in scopes if x), now, now))
     return user_id
 
 
@@ -144,6 +150,43 @@ async def assets(user_id: str) -> dict:
         "accounts": [{"id": a["account_id"], "name": a.get("name") or a["account_id"], "currency": a.get("currency") or "USD", "active": a.get("account_status") == 1} for a in acc.get("data", [])],
         "pages": [{"id": p["id"], "name": p.get("name") or p["id"]} for p in pages.get("data", [])],
     }
+
+
+def has_instagram(user_id: str) -> bool:
+    with _db() as c:
+        r = c.execute("SELECT scopes FROM user_connections WHERE user_id = ? AND provider = ?", (user_id, PROVIDER)).fetchone()
+    return bool(r) and "instagram_basic" in (r["scopes"] or "").split(",")
+
+
+async def instagram_reels(user_id: str, username: str, n: int = 30) -> dict:
+    """The latest videos of any public professional Instagram account (Business Discovery), read with the person's own connection:
+    it needs an Instagram professional account linked to one of their Pages."""
+    token = _token(user_id)
+    async with httpx.AsyncClient(timeout=25) as cx:
+        pages = _check(await cx.get(f"{graph()}/me/accounts", params={"fields": "instagram_business_account", "limit": 50, "access_token": token}))
+        ig = next((p["instagram_business_account"]["id"] for p in pages.get("data", []) if p.get("instagram_business_account")), None)
+        if not ig:
+            raise MetaError("Para leer Instagram, Meta pide que tengas una cuenta de Instagram profesional vinculada a una de tus páginas de Facebook.")
+        fields = (f"business_discovery.username({username}){{username,name,followers_count,media.limit({n})"
+                  "{caption,media_type,media_product_type,permalink,thumbnail_url,like_count,comments_count,timestamp}}")
+        data = _check(await cx.get(f"{graph()}/{ig}", params={"fields": fields, "access_token": token}))
+    bd = data.get("business_discovery") or {}
+    return {"name": bd.get("name") or username, "followers": bd.get("followers_count"),
+            "media": [m for m in (bd.get("media") or {}).get("data", []) if m.get("media_type") == "VIDEO"]}
+
+
+async def page_reels(user_id: str, ref: str, n: int = 25) -> dict | None:
+    """The reels of a Facebook Page the person manages (Meta does not let anyone read the videos of other people's Pages)."""
+    token = _token(user_id)
+    async with httpx.AsyncClient(timeout=25) as cx:
+        pages = _check(await cx.get(f"{graph()}/me/accounts", params={"fields": "name,id,username,link,access_token", "limit": 50, "access_token": token}))
+        norm = lambda x: re.sub(r"[^a-z0-9]", "", (x or "").lower())  # noqa: E731
+        page = next((p for p in pages.get("data", []) if norm(ref) in {norm(p.get("id")), norm(p.get("username")), norm(p.get("name"))}), None)
+        if not page:
+            return None
+        data = _check(await cx.get(f"{graph()}/{page['id']}/video_reels", params={"fields": "description,permalink_url,length,picture,created_time", "limit": n,
+                                                                                    "access_token": page.get("access_token") or token}))
+    return {"name": page.get("name") or ref, "media": data.get("data", [])}
 
 
 def budget_units(amount: float, currency: str) -> int:

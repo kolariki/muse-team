@@ -3474,10 +3474,11 @@ def build_ads_file(session_id: str, build_id: str, ad_id: str, name: str, reques
 
 
 @app.post("/api/meta-ads/start")
-def meta_ads_start(user: User = CurrentUser):
+def meta_ads_start(body: dict | None = None, user: User = CurrentUser):
     if not metaads.ready():
         raise HTTPException(400, "La conexión con Meta Ads todavía no está habilitada en Tably.")
-    return {"url": metaads.start(user.id, cloudmod.public_url())}
+    scopes = metaads.IG_SCOPES if (body or {}).get("for") == "instagram" else metaads.SCOPES  # AdTier reads reference accounts
+    return {"url": metaads.start(user.id, cloudmod.public_url(), scopes)}
 
 
 @app.get("/api/meta-ads/callback", include_in_schema=False)
@@ -3684,7 +3685,8 @@ async def adtier_home(request: Request, user: User = CurrentUser):
 @app.get("/api/adtier/foryou")
 def foryou_home(user: User = CurrentUser):
     return {"profiles": foryoumod.profiles(user.id), "projects": foryoumod.projects(user), "sectors": [{"id": a, "es": b, "en": c} for a, b, c in foryoumod.SECTORS],
-            "kinds": foryoumod.KINDS, "goals": foryoumod.GOALS, "model": bool(adtiermod.studio_who(user.id))}
+            "kinds": foryoumod.KINDS, "goals": foryoumod.GOALS, "model": bool(adtiermod.studio_who(user.id)),
+            "meta": {"ready": metaads.ready(), "connected": bool(metaads.connection(user.id)), "instagram": metaads.has_instagram(user.id)}}
 
 
 @app.post("/api/adtier/foryou")
@@ -3695,6 +3697,12 @@ async def foryou_create(body: dict, user: User = CurrentUser):
     except ValueError as e:
         raise HTTPException(400, str(e))
     foryoumod.search(user, p["id"])
+    accounts = [str(x) for x in body.get("accounts") or [] if str(x).strip()]
+    if accounts:
+        try:
+            foryoumod.ideas(user, p["id"], accounts)
+        except ValueError:
+            pass  # a link it does not understand: the profile is made anyway, the person fixes it there
     return foryoumod.matches(user.id, p["id"])
 
 
@@ -3736,6 +3744,17 @@ async def foryou_search(pid: str, user: User = CurrentUser):
         return foryoumod.matches(user.id, pid)
     except ValueError as e:
         raise HTTPException(404, str(e))
+
+
+@app.post("/api/adtier/foryou/{pid}/ideas")
+async def foryou_ideas(pid: str, body: dict, user: User = CurrentUser):
+    """Read the reference accounts (Instagram, Facebook, TikTok, YouTube) and write 5 reels to make."""
+    try:
+        accounts = body.get("accounts")
+        foryoumod.ideas(user, pid, [str(x) for x in accounts] if isinstance(accounts, list) else None)
+        return foryoumod.matches(user.id, pid)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.delete("/api/adtier/foryou/{pid}")
