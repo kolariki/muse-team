@@ -3655,7 +3655,8 @@ async def twin_get(user: User = CurrentUser):
 @app.put("/api/twin/keys")
 async def twin_keys(body: dict, user: User = CurrentUser):
     try:
-        await twinmod.save_keys(user.id, str(body.get("heygen") or "").strip() or None, str(body.get("pexels") or "").strip() or None)
+        await twinmod.save_keys(user.id, str(body.get("heygen") or "").strip() or None, str(body.get("pexels") or "").strip() or None,
+                                str(body.get("pixabay") or "").strip() or None)
     except twinmod.TwinError as e:
         raise HTTPException(400, str(e))
     return twinmod.public(user.id)

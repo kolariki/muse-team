@@ -338,7 +338,7 @@ export const api = {
   studioDeleteMedia: (id: string, mid: string) => j<StudioProject>(authed(`/api/studio/${id}/media/${mid}`, { method: 'DELETE' })),
   studioRun: (id: string) => j<StudioProject>(post(`/api/studio/${id}/run`, {})),
   twin: () => j<TwinState>(authed('/api/twin')),
-  twinKeys: (body: { heygen?: string; pexels?: string }) => j<TwinState>(authed('/api/twin/keys', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
+  twinKeys: (body: { heygen?: string; pexels?: string; pixabay?: string }) => j<TwinState>(authed('/api/twin/keys', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
   twinFootage: (file: File, onProgress: (p: number) => void) => new Promise<TwinState>((resolve, reject) => {
     const x = new XMLHttpRequest()
     x.open('POST', '/api/twin/footage')
@@ -619,9 +619,9 @@ export interface StudioProject {
   gen?: StudioGen | null
 }
 /** An ad made without footage: what the digital twin says and the stock shots (backend/app/twin.py, studio.gen_plan / generate). */
-export interface StudioGen { status?: 'draft' | 'working' | 'done' | 'error'; step?: string | null; error?: string | null; voice: string; broll: { query: string; shows: string }[]; seconds: number; credits?: { author: string; page: string }[] }
+export interface StudioGen { status?: 'draft' | 'working' | 'done' | 'error'; step?: string | null; error?: string | null; voice: string; broll: { query: string; shows: string }[]; seconds: number; credits?: { author: string; page: string; site?: string }[] }
 export interface TwinState { twin: { name: string | null; status: 'new' | 'uploading' | 'training' | 'consent' | 'ready' | 'failed'; step: string | null; consent_url: string | null; consent_status: string | null; error: string | null; working: boolean; updated: number } | null
-  keys: { heygen: { set: boolean; last4: string | null }; pexels: { set: boolean; last4: string | null } }; engine: boolean }
+  keys: { heygen: { set: boolean; last4: string | null }; pexels: { set: boolean; last4: string | null }; pixabay: { set: boolean; last4: string | null } }; engine: boolean }
 export interface StudioList { projects: StudioProject[]; ready: boolean; transcriber: string | null; model: boolean; agents: { id: string; es: string; en: string; role_es: string; role_en: string }[]
   limits: { files: number; video_mb: number; image_mb: number; minutes: number } }
 

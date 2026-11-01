@@ -14,7 +14,8 @@ const LABEL = 'block text-[11.5px] font-semibold uppercase tracking-wide text-in
 export default function TwinPanel({ cur, ensure, onCur }: { cur: StudioProject | null; ensure: () => Promise<StudioProject | null>; onCur: (p: StudioProject) => void }) {
   const T = useT()
   const [st, setSt] = useState<TwinState | null>(null)
-  const [keys, setKeys] = useState({ heygen: '', pexels: '' })
+  const [keys, setKeys] = useState({ heygen: '', pexels: '', pixabay: '' })
+  const [showPexels, setShowPexels] = useState(false)
   const [busy, setBusy] = useState(false)
   const [up, setUp] = useState<number | null>(null)
   const [plan, setPlan] = useState<StudioGen | null>(cur?.gen?.status === 'draft' ? cur.gen : null)
@@ -32,7 +33,7 @@ export default function TwinPanel({ cur, ensure, onCur }: { cur: StudioProject |
 
   const saveKeys = async () => {
     setBusy(true)
-    try { setSt(await api.twinKeys({ heygen: keys.heygen.trim() || undefined, pexels: keys.pexels.trim() || undefined })); setKeys({ heygen: '', pexels: '' }); toast.ok(T('Claves guardadas', 'Keys saved')) }
+    try { setSt(await api.twinKeys({ heygen: keys.heygen.trim() || undefined, pexels: keys.pexels.trim() || undefined, pixabay: keys.pixabay.trim() || undefined })); setKeys({ heygen: '', pexels: '', pixabay: '' }); toast.ok(T('Claves guardadas', 'Keys saved')) }
     catch (e) { toast.error(T('No se guardó la clave', 'The key was not saved'), (e as Error).message) } finally { setBusy(false) }
   }
   const footage = async (f: File) => {
@@ -55,7 +56,8 @@ export default function TwinPanel({ cur, ensure, onCur }: { cur: StudioProject |
 
   if (!st) return null
   const tw = st.twin
-  const keysOk = st.keys.heygen.set && st.keys.pexels.set
+  const stockOk = st.keys.pixabay.set || st.keys.pexels.set
+  const keysOk = st.keys.heygen.set
   const words = (plan?.voice.match(/\S+/g) ?? []).length
   const step = 'flex gap-2.5 text-[12.5px] leading-snug text-ink-2'
   const num = 'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-bold text-accent'
@@ -65,22 +67,27 @@ export default function TwinPanel({ cur, ensure, onCur }: { cur: StudioProject |
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white"><Wand2 size={15} /></span>
         <div className="min-w-0 flex-1">
           <div className="text-[14.5px] font-bold text-ink">{T('¿No tenés material? Lo hace tu gemelo digital', 'No footage? Your digital twin makes it')}</div>
-          <div className="text-[12px] text-ink-3">{T('Vos hablando a cámara con tu cara y tu voz (HeyGen) y tomas de apoyo gratis (Pexels). El guion lo escribe Muse y el equipo lo edita como siempre.', 'You talking to camera with your face and voice (HeyGen) and free stock shots (Pexels). Muse writes the script and the team edits it as usual.')}</div>
+          <div className="text-[12px] text-ink-3">{T('Vos hablando a cámara con tu cara y tu voz (HeyGen) y tomas de apoyo gratis (Pixabay). El guion lo escribe Muse y el equipo lo edita como siempre.', 'You talking to camera with your face and voice (HeyGen) and free stock shots (Pixabay). Muse writes the script and the team edits it as usual.')}</div>
         </div>
         {tw?.status === 'ready' && <span className="flex items-center gap-1 rounded-full bg-[#2E9E6A]/15 px-2.5 py-1 text-[12px] font-semibold text-[#2E9E6A]"><CheckCircle2 size={13} /> {T('Tu gemelo está listo', 'Your twin is ready')}</span>}
       </div>
 
       {/* 1 · the keys */}
-      {!keysOk && (
+      {(!keysOk || !stockOk) && (
         <div className="mt-3 grid gap-3 min-[640px]:grid-cols-2">
           <label><span className={LABEL}>{T('Clave de API de HeyGen', 'HeyGen API key')} {st.keys.heygen.set && <span className="normal-case text-[#2E9E6A]">· {T('cargada', 'set')} ····{st.keys.heygen.last4}</span>}</span>
             <input type="password" autoComplete="off" value={keys.heygen} onChange={(e) => setKeys({ ...keys, heygen: e.target.value })} placeholder={st.keys.heygen.set ? T('(ya cargada)', '(already set)') : T('Pegala acá', 'Paste it here')} className={`${INPUT} mt-1`} />
             <a href="https://app.heygen.com/settings?nav=API" target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11.5px] text-accent hover:underline">{T('Sacala en HeyGen → Settings → API', 'Get it in HeyGen → Settings → API')} <ExternalLink size={11} /></a></label>
-          <label><span className={LABEL}>{T('Clave de Pexels (gratis)', 'Pexels key (free)')} {st.keys.pexels.set && <span className="normal-case text-[#2E9E6A]">· {T('cargada', 'set')} ····{st.keys.pexels.last4}</span>}</span>
-            <input type="password" autoComplete="off" value={keys.pexels} onChange={(e) => setKeys({ ...keys, pexels: e.target.value })} placeholder={st.keys.pexels.set ? T('(ya cargada)', '(already set)') : T('Pegala acá', 'Paste it here')} className={`${INPUT} mt-1`} />
-            <a href="https://www.pexels.com/api/new/" target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11.5px] text-accent hover:underline">{T('Pedila en pexels.com/api (al instante)', 'Get it at pexels.com/api (instant)')} <ExternalLink size={11} /></a></label>
-          <p className="text-[11.5px] text-ink-3 min-[640px]:col-span-2">{T('HeyGen cobra los videos de tu saldo de API (no de los planes web). Las claves se guardan cifradas.', 'HeyGen charges the videos to your API balance (not the web plans). The keys are stored encrypted.')}</p>
-          <button disabled={busy || (!keys.heygen.trim() && !keys.pexels.trim())} onClick={saveKeys} className={`${PRIMARY} self-start`}>{busy ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />} {T('Guardar las claves', 'Save the keys')}</button>
+          <label><span className={LABEL}>{T('Clave de Pixabay (gratis, opcional)', 'Pixabay key (free, optional)')} {st.keys.pixabay.set && <span className="normal-case text-[#2E9E6A]">· {T('cargada', 'set')} ····{st.keys.pixabay.last4}</span>}</span>
+            <input type="password" autoComplete="off" value={keys.pixabay} onChange={(e) => setKeys({ ...keys, pixabay: e.target.value })} placeholder={st.keys.pixabay.set ? T('(ya cargada)', '(already set)') : T('Pegala acá', 'Paste it here')} className={`${INPUT} mt-1`} />
+            <a href="https://pixabay.com/api/docs/#api_search_videos" target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11.5px] text-accent hover:underline">{T('Creá una cuenta gratis en Pixabay y copiá tu clave de su página de API', 'Make a free Pixabay account and copy your key from its API page')} <ExternalLink size={11} /></a>
+            {!showPexels && !st.keys.pexels.set && <button type="button" onClick={() => setShowPexels(true)} className="mt-0.5 block text-[11.5px] text-ink-3 underline">{T('¿Ya tenés clave de Pexels?', 'Already have a Pexels key?')}</button>}</label>
+          {(showPexels || st.keys.pexels.set) && (
+            <label><span className={LABEL}>{T('Clave de Pexels (si ya tenés una)', 'Pexels key (if you have one)')} {st.keys.pexels.set && <span className="normal-case text-[#2E9E6A]">· {T('cargada', 'set')} ····{st.keys.pexels.last4}</span>}</span>
+              <input type="password" autoComplete="off" value={keys.pexels} onChange={(e) => setKeys({ ...keys, pexels: e.target.value })} placeholder={st.keys.pexels.set ? T('(ya cargada)', '(already set)') : T('Pegala acá', 'Paste it here')} className={`${INPUT} mt-1`} /></label>
+          )}
+          <p className="text-[11.5px] text-ink-3 min-[640px]:col-span-2">{T('HeyGen cobra los videos de tu saldo de API (no de los planes web). Sin clave de Pixabay el anuncio se arma solo con tu gemelo. Las claves se guardan cifradas.', 'HeyGen charges the videos to your API balance (not the web plans). Without a Pixabay key the ad is made with your twin alone. The keys are stored encrypted.')}</p>
+          <button disabled={busy || (!keys.heygen.trim() && !keys.pexels.trim() && !keys.pixabay.trim())} onClick={saveKeys} className={`${PRIMARY} self-start`}>{busy ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />} {T('Guardar las claves', 'Save the keys')}</button>
         </div>
       )}
 
@@ -123,7 +130,7 @@ export default function TwinPanel({ cur, ensure, onCur }: { cur: StudioProject |
             <>
               <label><span className={LABEL}>{T('Lo que decís a cámara', 'What you say to camera')} <span className="normal-case font-normal">· {words} {T('palabras', 'words')} ≈ {Math.round(words / 2.6)} s</span></span>
                 <textarea value={plan.voice} onChange={(e) => setPlan({ ...plan, voice: e.target.value })} rows={4} maxLength={1200} className={`${INPUT} mt-1 resize-y`} /></label>
-              <div><span className={LABEL}>{T('Tomas de apoyo (búsqueda en Pexels)', 'Stock shots (Pexels search)')}</span>
+              {stockOk && <div><span className={LABEL}>{T('Tomas de apoyo (búsqueda en el banco de videos)', 'Stock shots (stock video search)')}</span>
                 <div className="mt-1 flex flex-col gap-1.5">
                   {plan.broll.map((b, i) => (
                     <div key={i} className="flex items-center gap-2">
@@ -134,8 +141,8 @@ export default function TwinPanel({ cur, ensure, onCur }: { cur: StudioProject |
                     </div>
                   ))}
                 </div>
-              </div>
-              <p className="text-[11.5px] text-ink-3">{T(`HeyGen va a hacer ~${Math.round(words / 2.6)} s de video de tu gemelo con tu saldo de API. Las tomas de Pexels son gratis.`, `HeyGen will make ~${Math.round(words / 2.6)} s of your twin's video from your API balance. Pexels shots are free.`)}</p>
+              </div>}
+              <p className="text-[11.5px] text-ink-3">{T(`HeyGen va a hacer ~${Math.round(words / 2.6)} s de video de tu gemelo con tu saldo de API.`, `HeyGen will make ~${Math.round(words / 2.6)} s of your twin's video from your API balance.`)} {stockOk ? T('Las tomas de apoyo son gratis.', 'The stock shots are free.') : T('Sin tomas de apoyo: cargá una clave de Pixabay arriba si las querés.', 'No stock shots: add a Pixabay key above if you want them.')}</p>
               <div className="flex flex-wrap gap-2">
                 <button disabled={busy || words < 8} onClick={go} className={PRIMARY}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />} {T('Generar el anuncio', 'Generate the ad')}</button>
                 <button disabled={busy} onClick={write} className={PILL}><RefreshCw size={13} /> {T('Escribir otro', 'Write another')}</button>

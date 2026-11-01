@@ -88,3 +88,20 @@ def test_heygen_errors_read_plainly():
         assert "no aceptó la clave" in str(e)
     else:
         raise AssertionError("expected an error")
+
+
+def test_pixabay_prefers_a_vertical_clip(monkeypatch):
+    def handler(req: httpx.Request) -> httpx.Response:
+        assert req.url.params["key"] == "pb-key"
+        return httpx.Response(200, json={"hits": [
+            {"id": 1, "duration": 2, "videos": {"large": {"url": "https://x/short.mp4", "width": 1080, "height": 1920}}},  # too short
+            {"id": 2, "duration": 9, "user": "ana", "pageURL": "https://pixabay.com/videos/2", "videos": {"large": {"url": "https://x/h.mp4", "width": 1920, "height": 1080}}},
+            {"id": 3, "duration": 7, "user": "leo", "pageURL": "https://pixabay.com/videos/3", "videos": {"large": {"url": "https://x/v4k.mp4", "width": 2160, "height": 3840},
+                                                                                                         "medium": {"url": "https://x/v.mp4", "width": 1080, "height": 1920}}}]})
+    real = httpx.AsyncClient
+    monkeypatch.setattr(twin.httpx, "AsyncClient", lambda *a, **k: real(*a, **{**k, "transport": httpx.MockTransport(handler)}))
+    monkeypatch.setattr(twin.keystore, "get_key", lambda u, n: "pb-key" if n == "pixabay" else None)
+    used: set = set()
+    hit = asyncio.run(twin.stock("u", "pizza oven", used))
+    assert hit["url"] == "https://x/v.mp4" and hit["site"] == "Pixabay" and hit["author"] == "leo"
+    assert asyncio.run(twin.stock("u", "pizza oven", used))["url"] == "https://x/h.mp4"  # no vertical left: the horizontal one

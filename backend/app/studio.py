@@ -613,11 +613,11 @@ def recover(user_id: str, pid: str) -> dict | None:
 # ------------------------------------------------------------------------------------------------------------ an ad without footage
 
 GEN_SYSTEM = """Sos guionista de anuncios cortos para Reels. La persona no tiene material filmado: va a hablar a cámara su gemelo digital
-(un video de ella misma hecho con IA, con su voz) y entre medio van tomas de stock de Pexels. Con el pedido, escribí:
+(un video de ella misma hecho con IA, con su voz) y entre medio van tomas de un banco de videos gratis. Con el pedido, escribí:
 - "voice": lo que la persona dice a cámara, en primera persona, natural, para 15 a 35 segundos (40 a 90 palabras). Gancho en la primera
   frase, cierre con el llamado a la acción. Solo palabras habladas: nada de indicaciones de escena, emojis ni hashtags. Si el pedido ya
   trae lo que se dice (líneas «voz: «…»» o un guion), usá esas frases.
-- "broll": 3 a 5 tomas de apoyo que ilustran lo que se dice, en el orden en que aparecen. "query" es la búsqueda en Pexels: 2 a 4 palabras
+- "broll": 3 a 5 tomas de apoyo que ilustran lo que se dice, en el orden en que aparecen. "query" es la búsqueda en el banco de videos: 2 a 4 palabras
   en INGLÉS, concretas y filmables (ej. "pizza oven fire", "woman laptop office"); "shows" es qué se ve, en {lang}.
 No inventes datos, precios ni promesas que no estén en el pedido. Escribí en {lang}.
 Respondé SOLO JSON: {{"voice": "", "broll": [{{"query": "", "shows": ""}}], "title": "nombre corto del anuncio"}}"""
@@ -657,8 +657,8 @@ def generate(user: User, pid: str, voice: str, broll: list[dict]) -> dict:
     t = twin.get(user.id)
     if not t or t["status"] != "ready":
         raise ValueError("Tu gemelo digital todavía no está listo")
-    if not keystore.get_key(user.id, "pexels"):
-        raise ValueError("Falta tu clave de Pexels para las tomas de apoyo")
+    if not twin.has_stock(user.id):
+        broll = []  # no stock key: the twin alone
     voice = re.sub(r"\s+", " ", voice or "").strip()[:1200]
     if twin.words(voice) < 8:
         raise ValueError("El guion es muy corto")
@@ -696,13 +696,13 @@ async def _generate(user: User, pid: str, voice: str, broll: list[dict]) -> None
         used: set[int] = set()
         credits = []
         for i, b in enumerate(broll, 1):
-            step(f"Buscando la toma {i} de {len(broll)} en Pexels: «{b['shows'] or b['query']}»")
+            step(f"Buscando la toma de apoyo {i} de {len(broll)}: «{b['shows'] or b['query']}»")
             try:
                 hit = await twin.stock(uid, b["query"], used)
                 if not hit:
                     continue
-                await add(await twin.download(hit["url"], tmp / f"pexels-{hit['id']}.mp4"), f"Toma de apoyo {i} · {b['shows'] or b['query']} · Pexels, {hit['author']}.mp4")
-                credits.append({"author": hit["author"], "page": hit["page"]})
+                await add(await twin.download(hit["url"], tmp / f"stock-{hit['id']}.mp4"), f"Toma de apoyo {i} · {b['shows'] or b['query']} · {hit['site']}, {hit['author']}.mp4")
+                credits.append({"author": hit["author"], "page": hit["page"], "site": hit["site"]})
             except Exception as e:  # noqa: BLE001 — one shot missing does not stop the ad
                 log.warning("pexels %s: %s", b, e)
         step("HeyGen está haciendo el video de tu gemelo")

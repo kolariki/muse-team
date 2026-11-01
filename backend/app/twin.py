@@ -5,7 +5,8 @@ services make the footage (the meta-first rule: Meta as far as it goes, then the
 - HeyGen makes the person's digital twin from one video of them talking (15 s to 10 min, about 2 minutes is best) and, with it,
   renders them saying any script, with their own cloned voice. The person records a consent statement on HeyGen's page (HeyGen
   asks for it on every twin) and only their own face can be used. API key per user, billed to their HeyGen API balance.
-- Pexels gives free vertical stock video for the shots in between (with credit to the author).
+- Pixabay (or Pexels, for whoever already has a key: Pexels paused new keys) gives free stock video for the shots in between, with
+  credit to the author. Optional: without a stock key the ad is the twin alone.
 Then the Ad Studio's team edits it like any upload: listens, plans (the voice keeps running over the stock shots), cuts, improves
 and approves.
 """
@@ -28,6 +29,7 @@ log = logging.getLogger("arena.twin")
 
 API = "https://api.heygen.com"
 PEXELS = "https://api.pexels.com"
+PIXABAY = "https://pixabay.com/api/videos/"
 MIN_S, MAX_S, MAX_UPLOAD_MB = 15, 600, 200
 _jobs: dict[str, asyncio.Task] = {}
 
@@ -46,7 +48,11 @@ class TwinError(Exception):
 # ------------------------------------------------------------------------------------------------------------ keys
 
 def keys(user_id: str) -> dict:
-    return {"heygen": keystore.key_status(user_id, "heygen"), "pexels": keystore.key_status(user_id, "pexels")}
+    return {"heygen": keystore.key_status(user_id, "heygen"), "pexels": keystore.key_status(user_id, "pexels"), "pixabay": keystore.key_status(user_id, "pixabay")}
+
+
+def has_stock(user_id: str) -> bool:
+    return bool(keystore.get_key(user_id, "pixabay") or keystore.get_key(user_id, "pexels"))
 
 
 def _heygen_key(user_id: str) -> str:
@@ -72,7 +78,7 @@ def _check(r: httpx.Response) -> dict:
     return data if isinstance(data, dict) else {}
 
 
-async def save_keys(user_id: str, heygen: str | None, pexels: str | None) -> dict:
+async def save_keys(user_id: str, heygen: str | None, pexels: str | None, pixabay: str | None = None) -> dict:
     """Checks each key against its service before keeping it (encrypted)."""
     async with httpx.AsyncClient(timeout=20) as cx:
         if heygen:
@@ -83,6 +89,11 @@ async def save_keys(user_id: str, heygen: str | None, pexels: str | None) -> dic
             if r.status_code != 200:
                 raise TwinError("Pexels no aceptó la clave")
             keystore.save(user_id, "pexels", api_key=pexels)
+        if pixabay:
+            r = await cx.get(PIXABAY, params={"key": pixabay, "q": "coffee", "per_page": 3})
+            if r.status_code != 200:
+                raise TwinError("Pixabay no aceptó la clave")
+            keystore.save(user_id, "pixabay", api_key=pixabay)
     return keys(user_id)
 
 
@@ -273,11 +284,13 @@ async def wait_talk(user_id: str, vid: str, out: Path, on_wait=None, limit_s: in
             await asyncio.sleep(10)
 
 
-async def stock(user_id: str, query: str, used: set[int]) -> dict | None:
-    """One vertical Pexels clip for the query (HD, not huge, 4 s or more), not one already used in this ad."""
+async def stock(user_id: str, query: str, used: set) -> dict | None:
+    """One stock clip for the query (vertical first, HD, 4 s or more), not one already used in this ad: Pixabay, else Pexels."""
+    if keystore.get_key(user_id, "pixabay"):
+        return await _pixabay(keystore.get_key(user_id, "pixabay") or "", query, used)
     key = keystore.get_key(user_id, "pexels")
     if not key:
-        raise TwinError("Falta tu clave de Pexels")
+        return None
     async with httpx.AsyncClient(timeout=20) as cx:
         r = await cx.get(f"{PEXELS}/videos/search", params={"query": query, "orientation": "portrait", "per_page": 10, "size": "medium"}, headers={"Authorization": key})
     if r.status_code != 200:
@@ -289,8 +302,31 @@ async def stock(user_id: str, query: str, used: set[int]) -> dict | None:
                        key=lambda f: f.get("height") or 0)
         if files:
             used.add(v["id"])
-            return {"id": v["id"], "url": files[0]["link"], "duration": v.get("duration"), "author": (v.get("user") or {}).get("name") or "Pexels", "page": v.get("url")}
+            return {"id": v["id"], "url": files[0]["link"], "duration": v.get("duration"), "author": (v.get("user") or {}).get("name") or "Pexels", "page": v.get("url"), "site": "Pexels"}
     return None
+
+
+async def _pixabay(key: str, query: str, used: set) -> dict | None:
+    async with httpx.AsyncClient(timeout=20) as cx:
+        r = await cx.get(PIXABAY, params={"key": key, "q": query[:100], "per_page": 30, "safesearch": "true"})
+    if r.status_code != 200:
+        raise TwinError(f"Pixabay respondió {r.status_code}")
+    best = None
+    for v in r.json().get("hits") or []:
+        if f"pb{v.get('id')}" in used or (v.get("duration") or 0) < 4:
+            continue
+        files = [f for f in (v.get("videos") or {}).values() if isinstance(f, dict) and f.get("url") and 700 <= max(f.get("width") or 0, f.get("height") or 0) <= 2000]
+        if not files:
+            continue
+        f = max(files, key=lambda x: x.get("height") or 0)
+        hit = {"id": f"pb{v['id']}", "url": f["url"], "duration": v.get("duration"), "author": v.get("user") or "Pixabay", "page": v.get("pageURL"), "site": "Pixabay"}
+        if (f.get("height") or 0) > (f.get("width") or 0):  # vertical: take it
+            used.add(hit["id"])
+            return hit
+        best = best or hit  # a horizontal one if there is no vertical (the editor fills the frame)
+    if best:
+        used.add(best["id"])
+    return best
 
 
 async def download(url: str, out: Path) -> Path:

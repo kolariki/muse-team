@@ -173,7 +173,7 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
               {cur?.gen?.status === 'working' && (
                 <p className="mt-4 flex items-center gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-3 py-2.5 text-[13px] text-ink-2"><Loader2 size={14} className="animate-spin text-accent" /> {cur.gen.step || T('Generando el material…', 'Generating the footage…')}</p>
               )}
-              {!!cur?.gen?.credits?.length && <p className="mt-2 text-[11.5px] text-ink-4">{T('Tomas de apoyo de Pexels: ', 'Stock shots from Pexels: ')}{cur.gen.credits.map((c, i) => <a key={i} href={c.page} target="_blank" rel="noreferrer" className="hover:underline">{i ? ', ' : ''}{c.author}</a>)}</p>}
+              {!!cur?.gen?.credits?.length && <p className="mt-2 text-[11.5px] text-ink-4">{T('Tomas de apoyo: ', 'Stock shots: ')}{cur.gen.credits.map((c, i) => <a key={i} href={c.page} target="_blank" rel="noreferrer" className="hover:underline">{i ? ', ' : ''}{c.author}{c.site ? ` (${c.site})` : ''}</a>)}</p>}
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {busy ? (
