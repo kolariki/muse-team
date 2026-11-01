@@ -26,3 +26,14 @@ def test_mcp_lists_tools():
     res = adtier.mcp({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
     assert {t["name"] for t in res["result"]["tools"]} == {"search_videos", "get_template", "list_tiers"}
     assert adtier.mcp({"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
+
+
+def test_foryou_profile_and_score():
+    from app import adtier_foryou as fy
+
+    p = fy._clean({"sector": "food", "industries": ["Food Delivery"], "keywords": ["delivery", "pizza"], "formats": ["ugc", "nope"]}, {"country": "ar", "description": "pizzería"})
+    assert p["country"] == "AR" and p["industries"] == ["food delivery"] and p["formats"] == ["ugc"] and p["queries"]
+    near, why = fy.score(p, {"industry": "food delivery", "country": "AR", "language": "es", "format": "ugc", "title": "Pizza a domicilio", "tier": "A", "tags": {}})
+    far, _ = fy.score(p, {"industry": "automotive", "country": "US", "language": "en", "format": "brand_spot", "title": "New truck", "tier": "S", "tags": {}})
+    assert near > far and "de tu país" in why
+    assert fy._looks_like_ad({"duration": 30, "title": "Comercial Pizza Hut 2024"}) and not fy._looks_like_ad({"duration": 900, "title": "Comercial largo"})

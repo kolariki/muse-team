@@ -1,7 +1,8 @@
-import { AlertTriangle, CheckCircle2, Copy, Download, ExternalLink, Layers, Loader2, Medal, Plus, RefreshCw, Search, ShieldCheck, Trash2, Upload, X } from 'lucide-react'
+import { AlertTriangle, Building2, CheckCircle2, Copy, Download, ExternalLink, KeyRound, Layers, Loader2, Medal, Plus, RefreshCw, Search, ShieldCheck, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { api, type AdTierCard, type AdTierDetail, type AdTierEvidence, type AdTierHome, type AdTierMasters, type AdTierPage, type AdTierTemplate, type AdTierTier } from '../lib/api'
+import { api, type AdTierCard, type AdTierDetail, type AdTierEvidence, type AdTierHome, type AdTierMasters, type AdTierPage, type AdTierTemplate, type AdTierTier, type ForYouHome, type ForYouMatches } from '../lib/api'
 import { tr, useT } from '../lib/i18n'
+import { useArena } from '../store'
 import PageHeader from './PageHeader'
 import { toast } from './Toast'
 
@@ -14,7 +15,7 @@ const PRIMARY = 'flex h-9 items-center justify-center gap-1.5 whitespace-nowrap 
 const INPUT = 'w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-ink outline-none transition focus:border-accent'
 const SELECT = 'h-9 rounded-full border border-line bg-surface px-3 text-[12.5px] text-ink-2 outline-none focus:border-accent'
 const LABEL = 'block text-[11px] font-semibold uppercase tracking-wide text-ink-3'
-type Tab = 'tiers' | 'videos' | 'templates' | 'brands' | 'admin' | 'api'
+type Tab = 'foryou' | 'tiers' | 'videos' | 'templates' | 'brands' | 'admin' | 'api'
 type Filters = Record<string, string>
 const DURATIONS: [string, string, string, Filters][] = [['', 'Cualquier duración', 'Any length', {}], ['15', 'Hasta 15 s', 'Up to 15 s', { max_s: '15' }], ['30', '15–30 s', '15–30 s', { min_s: '15', max_s: '30' }], ['60', '30–60 s', '30–60 s', { min_s: '30', max_s: '60' }], ['61', 'Más de 60 s', 'Over 60 s', { min_s: '60' }]]
 const qs = (f: Filters, extra: Filters = {}) => { const p = new URLSearchParams(Object.entries({ ...f, ...extra }).filter(([, v]) => v)); const s = p.toString(); return s ? `?${s}` : '' }
@@ -24,7 +25,7 @@ const fmtName = (f: string | null | undefined, en: boolean) => (f ? (FORMATS[f]?
 export default function AdTier({ onBack }: { onBack: () => void }) {
   const T = useT()
   const en = T('es', 'en') === 'en'
-  const [tab, setTab] = useState<Tab>('tiers')
+  const [tab, setTab] = useState<Tab>('foryou')
   const [home, setHome] = useState<AdTierHome | null>(null)
   const [filters, setFilters] = useState<Filters>({})
   const [dur, setDur] = useState('')
@@ -39,7 +40,7 @@ export default function AdTier({ onBack }: { onBack: () => void }) {
     return () => window.clearTimeout(t)
   }, [home, f])
   const total = home ? Object.values(home.facets.counts).reduce((a, b) => a + b, 0) : 0
-  const tabs: [Tab, string, string][] = [['tiers', 'Tier list', 'Tier list'], ['videos', 'Videos', 'Videos'], ['templates', 'Plantillas maestras', 'Master templates'], ['brands', 'Marcas', 'Brands'], ['api', 'API y MCP', 'API and MCP'], ...(home?.admin ? [['admin', 'Administrar', 'Admin'] as [Tab, string, string]] : [])]
+  const tabs: [Tab, string, string][] = [['foryou', 'Para vos', 'For you'], ['tiers', 'Tier list', 'Tier list'], ['videos', 'Videos', 'Videos'], ['templates', 'Plantillas maestras', 'Master templates'], ['brands', 'Marcas', 'Brands'], ['api', 'API y MCP', 'API and MCP'], ...(home?.admin ? [['admin', 'Administrar', 'Admin'] as [Tab, string, string]] : [])]
   const set = (k: string, v: string) => setFilters((x) => ({ ...x, [k]: v }))
 
   const bar = home && (
@@ -71,6 +72,7 @@ export default function AdTier({ onBack }: { onBack: () => void }) {
         {!home ? <div className="flex items-center gap-2 py-10 text-ink-3"><Loader2 size={16} className="animate-spin" /> {T('Cargando…', 'Loading…')}</div> : (
           <div className="mt-4 flex flex-col gap-4">
             {(tab === 'tiers' || tab === 'videos') && bar}
+            {tab === 'foryou' && <ForYou onOpen={setOpen} />}
             {tab === 'tiers' && <TierRows home={home} onOpen={setOpen} />}
             {tab === 'videos' && <Grid filters={f} onOpen={setOpen} />}
             {tab === 'templates' && <Masters admin={home.admin} />}
@@ -194,6 +196,7 @@ function Detail({ id, admin, onClose, onOpen, onChanged }: { id: string; admin: 
                 <p className="mt-1 text-[13px] text-ink-3">{[d.brand, d.agency, d.year, d.country, d.language, fmtName(d.format, en), d.industry].filter(Boolean).join(' · ')}</p>
                 <a href={d.source_url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[12.5px] text-accent hover:underline"><ExternalLink size={12} /> {T('Ver en la plataforma', 'View on the platform')}</a>
               </div>
+              {d.unreviewed && !admin && <p className="rounded-xl border border-[#C28A12]/40 bg-[#C28A12]/10 px-3 py-2 text-[12.5px] text-ink-2">{d.score ? T('Lo encontramos para tu perfil: está analizado por Muse pero todavía no lo revisó una persona y no tiene premio verificado, así que su tier sale solo del score.', 'We found it for your profile: Muse analysed it but no person has reviewed it yet and it has no verified award, so its tier comes from the score alone.') : T('Lo encontramos para tu perfil y todavía no está analizado: podés verlo igual; la plantilla aparece cuando Muse termine.', 'We found it for your profile and it is not analysed yet: you can watch it anyway; the template shows up when Muse finishes.')}</p>}
               {d.tier_info && (
                 <div className="flex items-start gap-3 rounded-xl border border-line bg-surface p-3">
                   <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-[26px] font-black text-black" style={{ background: TIER_COLOR[d.tier_info.tier] }}>{d.tier_info.tier}</span>
@@ -429,6 +432,227 @@ function ApiInfo({ base }: { base: string }) {
         <div className="mt-2 flex items-center gap-2"><code className="flex-1 break-all rounded-lg bg-surface-2 px-3 py-2 text-[12px] text-ink">{mcp}</code><button onClick={() => copy(mcp)} className={PILL}><Copy size={13} /></button></div>
         <pre className="mt-2 overflow-x-auto rounded-lg bg-surface-2 p-3 text-[11.5px] text-ink-2">{cfg}</pre>
         <button onClick={() => copy(cfg)} className={`${PILL} mt-2`}><Copy size={13} /> {T('Copiar configuración', 'Copy configuration')}</button>
+      </section>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ «Para vos»: the ads this person needs */
+
+const KIND_LABEL: Record<string, [string, string]> = { b2b: ['Vende a empresas (B2B)', 'Sells to businesses (B2B)'], b2c: ['Vende al público (B2C)', 'Sells to consumers (B2C)'], both: ['A empresas y al público', 'Businesses and consumers'], startup: ['Emprendimiento o startup', 'Startup'], freelance: ['Profesional independiente', 'Freelancer'], nonprofit: ['ONG o causa', 'Non-profit'], app: ['App o software', 'App or software'] }
+const GOAL_LABEL: Record<string, [string, string]> = { awareness: ['Que me conozcan', 'Get known'], leads: ['Conseguir clientes / contactos', 'Get leads'], sales: ['Vender más', 'Sell more'], downloads: ['Descargas de la app', 'App downloads'], signups: ['Registros', 'Sign-ups'] }
+const COUNTRIES: [string, string, string][] = [['AR', 'Argentina', 'Argentina'], ['MX', 'México', 'Mexico'], ['CO', 'Colombia', 'Colombia'], ['CL', 'Chile', 'Chile'], ['PE', 'Perú', 'Peru'], ['UY', 'Uruguay', 'Uruguay'], ['PY', 'Paraguay', 'Paraguay'], ['BO', 'Bolivia', 'Bolivia'], ['EC', 'Ecuador', 'Ecuador'], ['VE', 'Venezuela', 'Venezuela'], ['CR', 'Costa Rica', 'Costa Rica'], ['PA', 'Panamá', 'Panama'], ['GT', 'Guatemala', 'Guatemala'], ['DO', 'Rep. Dominicana', 'Dominican Rep.'], ['PR', 'Puerto Rico', 'Puerto Rico'], ['BR', 'Brasil', 'Brazil'], ['ES', 'España', 'Spain'], ['US', 'Estados Unidos', 'United States'], ['GB', 'Reino Unido', 'United Kingdom'], ['CA', 'Canadá', 'Canada'], ['FR', 'Francia', 'France'], ['IT', 'Italia', 'Italy'], ['DE', 'Alemania', 'Germany'], ['PT', 'Portugal', 'Portugal']]
+const WORKING = ['queued', 'meta', 'frames', 'transcribe', 'analyze']
+const STAGE_LABEL: Record<string, [string, string]> = { queued: ['en cola', 'queued'], meta: ['leyendo datos', 'reading metadata'], frames: ['mirando cuadros', 'looking at frames'], transcribe: ['transcribiendo', 'transcribing'], analyze: ['analizando con Muse', 'analysing with Muse'], review: ['sin revisar', 'not reviewed'], error: ['no se pudo analizar', 'could not analyse'] }
+
+function ForYou({ onOpen }: { onOpen: (id: string) => void }) {
+  const T = useT()
+  const [home, setHome] = useState<ForYouHome | null>(null)
+  const [sel, setSel] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const load = () => api.foryou().then((h) => { setHome(h); setSel((s) => s ?? h.profiles[0]?.id ?? null); if (!h.profiles.length) setCreating(true) }).catch((e) => toast.error(T('No pude abrir «Para vos»', 'Could not open «For you»'), (e as Error).message))
+  useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!home) return <div className="flex items-center gap-2 py-10 text-ink-3"><Loader2 size={16} className="animate-spin" /> {T('Cargando…', 'Loading…')}</div>
+  return (
+    <div className="flex flex-col gap-4">
+      {!home.model && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#C28A12]/40 bg-[#C28A12]/10 px-3 py-2.5 text-[13px] text-ink-2">
+          <AlertTriangle size={15} className="text-[#C28A12]" />
+          <span className="min-w-0 flex-1">{T('Sin la clave de Meta Muse el perfil sale solo de tus respuestas y los anuncios que encontremos no se pueden analizar.', 'Without the Meta Muse key the profile comes only from your answers and the ads we find cannot be analysed.')}</span>
+          <button onClick={() => useArena.getState().set({ view: 'settings' })} className={PILL}><KeyRound size={14} /> {T('Agregar clave', 'Add key')}</button>
+        </div>
+      )}
+      {home.profiles.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {home.profiles.map((p) => (
+            <button key={p.id} onClick={() => { setSel(p.id); setCreating(false) }} className={`flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] ${sel === p.id && !creating ? 'border-accent bg-accent-soft font-semibold text-accent' : 'border-line bg-surface text-ink-2 hover:border-accent'}`}>
+              {p.source === 'tably' ? <Layers size={13} /> : <Building2 size={13} />} {p.name}
+            </button>
+          ))}
+          <button onClick={() => setCreating(true)} className={PILL}><Plus size={14} /> {T('Otro negocio o proyecto', 'Another business or project')}</button>
+        </div>
+      )}
+      {creating ? <ProfileWizard home={home} onCancel={home.profiles.length ? () => setCreating(false) : undefined} onCreated={(m) => { setCreating(false); setSel(m.profile.id); load() }} />
+        : sel ? <ProfileView key={sel} id={sel} home={home} onOpen={onOpen} onDeleted={() => { setSel(null); load() }} /> : null}
+    </div>
+  )
+}
+
+function ProfileWizard({ home, onCancel, onCreated }: { home: ForYouHome; onCancel?: () => void; onCreated: (m: ForYouMatches) => void }) {
+  const T = useT()
+  const en = T('es', 'en') === 'en'
+  const [mode, setMode] = useState<'pick' | 'tably' | 'form'>(home.projects.length ? 'pick' : 'form')
+  const [busy, setBusy] = useState(false)
+  const [a, setA] = useState<Record<string, string>>({ kind: 'b2c', goal: 'sales', country: '', sector: '' })
+  const [doc, setDoc] = useState<{ name: string; text: string } | null>(null)
+  const set = (k: string, v: string) => setA((x) => ({ ...x, [k]: v }))
+  const create = async (body: Record<string, string>) => {
+    setBusy(true)
+    try { onCreated(await api.foryouCreate(body)) } catch (e) { toast.error(T('No pude crear el perfil', 'Could not create the profile'), (e as Error).message) } finally { setBusy(false) }
+  }
+  const chip = (on: boolean) => `rounded-full border px-3 py-1.5 text-[12.5px] transition ${on ? 'border-accent bg-accent text-white' : 'border-line bg-surface text-ink-2 hover:border-accent'}`
+  return (
+    <div className="rounded-2xl border border-line bg-surface p-4 sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-[19px] font-bold text-ink">{T('¿Para qué querés anuncios?', 'What do you want ads for?')}</h3>
+          <p className="mt-1 text-[13px] text-ink-2">{T('Armamos el perfil de tu negocio y con eso te mostramos los anuncios del catálogo que te sirven y buscamos anuncios reales de tu rubro y tu país.', 'We build your business profile and use it to show you the catalogue ads that fit and to find real ads from your sector and country.')}</p>
+        </div>
+        {onCancel && <button onClick={onCancel} className="text-[12.5px] text-ink-3 underline">{T('Cancelar', 'Cancel')}</button>}
+      </div>
+      {mode === 'pick' && (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <button onClick={() => setMode('tably')} className="flex flex-col items-start gap-1 rounded-xl border border-line bg-paper p-4 text-left transition hover:border-accent">
+            <Layers size={20} className="text-accent" />
+            <span className="text-[15px] font-semibold text-ink">{T('Un proyecto que hice en Tably', 'A project I built in Tably')}</span>
+            <span className="text-[12.5px] text-ink-3">{T('Lo leemos solos (brief, README y pantallas) y armamos el perfil. No tenés que contestar nada.', 'We read it ourselves (brief, README and screens) and build the profile. Nothing to answer.')}</span>
+          </button>
+          <button onClick={() => setMode('form')} className="flex flex-col items-start gap-1 rounded-xl border border-line bg-paper p-4 text-left transition hover:border-accent">
+            <Building2 size={20} className="text-accent" />
+            <span className="text-[15px] font-semibold text-ink">{T('Mi empresa o un proyecto fuera de Tably', 'My company or a project outside Tably')}</span>
+            <span className="text-[12.5px] text-ink-3">{T('Contestás unas preguntas: a qué se dedica, el sector, el país. Podés sumar tu web o un documento.', 'You answer a few questions: what it does, the sector, the country. You can add your website or a document.')}</span>
+          </button>
+        </div>
+      )}
+      {mode === 'tably' && (
+        <div className="mt-4 flex flex-col gap-2">
+          <button onClick={() => setMode('pick')} className="self-start text-[12.5px] text-ink-3 underline">← {T('Volver', 'Back')}</button>
+          {home.projects.map((p) => (
+            <button key={p.session_id} disabled={busy} onClick={() => create({ session_id: p.session_id, build_id: p.build_id })} className="flex items-center gap-3 rounded-xl border border-line bg-paper px-3 py-2.5 text-left transition hover:border-accent disabled:opacity-50">
+              <Layers size={16} className="shrink-0 text-accent" />
+              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{p.title || T('Proyecto sin título', 'Untitled project')}</span>
+              <span className="shrink-0 text-[11.5px] text-ink-3">{new Date(p.updated * 1000).toLocaleDateString()}</span>
+            </button>
+          ))}
+          {busy && <p className="flex items-center gap-2 text-[13px] text-ink-2"><Loader2 size={14} className="animate-spin text-accent" /> {T('Muse está leyendo el proyecto y armando el perfil…', 'Muse is reading the project and building the profile…')}</p>}
+        </div>
+      )}
+      {mode === 'form' && (
+        <div className="mt-4 grid gap-4">
+          {home.projects.length > 0 && <button onClick={() => setMode('pick')} className="self-start text-[12.5px] text-ink-3 underline">← {T('Volver', 'Back')}</button>}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label><span className={LABEL}>{T('Nombre de la empresa o proyecto', 'Company or project name')}</span><input value={a.name ?? ''} onChange={(e) => set('name', e.target.value)} className={`${INPUT} mt-1`} placeholder={T('Ej.: Pizzería Don Carlo', 'E.g. Don Carlo Pizza')} /></label>
+            <label><span className={LABEL}>{T('País', 'Country')}</span>
+              <select value={a.country} onChange={(e) => set('country', e.target.value)} className={`${INPUT} mt-1`}><option value="">{T('Elegí el país', 'Pick the country')}</option>{COUNTRIES.map(([c, es, e2]) => <option key={c} value={c}>{en ? e2 : es}</option>)}</select></label>
+          </div>
+          <label><span className={LABEL}>{T('¿A qué se dedica?', 'What does it do?')}</span>
+            <textarea value={a.description ?? ''} onChange={(e) => set('description', e.target.value)} rows={3} className={`${INPUT} mt-1`} placeholder={T('Ej.: Pizzería con delivery en Córdoba, masa madre, abierta de noche. Vendemos sobre todo por WhatsApp y apps de delivery.', 'E.g. A pizza place with delivery in Córdoba, sourdough, open at night. We sell mostly through WhatsApp and delivery apps.')} /></label>
+          <div><span className={LABEL}>{T('Sector', 'Sector')}</span>
+            <select value={a.sector} onChange={(e) => set('sector', e.target.value)} className={`${INPUT} mt-1`}><option value="">{T('Elegí el sector', 'Pick the sector')}</option>{home.sectors.map((s) => <option key={s.id} value={s.id}>{en ? s.en : s.es}</option>)}</select></div>
+          <div><span className={LABEL}>{T('Tipo de negocio', 'Kind of business')}</span>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">{home.kinds.map((k) => <button type="button" key={k} onClick={() => set('kind', k)} className={chip(a.kind === k)}>{T(...(KIND_LABEL[k] ?? [k, k]))}</button>)}</div></div>
+          <div><span className={LABEL}>{T('¿Qué querés lograr con los anuncios?', 'What do you want the ads to achieve?')}</span>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">{home.goals.map((k) => <button type="button" key={k} onClick={() => set('goal', k)} className={chip(a.goal === k)}>{T(...(GOAL_LABEL[k] ?? [k, k]))}</button>)}</div></div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label><span className={LABEL}>{T('¿A quién le vendés? (opcional)', 'Who do you sell to? (optional)')}</span><input value={a.audience ?? ''} onChange={(e) => set('audience', e.target.value)} className={`${INPUT} mt-1`} placeholder={T('Ej.: familias y estudiantes del barrio', 'E.g. families and students nearby')} /></label>
+            <label><span className={LABEL}>{T('Tu web o Instagram (opcional)', 'Your website or Instagram (optional)')}</span><input value={a.website ?? ''} onChange={(e) => set('website', e.target.value)} className={`${INPUT} mt-1`} placeholder="www.tuempresa.com" /></label>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className={`${PILL} cursor-pointer`}><Upload size={14} /> {doc ? doc.name : T('Subir un documento del proyecto (PDF o texto)', 'Upload a project document (PDF or text)')}
+              <input type="file" accept=".pdf,.md,.txt" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { setDoc(await api.foryouDoc(f)) } catch (err) { toast.error(T('No pude leer el documento', 'Could not read the document'), (err as Error).message) } }} />
+            </label>
+            {doc && <span className="text-[12px] text-ink-3">{doc.text.length.toLocaleString()} {T('caracteres leídos', 'characters read')} · <button onClick={() => setDoc(null)} className="underline">{T('quitar', 'remove')}</button></span>}
+          </div>
+          <button disabled={busy || (!a.description?.trim() && !doc && !a.website?.trim())} onClick={() => create({ ...a, docs: doc?.text ?? '' })} className={`${PRIMARY} self-start`}>
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />} {busy ? T('Armando tu perfil…', 'Building your profile…') : T('Armar mi perfil y buscar anuncios', 'Build my profile and find ads')}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ProfileView({ id, home, onOpen, onDeleted }: { id: string; home: ForYouHome; onOpen: (id: string) => void; onDeleted: () => void }) {
+  const T = useT()
+  const en = T('es', 'en') === 'en'
+  const [m, setM] = useState<ForYouMatches | null>(null)
+  const [edit, setEdit] = useState(false)
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const load = () => api.foryouGet(id).then(setM).catch((e) => toast.error(T('No pude leer el perfil', 'Could not read the profile'), (e as Error).message))
+  useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+  // while the search runs or the found ads are analysed, the list fills in by itself
+  useEffect(() => {
+    if (!m || !(m.searching || m.found.some((v) => WORKING.includes(v.stage ?? '')))) return
+    const t = window.setTimeout(load, 5000)
+    return () => window.clearTimeout(t)
+  }, [m]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!m) return <div className="flex items-center gap-2 py-10 text-ink-3"><Loader2 size={16} className="animate-spin" /> {T('Cargando…', 'Loading…')}</div>
+  const p = m.profile.data
+  const sector = home.sectors.find((s) => s.id === p.sector)
+  const country = COUNTRIES.find((c) => c[0] === p.country)
+  const save = async () => {
+    try {
+      setM(await api.foryouEdit(id, { ...draft, keywords: (draft.keywords ?? p.keywords.join(', ')).split(',').map((x) => x.trim()).filter(Boolean) }))
+      setEdit(false)
+    } catch (e) { toast.error(T('No pude guardar', 'Could not save'), (e as Error).message) }
+  }
+  const working = m.found.filter((v) => WORKING.includes(v.stage ?? '')).length
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-widest text-accent">{m.profile.source === 'tably' ? T('Perfil armado desde tu proyecto en Tably', 'Profile built from your Tably project') : T('Perfil de tu negocio', 'Your business profile')}</div>
+            <h3 className="mt-0.5 text-[20px] font-bold leading-tight text-ink">{p.name}</h3>
+            {p.summary && <p className="mt-1 max-w-[760px] text-[13.5px] text-ink-2">{p.summary}</p>}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <button onClick={() => { setDraft({}); setEdit((x) => !x) }} className={PILL}>{T('Corregir el perfil', 'Fix the profile')}</button>
+            <button disabled={m.searching} onClick={() => api.foryouSearch(id).then(setM).catch((e) => toast.error(T('No pude buscar', 'Could not search'), (e as Error).message))} className={PRIMARY}>
+              {m.searching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} {m.searching ? T('Buscando…', 'Searching…') : T('Buscar más anuncios', 'Find more ads')}
+            </button>
+            <button onClick={() => { if (confirm(T('¿Borrar este perfil? Los anuncios encontrados quedan en el catálogo.', 'Delete this profile? The ads found stay in the catalogue.'))) api.foryouDelete(id).then(onDeleted) }} className={PILL} aria-label={T('Borrar el perfil', 'Delete the profile')}><Trash2 size={14} /></button>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
+          {sector && <span className="rounded-full bg-accent-soft px-2.5 py-1 font-semibold text-accent">{en ? sector.en : sector.es}</span>}
+          {p.kind && <span className="rounded-full border border-line px-2.5 py-1 text-ink-2">{T(...(KIND_LABEL[p.kind] ?? [p.kind, p.kind]))}</span>}
+          {country && <span className="rounded-full border border-line px-2.5 py-1 text-ink-2">{en ? country[2] : country[1]}</span>}
+          {p.goal && <span className="rounded-full border border-line px-2.5 py-1 text-ink-2">{T(...(GOAL_LABEL[p.goal] ?? [p.goal, p.goal]))}</span>}
+          {p.audience && <span className="rounded-full border border-line px-2.5 py-1 text-ink-2">{T('Para', 'For')}: {p.audience}</span>}
+        </div>
+        {p.keywords.length > 0 && <p className="mt-2 text-[12px] text-ink-3">{T('Palabras clave', 'Keywords')}: {p.keywords.join(' · ')}</p>}
+        {p.why && <p className="mt-1 text-[12.5px] text-ink-2">💡 {p.why}</p>}
+        {edit && (
+          <div className="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
+            <label><span className={LABEL}>{T('Sector', 'Sector')}</span><select defaultValue={p.sector} onChange={(e) => setDraft((d) => ({ ...d, sector: e.target.value }))} className={`${INPUT} mt-1`}>{home.sectors.map((s) => <option key={s.id} value={s.id}>{en ? s.en : s.es}</option>)}</select></label>
+            <label><span className={LABEL}>{T('País', 'Country')}</span><select defaultValue={p.country} onChange={(e) => setDraft((d) => ({ ...d, country: e.target.value }))} className={`${INPUT} mt-1`}><option value="">—</option>{COUNTRIES.map(([c, es, e2]) => <option key={c} value={c}>{en ? e2 : es}</option>)}</select></label>
+            <label className="sm:col-span-2"><span className={LABEL}>{T('Qué hace', 'What it does')}</span><input defaultValue={p.summary} onChange={(e) => setDraft((d) => ({ ...d, summary: e.target.value }))} className={`${INPUT} mt-1`} /></label>
+            <label className="sm:col-span-2"><span className={LABEL}>{T('Palabras clave (separadas por coma)', 'Keywords (comma-separated)')}</span><input defaultValue={p.keywords.join(', ')} onChange={(e) => setDraft((d) => ({ ...d, keywords: e.target.value }))} className={`${INPUT} mt-1`} /></label>
+            <button onClick={save} className={`${PRIMARY} self-start`}><CheckCircle2 size={14} /> {T('Guardar', 'Save')}</button>
+          </div>
+        )}
+      </div>
+
+      <section>
+        <h4 className="text-[15px] font-bold text-ink">{T('Del catálogo, para vos', 'From the catalogue, for you')}</h4>
+        <p className="text-[12.5px] text-ink-3">{T('Anuncios premiados ordenados por cuánto se parecen a tu negocio: rubro, país, idioma y formato.', 'Award-winning ads ranked by how close they are to your business: sector, country, language and format.')}</p>
+        {m.catalog.length ? (
+          <div className="mt-3 grid grid-cols-1 gap-3 min-[460px]:grid-cols-2 lg:grid-cols-4">
+            {m.catalog.map((v) => (
+              <div key={v.id} className="flex flex-col gap-1.5">
+                <Thumb v={v} onOpen={onOpen} big />
+                <div className="flex flex-wrap items-center gap-1 text-[11px] text-ink-3"><span className="rounded bg-accent-soft px-1.5 py-0.5 font-semibold text-accent">{v.match}%</span>{v.why.join(' · ')}</div>
+              </div>
+            ))}
+          </div>
+        ) : <p className="mt-3 rounded-xl border border-dashed border-line px-4 py-6 text-center text-[13px] text-ink-3">{T('Todavía no hay anuncios del catálogo de tu rubro. Los que buscamos para vos aparecen abajo.', 'No catalogue ads from your sector yet. The ones we search for you show up below.')}</p>}
+      </section>
+
+      <section>
+        <h4 className="text-[15px] font-bold text-ink">{T('Anuncios reales de tu rubro y tu país', 'Real ads from your sector and country')}</h4>
+        <p className="text-[12.5px] text-ink-3">{T('Los buscamos en YouTube con tu perfil y los analizamos con Muse igual que al catálogo: tier por score, hook, estructura y CTA. No tienen premio verificado, así que llegan como «sin revisar».', 'We search YouTube with your profile and analyse them with Muse like the catalogue: score tier, hook, structure and CTA. They have no verified award, so they arrive as «not reviewed».')}</p>
+        {(m.searching || working > 0) && <p className="mt-2 flex items-center gap-2 text-[13px] text-ink-2"><Loader2 size={14} className="animate-spin text-accent" /> {m.searching ? T('Buscando anuncios con: ', 'Searching ads with: ') + p.queries.map((q) => `«${q}»`).join(', ') : T(`Analizando ${working} anuncios con Muse: aparecen a medida que terminan.`, `Analysing ${working} ads with Muse: they show up as they finish.`)}</p>}
+        {m.found.length ? (
+          <div className="mt-3 grid grid-cols-1 gap-3 min-[460px]:grid-cols-2 lg:grid-cols-4">
+            {m.found.map((v) => (
+              <div key={v.id} className="flex flex-col gap-1.5">
+                <Thumb v={v} onOpen={onOpen} big />
+                <div className={`text-[11px] ${v.stage === 'error' ? 'text-danger' : 'text-ink-3'}`}>{v.reviewed ? T('revisado y publicado', 'reviewed and published') : T(...(STAGE_LABEL[v.stage ?? ''] ?? ['', '']))}{v.stage === 'error' && v.error ? ` · ${v.error.slice(0, 90)}` : ''}</div>
+              </div>
+            ))}
+          </div>
+        ) : !m.searching && <p className="mt-3 rounded-xl border border-dashed border-line px-4 py-6 text-center text-[13px] text-ink-3">{m.profile.searched ? T('No encontramos anuncios con estas búsquedas. Corregí el perfil (palabras clave o sector) y buscá de nuevo.', 'We found no ads with these searches. Fix the profile (keywords or sector) and search again.') : T('Tocá «Buscar más anuncios» para empezar.', 'Tap «Find more ads» to start.')}</p>}
       </section>
     </div>
   )

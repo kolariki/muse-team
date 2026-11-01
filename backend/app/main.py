@@ -71,6 +71,7 @@ from . import ads as adsmod
 from . import meta_ads as metaads
 from . import studio as studiomod
 from . import adtier as adtiermod
+from . import adtier_foryou as foryoumod
 from . import tickets as ticketsmod
 from . import gitserver
 from . import agent_sessions
@@ -3679,6 +3680,67 @@ async def adtier_home(request: Request, user: User = CurrentUser):
     return out
 
 
+# «Para vos»: the ads a person needs, from a profile of their business (a Tably project or a few questions)
+@app.get("/api/adtier/foryou")
+def foryou_home(user: User = CurrentUser):
+    return {"profiles": foryoumod.profiles(user.id), "projects": foryoumod.projects(user), "sectors": [{"id": a, "es": b, "en": c} for a, b, c in foryoumod.SECTORS],
+            "kinds": foryoumod.KINDS, "goals": foryoumod.GOALS, "model": bool(adtiermod.studio_who(user.id))}
+
+
+@app.post("/api/adtier/foryou")
+async def foryou_create(body: dict, user: User = CurrentUser):
+    """The profile, and the search for real ads of that sector and country starts by itself."""
+    try:
+        p = await foryoumod.create(user, body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    foryoumod.search(user, p["id"])
+    return foryoumod.matches(user.id, p["id"])
+
+
+@app.post("/api/adtier/foryou/doc")
+async def foryou_doc(file: UploadFile = File(...), user: User = CurrentUser):
+    data = await file.read(8 * 1024 * 1024 + 1)
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(413, "El documento pesa más de 8 MB")
+    try:
+        return {"name": file.filename, "text": foryoumod.doc_text(file.filename or "", data)}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/adtier/foryou/{pid}")
+def foryou_get(pid: str, user: User = CurrentUser):
+    try:
+        return foryoumod.matches(user.id, pid)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.patch("/api/adtier/foryou/{pid}")
+def foryou_patch(pid: str, body: dict, user: User = CurrentUser):
+    try:
+        foryoumod.update(user.id, pid, body)
+        return foryoumod.matches(user.id, pid)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.post("/api/adtier/foryou/{pid}/search")
+async def foryou_search(pid: str, user: User = CurrentUser):
+    try:
+        foryoumod.search(user, pid)
+        return foryoumod.matches(user.id, pid)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.delete("/api/adtier/foryou/{pid}")
+def foryou_delete(pid: str, user: User = CurrentUser):
+    foryoumod.remove(user.id, pid)
+    return {"ok": True}
+
+
 @app.post("/api/adtier/admin/seed")
 async def adtier_seed(user: User = CurrentUser):
     """Load (again) the researched winners that are missing from the catalogue."""
@@ -3712,9 +3774,10 @@ def adtier_videos(request: Request, q: str = "", page: int = 1, status: str = "p
 def adtier_video(vid: str, user: User = CurrentUser):
     v = adtiermod.get(vid)
     admin = _is_admin(user)
-    if not v or (v["status"] != "published" and not admin):
+    own = bool(v) and foryoumod.owns_video(user.id, vid)  # found for one of the person's profiles: visible before review
+    if not v or (v["status"] != "published" and not admin and not own):
         raise HTTPException(404, "Video no encontrado")
-    return adtiermod.detail(v, admin)
+    return adtiermod.detail(v, admin, own=own)
 
 
 @app.get("/api/adtier/videos/{vid}/template.{ext}")

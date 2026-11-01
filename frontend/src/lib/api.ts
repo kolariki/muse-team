@@ -367,6 +367,13 @@ export const api = {
   adtierRetry: () => j<{ retrying: number }>(post('/api/adtier/admin/retry', {})),
   adtierSeed: () => j<{ added: string[]; errors: string[] }>(post('/api/adtier/admin/seed', {})),
   adtierAutopublish: (on: boolean) => j<{ autopublish: boolean }>(authed('/api/adtier/admin/autopublish', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ on }) })),
+  foryou: () => j<ForYouHome>(authed('/api/adtier/foryou')),
+  foryouCreate: (body: Record<string, string>) => j<ForYouMatches>(post('/api/adtier/foryou', body)),
+  foryouGet: (id: string) => j<ForYouMatches>(authed(`/api/adtier/foryou/${id}`)),
+  foryouEdit: (id: string, body: Record<string, unknown>) => j<ForYouMatches>(authed(`/api/adtier/foryou/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
+  foryouSearch: (id: string) => j<ForYouMatches>(post(`/api/adtier/foryou/${id}/search`, {})),
+  foryouDelete: (id: string) => j<{ ok: boolean }>(authed(`/api/adtier/foryou/${id}`, { method: 'DELETE' })),
+  foryouDoc: (file: File) => { const form = new FormData(); form.append('file', file, file.name); return j<{ name: string; text: string }>(authed('/api/adtier/foryou/doc', { method: 'POST', body: form })) },
   adtierCheckEmbeds: () => j<{ checked: number; unpublished: string[] }>(post('/api/adtier/admin/check-embeds', {})),
   levels: (sessionId: string, id: string) => j<LevelsPayload>(authed(`/api/sessions/${sessionId}/builds/${id}/levels`)),
   marketList: (sessionId: string, id: string, body: { pitch: string; price_usd: number | null; title?: string }) =>
@@ -591,7 +598,15 @@ export interface AdTierTemplate { hook?: { seconds?: string; type?: string; desc
 export interface AdTierDetail extends AdTierCard { source_url: string; embed_url: string; evidence: AdTierEvidence[]
   tier_info: { tier: AdTierTier; basis: string; justification: string; proposed: AdTierTier; evidence_tier: AdTierTier | null; score_tier: AdTierTier; assigned_by: string } | null
   score: { hook: number; structure: number; copy: number; visual: number; platform_fit: number; total: number; model: string; rationale: Record<string, string>; needs_review: number; confidence: number } | null
-  template: AdTierTemplate | null; template_version: number | null; similar: AdTierCard[]; transcript?: { start: number; end: number; text: string }[]; stage?: string; error?: string | null; embed_ok?: number }
+  template: AdTierTemplate | null; template_version: number | null; similar: AdTierCard[]; unreviewed?: boolean; transcript?: { start: number; end: number; text: string }[]; stage?: string; error?: string | null; embed_ok?: number }
+/** AdTier «Para vos»: a profile of the person's business and the ads that fit it (backend/app/adtier_foryou.py). */
+export interface ForYouProfileData { name: string; summary: string; sector: string; kind: string; country: string; language: string; audience: string; goal: string
+  industries: string[]; keywords: string[]; formats: string[]; queries: string[]; why: string; by: string | null }
+export interface ForYouProfile { id: string; name: string; source: 'tably' | 'form'; session_id: string | null; build_id: string | null; answers: Record<string, string>; data: ForYouProfileData
+  searched: number | null; created: number; updated: number; searching: boolean; found?: number }
+export interface ForYouHome { profiles: ForYouProfile[]; projects: { session_id: string; build_id: string; title: string; updated: number }[]; sectors: { id: string; es: string; en: string }[]
+  kinds: string[]; goals: string[]; model: boolean }
+export interface ForYouMatches { profile: ForYouProfile; catalog: (AdTierCard & { match: number; why: string[] })[]; found: (AdTierCard & { stage: string | null; error: string | null; reviewed: boolean })[]; searching: boolean }
 export interface AdTierAgreement { reviewed: number; agree: number; pct: number | null }
 export interface AdTierHome { tiers: Record<AdTierTier, AdTierCard[]>; facets: { format: string[]; industry: string[]; language: string[]; country: string[]; platform_origin: string[]; brand: string[]; counts: Record<string, number> }
   admin: boolean; formats: string[]; agreement?: AdTierAgreement; takedown_email: string | null; public_url: string; autopublish?: boolean; seed_size?: number; working?: number }

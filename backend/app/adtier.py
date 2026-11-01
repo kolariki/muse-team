@@ -117,6 +117,13 @@ def total_of(scores: dict) -> float:
     return round(sum(float(scores.get(k) or 0) * w for k, w in WEIGHTS.items()) / 100, 1)
 
 
+def studio_who(user_id: str) -> list:
+    """The models that can write for this person (Meta Muse first)."""
+    from . import studio
+
+    return studio._who(user_id, False)
+
+
 def provider(url: str) -> tuple[str, str] | None:
     """(embed provider, embed id) of a YouTube, Vimeo or TikTok link."""
     u = urlparse(url.strip())
@@ -211,12 +218,14 @@ def card(v: dict) -> dict:
     return {**{k: v.get(k) for k in keep}, "tier": t.get("tier"), "proposed": t.get("proposed"), "tags": v.get("tags") or {}}
 
 
-def detail(v: dict, admin: bool = False) -> dict:
-    """The full card of a video. The public sees the hook and the CTA lines, never the whole transcript."""
-    tpl = template_of(v["id"], approved_only=not admin)
+def detail(v: dict, admin: bool = False, own: bool = False) -> dict:
+    """The full card of a video. The public sees the hook and the CTA lines, never the whole transcript. A video found for the
+    person's own profile shows its template before review (marked as not reviewed)."""
+    tpl = template_of(v["id"], approved_only=not (admin or own))
     out = {**card(v), "source_url": v["source_url"], "embed_url": embed_url(v["embed_provider"], v["embed_id"]), "tier_info": tier_of(v["id"]),
            "evidence": evidence_of(v["id"]), "score": score_of(v["id"]), "template": tpl["body"] if tpl else None,
-           "template_version": tpl["version"] if tpl else None, "similar": [card(x) for x in similar(v)]}
+           "template_version": tpl["version"] if tpl else None, "similar": [card(x) for x in similar(v)],
+           "unreviewed": v.get("status") != "published", "stage": v.get("stage") if own else None}
     if admin:
         out.update(transcript=v.get("transcript") or [], stage=v.get("stage"), error=v.get("error"), embed_ok=v.get("embed_ok"))
     return out
