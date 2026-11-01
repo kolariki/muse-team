@@ -183,7 +183,9 @@ export const api = {
   analyticsAsk: (slug: string, kind: 'ab' | 'ai', text = '') => j<{ ok: boolean; build_id: string; session_id: string }>(post(`/api/analytics/${slug}/ask`, { kind, text })),
   analyticsDetail: (slug: string, days: number) => j<AnalyticsDetail>(authed(`/api/analytics/${slug}?days=${days}`)),
   analytics: () => j<{ apps: AnalyticsApp[]; collector: string; collector_public: boolean }>(authed('/api/analytics')),
-  siteCreate: (body: { title: string; url: string; repo: string }) => j<{ slug: string }>(post('/api/analytics/sites', body)),
+  siteCreate: (body: { title: string; url: string; repo: string; pr?: boolean }) => j<{ slug: string; pr?: { ok: boolean; url?: string; files?: string[]; error?: string } }>(post('/api/analytics/sites', body)),
+  githubRepos: () => j<{ connected: boolean; error?: string | null; login?: string | null; repos: GithubRepo[] }>(authed('/api/analytics/github/repos')),
+  githubLive: (repo: string) => j<{ url: string | null }>(authed(`/api/analytics/github/live?repo=${encodeURIComponent(repo)}`)),
   siteUpdate: (slug: string, body: { title?: string; url?: string; repo?: string }) => j<{ slug: string }>(authed(`/api/analytics/sites/${slug}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
   siteDelete: (slug: string) => j<{ ok: boolean }>(authed(`/api/analytics/sites/${slug}`, { method: 'DELETE' })),
   sitePr: (slug: string) => j<{ ok: boolean; url: string; files: string[] }>(post(`/api/analytics/sites/${slug}/pr`, {})),
@@ -562,6 +564,8 @@ export interface MarketListing {
   session_id?: string | null
   build_id?: string | null
 }
+export type GithubRepo = { full_name: string; name: string; url: string; homepage: string | null; private: boolean; pushed_at: string | null }
+
 export interface AnalyticsApp {
   slug: string
   title: string

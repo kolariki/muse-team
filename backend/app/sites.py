@@ -389,3 +389,59 @@ Or, without the dependency: `npx -y {collector}/pkg/tably-analytics-{slug}.tgz` 
             info.size, info.mode, info.mtime = len(data), mode, 1_700_000_000
             tar.addfile(info, io.BytesIO(data))
     return buf.getvalue()
+
+
+# ------------------------------------------------------------------------------------------------ picking the repo from GitHub
+
+def repos(token: str) -> dict:
+    """The user's repos they can push to, most recently pushed first: picking one fills the connect form."""
+    code, me = _gh("GET", "/user", token)
+    if code != 200:
+        return {"ok": False, "error": "GitHub no aceptó el token: creá uno nuevo con permiso «repo»" if code in (401, 403) else "No pude hablar con GitHub"}
+    out: list[dict] = []
+    for page in (1, 2, 3):
+        code, rs = _gh("GET", f"/user/repos?per_page=100&sort=pushed&page={page}&affiliation=owner,collaborator,organization_member", token)
+        if code != 200 or not isinstance(rs, list):
+            break
+        out += [{"full_name": r["full_name"], "name": r["name"], "url": r["html_url"], "homepage": (r.get("homepage") or "").strip() or None,
+                 "private": bool(r.get("private")), "pushed_at": r.get("pushed_at")}
+                for r in rs if (r.get("permissions") or {}).get("push") and not r.get("archived")]
+        if len(rs) < 100:
+            break
+    return {"ok": True, "login": me.get("login"), "repos": out}
+
+
+def live_url(token: str, repo: str) -> str | None:
+    """Where the repo is online: its «website» on GitHub, or the address its host (Railway, Vercel, Netlify…) reports on deploys."""
+    m = REPO_RX.match(repo or "")
+    if not m:
+        return None
+    own, name = m.group(1), m.group(2)
+    code, r = _gh("GET", f"/repos/{own}/{name}", token)
+    if code == 200 and (r.get("homepage") or "").strip():
+        return r["homepage"].strip()
+    for path in ("CNAME", "public/CNAME", "package.json"):  # GitHub Pages / a «homepage» in package.json
+        code, f = _gh("GET", f"/repos/{own}/{name}/contents/{path}", token)
+        if code != 200 or not isinstance(f, dict) or not f.get("content"):
+            continue
+        txt = base64.b64decode(f["content"]).decode("utf-8", "ignore")
+        if path == "package.json":
+            try:
+                txt = str(json.loads(txt).get("homepage") or "")
+            except ValueError:
+                continue
+        u = txt.strip().splitlines()[0].strip() if txt.strip() else ""
+        if re.match(r"^(https?://)?[\w.-]+\.[a-z]{2,}(/\S*)?$", u, re.I) and "github.com" not in u:
+            return (u if u.startswith("http") else "https://" + u).rstrip("/")
+    code, deps = _gh("GET", f"/repos/{own}/{name}/deployments?per_page=15", token)
+    if code != 200 or not isinstance(deps, list):
+        return None
+    # production first, then whatever deployed most recently
+    deps.sort(key=lambda d: 0 if re.search(r"prod", d.get("environment") or "", re.I) else 1)
+    for d in deps:
+        code, sts = _gh("GET", f"/repos/{own}/{name}/deployments/{d['id']}/statuses?per_page=5", token)
+        for s in sts if code == 200 and isinstance(sts, list) else []:
+            u = (s.get("environment_url") or s.get("target_url") or "").strip()
+            if u.startswith("http") and not re.search(r"railway\.(app|com)/project|vercel\.com/|app\.netlify\.com|github\.com", u):
+                return u.rstrip("/")
+    return None

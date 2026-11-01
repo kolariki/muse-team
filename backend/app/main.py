@@ -3122,12 +3122,36 @@ def _my_app(user: User, slug: str) -> dict:
 
 
 @app.post("/api/analytics/sites")
-def analytics_site_create(body: dict, user: User = CurrentUser):
-    """Connect a site that lives outside Tably (its own GitHub + Railway/Vercel…) to Analytics only."""
+async def analytics_site_create(body: dict, user: User = CurrentUser):
+    """Connect a site that lives outside Tably (its own GitHub + Railway/Vercel…) to Analytics only.
+    With `pr` and a GitHub token, Tably also opens the pull request with the script right away (one step)."""
     try:
-        return sitesmod.create(user.id, str(body.get("title") or ""), str(body.get("url") or ""), str(body.get("repo") or ""))
+        site = sitesmod.create(user.id, str(body.get("title") or ""), str(body.get("url") or ""), str(body.get("repo") or ""))
     except ValueError as e:
         raise HTTPException(400, str(e))
+    token = keystore.get_key(user.id, "github")
+    if body.get("pr") and site.get("repo") and token:
+        res = await asyncio.to_thread(sitesmod.open_pr, site, token, cloudmod.public_url())
+        site = sitesmod.update(user.id, site["slug"], pr_url=res.get("url") if res.get("ok") else None, pr_error=None if res.get("ok") else res.get("error"))
+        site["pr"] = res
+    return site
+
+
+@app.get("/api/analytics/github/repos")
+async def analytics_github_repos(user: User = CurrentUser):
+    """The repos of the user's GitHub (with the token from Settings) to pick the one to connect."""
+    token = keystore.get_key(user.id, "github")
+    if not token:
+        return {"connected": False, "repos": []}
+    res = await asyncio.to_thread(sitesmod.repos, token)
+    return {"connected": res["ok"], "error": res.get("error"), "login": res.get("login"), "repos": res.get("repos", [])}
+
+
+@app.get("/api/analytics/github/live")
+async def analytics_github_live(repo: str, user: User = CurrentUser):
+    """Where a repo is online (its GitHub website, or the address Railway/Vercel report on its deploys)."""
+    token = keystore.get_key(user.id, "github")
+    return {"url": await asyncio.to_thread(sitesmod.live_url, token, repo) if token else None}
 
 
 @app.patch("/api/analytics/sites/{slug}")
