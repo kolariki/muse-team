@@ -3667,7 +3667,7 @@ def _adtier_filters(request: Request) -> dict:
 
 
 @app.get("/api/adtier")
-def adtier_home(request: Request, user: User = CurrentUser):
+async def adtier_home(request: Request, user: User = CurrentUser):
     """The tier list (S, A, B, C rows) with the filters, the facets to filter by and, for the admin, the review numbers."""
     admin = _is_admin(user)
     if admin and not adtiermod.seeded() and adtiermod.seed_size():  # the first time: the researched winners load and analyse by themselves
@@ -3680,14 +3680,14 @@ def adtier_home(request: Request, user: User = CurrentUser):
 
 
 @app.post("/api/adtier/admin/seed")
-def adtier_seed(user: User = CurrentUser):
+async def adtier_seed(user: User = CurrentUser):
     """Load (again) the researched winners that are missing from the catalogue."""
     _adtier_admin(user)
     return adtiermod.seed(user)
 
 
 @app.post("/api/adtier/admin/retry")
-def adtier_retry(user: User = CurrentUser):
+async def adtier_retry(user: User = CurrentUser):
     """Every video whose analysis failed, again (e.g. after adding the Muse key)."""
     _adtier_admin(user)
     failed = [v["id"] for v in adtiermod.search({}, "", "draft", 1, 500)["videos"] if (adtiermod.get(v["id"]) or {}).get("stage") == "error"]
@@ -3778,7 +3778,7 @@ async def adtier_mcp(request: Request):
 
 # admin: load, ingest, review
 @app.post("/api/adtier/admin/videos")
-def adtier_add(body: dict, user: User = CurrentUser):
+async def adtier_add(body: dict, user: User = CurrentUser):
     """One video by URL with its evidence; the ingest starts right away."""
     _adtier_admin(user)
     try:
@@ -3790,7 +3790,7 @@ def adtier_add(body: dict, user: User = CurrentUser):
 
 
 @app.post("/api/adtier/admin/batch")
-def adtier_batch(body: dict, user: User = CurrentUser):
+async def adtier_batch(body: dict, user: User = CurrentUser):
     """A CSV lot: url, brand, agency, year, country, language, industry, format, evidence_type, evidence_detail, evidence_url, days_active, variations_count."""
     _adtier_admin(user)
     res = adtiermod.batch(user, str(body.get("csv") or ""))
@@ -3817,7 +3817,7 @@ def adtier_edit(vid: str, body: dict, user: User = CurrentUser):
 
 
 @app.post("/api/adtier/admin/videos/{vid}/ingest")
-def adtier_reingest(vid: str, user: User = CurrentUser):
+async def adtier_reingest(vid: str, user: User = CurrentUser):
     """Run the analysis again (after new evidence, a corrected format or a failure)."""
     _adtier_admin(user)
     if not adtiermod.get(vid):
