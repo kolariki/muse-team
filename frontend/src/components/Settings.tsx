@@ -126,6 +126,7 @@ function TablyCloudSettings() {
   const [st, setSt] = useState<Awaited<ReturnType<typeof api.cloudStatus>> | null>(null)
   const [tok, setTok] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
+  const [ghErr, setGhErr] = useState('')
   const load = () => { api.cloudStatus().then(setSt).catch(() => {}) }
   useEffect(load, [])
   if (!st) return null
@@ -162,14 +163,15 @@ function TablyCloudSettings() {
             <div className="text-[15px] font-semibold">GitHub</div>
             <a href="https://github.com/settings/tokens/new?scopes=repo&description=Tably%20Team" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] text-ink-3 hover:text-accent">{T('crear token con permiso «repo»', 'create a token with the "repo" scope')} <ExternalLink size={11} /></a>
           </div>
-          <span className={`ml-auto inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium ${st.github.set ? 'border-ok/30 bg-ok/10 text-ok' : 'border-line bg-surface text-ink-3'}`}>{st.github.set && <span className="h-2 w-2 rounded-full bg-ok" />}{st.github.set ? T('Conectado', 'Connected') : T('Sin token', 'No token')}</span>
+          <span className={`ml-auto inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium ${st.github.set && !st.github.error ? 'border-ok/30 bg-ok/10 text-ok' : st.github.set ? 'border-danger/30 bg-danger/10 text-danger' : 'border-line bg-surface text-ink-3'}`}>{st.github.set && <span className={`h-2 w-2 rounded-full ${st.github.error ? 'bg-danger' : 'bg-ok'}`} />}{!st.github.set ? T('Sin token', 'No token') : st.github.error ? T('No funciona', 'Not working') : T('Conectado', 'Connected')}</span>
         </div>
         <p className="mt-2 text-[12.5px] text-ink-2">{T('Con este token, «Mover a GitHub» crea el repositorio en tu cuenta y sube el historial completo de la construcción.', 'With this token, "Move to GitHub" creates the repository in your account and pushes the build\'s full history.')}</p>
         <div className="mt-3 flex gap-2">
           <input type="password" autoComplete="off" placeholder={st.github.set ? `token ··${st.github.last4}` : 'ghp_…'} value={tok} onChange={(e) => setTok(e.target.value)} className="h-10 flex-1 rounded-xl border border-line bg-paper px-3 font-mono text-[13px] outline-none focus:border-accent" />
-          <button disabled={!tok.trim()} onClick={async () => { await api.saveGithubToken(tok.trim()); setTok(''); setMsg(tr('Token de GitHub guardado', 'GitHub token saved')); load() }} className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[13px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-40"><Check size={14} /> {T('Guardar', 'Save')}</button>
+          <button disabled={!tok.trim()} onClick={async () => { try { await api.saveGithubToken(tok.trim()); setTok(''); setGhErr(''); setMsg(tr('Token de GitHub guardado y probado', 'GitHub token saved and tested')); load() } catch (e) { setMsg(''); setGhErr((e as Error).message) } }} className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[13px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-40"><Check size={14} /> {T('Guardar', 'Save')}</button>
           {st.github.set && <button onClick={async () => { await api.saveGithubToken(null, true); setMsg(tr('Token borrado', 'Token deleted')); load() }} className="flex h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[13px] text-ink-2 transition hover:border-danger hover:text-danger"><Trash2 size={14} /> {T('Borrar', 'Delete')}</button>}
         </div>
+        {(ghErr || st.github.error) && <div className="mt-2 rounded-lg border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-[12px] text-danger">{ghErr || st.github.error} <a href="https://github.com/settings/tokens/new?scopes=repo&description=Tably%20Team" target="_blank" rel="noreferrer" className="font-semibold underline">{T('Crear un token nuevo', 'Create a new token')}</a></div>}
         {msg && <div className="mt-2 text-[12px] text-ok">{msg}</div>}
       </div>
       {st.apps.length > 0 && (

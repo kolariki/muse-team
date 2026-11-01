@@ -125,6 +125,12 @@ export function ExternalSetup({ a, onChange }: { a: AnalyticsApp; onChange: () =
       onChange()
     } catch (e) { toast.error(tr('No se pudo abrir el PR', 'Could not open the PR'), (e as Error).message); onChange() } finally { setBusy(null) }
   }
+  const [tok, setTok] = useState('')
+  const newToken = async () => {
+    setBusy('pr')
+    try { await api.saveGithubToken(tok.trim()); setTok('') } catch (e) { toast.error(tr('Ese token no sirve', 'That token does not work'), (e as Error).message); setBusy(null); return }
+    await pr()
+  }
   const saveRepo = async () => {
     setBusy('repo')
     try { await api.siteUpdate(a.slug, { repo }); setRepo(''); onChange() } catch (e) { toast.error(tr('No se guardó', 'Not saved'), (e as Error).message) } finally { setBusy(null) }
@@ -163,6 +169,13 @@ export function ExternalSetup({ a, onChange }: { a: AnalyticsApp; onChange: () =
           </div>
         )}
         {x.pr_error && <div className="rounded-lg border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-danger">{x.pr_error}</div>}
+        {x.pr_error && /token|credentials|401/i.test(x.pr_error) && (
+          <div className="flex flex-wrap items-center gap-2">
+            <input type="password" value={tok} onChange={(e) => setTok(e.target.value)} placeholder="ghp_… / github_pat_…" autoComplete="off" className={`${INPUT} h-9 min-w-[min(100%,240px)] flex-1`} />
+            <a href="https://github.com/settings/tokens/new?scopes=repo&description=Tably%20Team" target="_blank" rel="noreferrer" className={PILL}><KeyRound size={13} /> {T('Crear token (permiso «repo»)', 'Create token (scope "repo")')} <ExternalLink size={11} /></a>
+            <button onClick={newToken} disabled={!tok.trim() || busy === 'pr'} className={PRIMARY}>{busy === 'pr' ? <Loader2 size={13} className="animate-spin" /> : <GitPullRequest size={13} />} {T('Guardar y abrir el PR', 'Save and open the PR')}</button>
+          </div>
+        )}
         {x.pr_url && <div className="text-ink-3">{T('Cuando mergees el PR y termine el deploy, abrí tu sitio y tocá «Comprobar».', 'Once you merge the PR and the deploy finishes, open your site and tap «Check».')}</div>}
         {/* 2 · 3 · by hand */}
         <div className="flex flex-wrap gap-2">

@@ -192,6 +192,22 @@ def _gh(method: str, path: str, token: str, body: dict | None = None) -> tuple[i
 
 
 BRANCH = "tably-analytics"
+BAD_TOKEN = "GitHub no acepta tu token: venció, lo borraste o lo que se guardó no es un token. Cargá uno nuevo con permiso «repo»."
+
+
+def check_token(token: str) -> str | None:
+    """None when GitHub accepts the token; otherwise what to tell the user."""
+    token = (token or "").strip()
+    if not token:
+        return "Pegá el token de GitHub"
+    if re.search(r"\s|github\.com|/", token):
+        return "Eso no es un token: pegaste un link o un nombre. El token empieza con ghp_ o github_pat_ y se crea en GitHub → Settings → Developer settings → Tokens."
+    code, me = _gh("GET", "/user", token)
+    if code == 401:
+        return "GitHub no acepta ese token (puede estar vencido o mal copiado). Creá uno nuevo con permiso «repo»."
+    if code != 200:
+        return None  # GitHub unreachable: keep it, the next call says what happened
+    return None
 
 
 def open_pr(site: dict, token: str, collector: str) -> dict:
@@ -201,6 +217,8 @@ def open_pr(site: dict, token: str, collector: str) -> dict:
         return {"ok": False, "error": "Falta el link del repositorio de GitHub"}
     own, name = m.group(1), m.group(2)
     code, repo = _gh("GET", f"/repos/{own}/{name}", token)
+    if code == 401:
+        return {"ok": False, "error": BAD_TOKEN}
     if code == 404:
         return {"ok": False, "error": f"GitHub no encuentra {own}/{name} con tu token. Si el repo es privado, el token necesita el permiso «repo» y acceso a esa cuenta u organización."}
     if code != 200 or not isinstance(repo, dict):

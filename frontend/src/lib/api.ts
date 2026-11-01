@@ -291,7 +291,7 @@ export const api = {
   runScreenUrl: (sessionId: string, id: string, target: 'ios' | 'android') => `/api/sessions/${sessionId}/builds/${id}/run/screen?target=${target}&token=${encodeURIComponent(getToken() ?? '')}&t=`,
   runTap: (sessionId: string, id: string, target: 'ios' | 'android', x: number, y: number) => j<{ ok: boolean }>(post(`/api/sessions/${sessionId}/builds/${id}/run/tap`, { target, x, y })),
   deploy: (sessionId: string, id: string, target: string) => j(post(`/api/sessions/${sessionId}/builds/${id}/deploy`, { target })),
-  cloudStatus: () => j<CloudStatus & { github: { set: boolean; last4: string | null }; apps: CloudApp[] }>(authed('/api/cloud/status')),
+  cloudStatus: () => j<CloudStatus & { github: { set: boolean; last4: string | null; error?: string | null }; apps: CloudApp[] }>(authed('/api/cloud/status')),
   saveGithubToken: (token: string | null, clear = false) =>
     j<{ set: boolean; last4: string | null }>(authed('/api/settings/github', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, clear }) })),
   cloud: (sessionId: string, id: string) => j<CloudInfo>(authed(`/api/sessions/${sessionId}/builds/${id}/cloud`)),

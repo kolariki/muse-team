@@ -4234,12 +4234,20 @@ def market_transfer(listing_id: str, body: dict, user: User = CurrentUser):
 
 @app.get("/api/cloud/status")
 def cloud_status(user: User = CurrentUser):
-    return {**cloudmod.status(user.id), "github": keystore.key_status(user.id, "github"), "apps": [cloudmod.public(a) for a in cloudmod.list_apps(user.id)]}
+    gh = keystore.key_status(user.id, "github")
+    if gh.get("set"):  # «Conectado» only when GitHub really accepts it
+        gh["error"] = sitesmod.check_token(keystore.get_key(user.id, "github") or "")
+    return {**cloudmod.status(user.id), "github": gh, "apps": [cloudmod.public(a) for a in cloudmod.list_apps(user.id)]}
 
 
 @app.put("/api/settings/github")
 def settings_github(body: dict, user: User = CurrentUser):
-    keystore.save(user.id, "github", api_key=body.get("token"), clear_key=bool(body.get("clear")))
+    token = (body.get("token") or "").strip()
+    if not body.get("clear"):
+        err = sitesmod.check_token(token)
+        if err:
+            raise HTTPException(400, err)
+    keystore.save(user.id, "github", api_key=token or None, clear_key=bool(body.get("clear")))
     return keystore.key_status(user.id, "github")
 
 
