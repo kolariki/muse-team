@@ -62,7 +62,8 @@ export default function AppShell({ user, onLogout, children }: { user: User; onL
   const tabs = ['home', 'projects', 'studio', 'adtier'].map((id) => all.find((x) => x.id === id)!)
 
   return (
-    <div className="flex h-full w-full">
+    // only the page scrolls: the side bar stays put (a page taller than the screen would otherwise drag the whole window)
+    <div className="flex h-[100dvh] w-full overflow-hidden">
       <aside className="hidden h-full shrink-0 flex-col border-r border-line bg-surface/80 backdrop-blur md:flex md:w-[68px] lg:w-[232px]">
         <button onClick={go('setup')} className="flex h-16 shrink-0 items-center gap-2.5 px-4 lg:px-5" aria-label={T('Inicio', 'Home')}>
           <img src="/icon.svg" alt="" aria-hidden className="h-9 w-9 shrink-0 rounded-xl shadow-sm" draggable={false} />
@@ -93,7 +94,7 @@ export default function AppShell({ user, onLogout, children }: { user: User; onL
         </div>
       </aside>
 
-      <main className="relative h-full min-w-0 flex-1 pb-[64px] md:pb-0">{children}</main>
+      <main className="relative h-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden pb-[64px] scroll-thin md:pb-0">{children}</main>
 
       {/* phone: the four places people go most, and «Más» for the rest */}
       <nav className="fixed inset-x-0 bottom-0 z-[70] flex h-[64px] items-stretch border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
