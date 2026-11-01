@@ -3670,11 +3670,35 @@ def _adtier_filters(request: Request) -> dict:
 def adtier_home(request: Request, user: User = CurrentUser):
     """The tier list (S, A, B, C rows) with the filters, the facets to filter by and, for the admin, the review numbers."""
     admin = _is_admin(user)
+    if admin and not adtiermod.seeded() and adtiermod.seed_size():  # the first time: the researched winners load and analyse by themselves
+        adtiermod.seed(user)
     out = {"tiers": adtiermod.tier_list(_adtier_filters(request)), "facets": adtiermod.facets(), "admin": admin, "formats": adtiermod.FORMATS,
            "takedown_email": env("ADTIER_TAKEDOWN_EMAIL") or None, "public_url": cloudmod.public_url()}
     if admin:
-        out["agreement"] = adtiermod.agreement()
+        out.update(agreement=adtiermod.agreement(), autopublish=adtiermod.autopublish(), seed_size=adtiermod.seed_size(), working=len(adtiermod._jobs))
     return out
+
+
+@app.post("/api/adtier/admin/seed")
+def adtier_seed(user: User = CurrentUser):
+    """Load (again) the researched winners that are missing from the catalogue."""
+    _adtier_admin(user)
+    return adtiermod.seed(user)
+
+
+@app.post("/api/adtier/admin/retry")
+def adtier_retry(user: User = CurrentUser):
+    """Every video whose analysis failed, again (e.g. after adding the Muse key)."""
+    _adtier_admin(user)
+    failed = [v["id"] for v in adtiermod.search({}, "", "draft", 1, 500)["videos"] if (adtiermod.get(v["id"]) or {}).get("stage") == "error"]
+    return {"retrying": adtiermod.start_ingest(user, failed)}
+
+
+@app.put("/api/adtier/admin/autopublish")
+def adtier_autopublish(body: dict, user: User = CurrentUser):
+    _adtier_admin(user)
+    adtiermod.set_autopublish(bool(body.get("on")))
+    return {"autopublish": adtiermod.autopublish()}
 
 
 @app.get("/api/adtier/videos")
@@ -3777,7 +3801,7 @@ def adtier_batch(body: dict, user: User = CurrentUser):
 @app.get("/api/adtier/admin/queue")
 def adtier_queue(user: User = CurrentUser):
     _adtier_admin(user)
-    return {"drafts": adtiermod.search({}, "", "draft", 1, 200)["videos"], "review": adtiermod.search({}, "", "review", 1, 200)["videos"],
+    return {"drafts": adtiermod.search({}, "", "draft", 1, 200)["videos"], "review": adtiermod.search({}, "", "review", 1, 200)["videos"], "unreviewed": adtiermod.unreviewed(),
             "running": list(adtiermod._jobs), "agreement": adtiermod.agreement(), "columns": adtiermod.CSV_COLUMNS}
 
 

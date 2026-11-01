@@ -581,7 +581,11 @@ async def ingest(user: User, video_id: str) -> None:
                          evidence_tier = excluded.evidence_tier, score_tier = excluded.score_tier, assigned_at = excluded.assigned_at, assigned_by = 'ai'""",
                       (video_id, tier, basis, just, tier, a["evidence_tier"], tier_from_score(a["total"]), now))
         tags = {**(a["tags"] or {}), "hook_type": a["hook_type"]}
-        _set(video_id, stage="review", status="review", format=v.get("format") or a["format"], tags=json.dumps(tags, ensure_ascii=False))
+        auto = autopublish() and bool(evidence_of(video_id)) and bool(a["template"])
+        if auto:  # published as analysed (tier from the evidence first), marked as not reviewed by a person yet
+            with _db() as c:
+                c.execute("UPDATE adtier_templates SET approved = 1 WHERE video_id = ? AND version = ?", (video_id, version))
+        _set(video_id, stage="published" if auto else "review", status="published" if auto else "review", format=v.get("format") or a["format"], tags=json.dumps(tags, ensure_ascii=False))
     except asyncio.CancelledError:
         raise
     except Exception as e:  # noqa: BLE001
@@ -589,6 +593,46 @@ async def ingest(user: User, video_id: str) -> None:
         _set(video_id, error=str(e)[:500], stage="error")
     finally:
         _jobs.pop(video_id, None)
+
+
+def autopublish() -> bool:
+    """Videos with external evidence go live as soon as they are analysed (the admin can switch it off and review first)."""
+    from .tickets import _setting
+
+    return (_setting("adtier_autopublish") or "1") != "0"
+
+
+def set_autopublish(on: bool) -> None:
+    from .tickets import set_setting
+
+    set_setting("adtier_autopublish", "1" if on else "0")
+
+
+SEED = Path(__file__).parent / "data" / "adtier_seed.csv"
+
+
+def seed(user: User) -> dict:
+    """The researched winners (Cannes, D&AD, One Show, YouTube Ads Leaderboard, El Ojo, Effie…) that are not in the catalogue
+    yet, loaded and analysed. Every row has its official video and a verifiable link to its evidence."""
+    if not SEED.exists():
+        return {"added": [], "errors": ["No hay semilla"]}
+    res = batch(user, SEED.read_text())
+    res["errors"] = [e for e in res["errors"] if "ya está en el catálogo" not in e]
+    start_ingest(user, res["added"])
+    from .tickets import set_setting
+
+    set_setting("adtier_seeded", str(int(_now())))
+    return res
+
+
+def seeded() -> bool:
+    from .tickets import _setting
+
+    return bool(_setting("adtier_seeded"))
+
+
+def seed_size() -> int:
+    return max(0, len(SEED.read_text().strip().splitlines()) - 1) if SEED.exists() else 0
 
 
 def start_ingest(user: User, video_ids: list[str]) -> int:
@@ -636,6 +680,14 @@ def review(user: User, video_id: str, tier: str, template: dict | None, publish:
             c.execute("UPDATE adtier_templates SET approved = 1 WHERE video_id = ? AND version = (SELECT MAX(version) FROM adtier_templates WHERE video_id = ?)", (video_id, video_id))
     _set(video_id, status="published" if publish else "review", stage="published" if publish else "review")
     return get(video_id) or {}
+
+
+def unreviewed() -> list[dict]:
+    """Published automatically and not looked at by a person yet."""
+    with _db() as c:
+        rows = c.execute("""SELECT v.* FROM adtier_videos v JOIN adtier_tiers t ON t.video_id = v.id WHERE v.status = 'published' AND t.assigned_by = 'ai'
+                            ORDER BY instr('SABC', t.tier), v.created DESC""").fetchall()
+    return [card(_row(r)) for r in rows]
 
 
 def agreement() -> dict:
@@ -700,7 +752,26 @@ async def validate_embeds() -> dict:
     return {"checked": len(rows), "unpublished": off}
 
 
+def resume() -> int:
+    """After a restart: the videos whose analysis was cut keep going, with the account that loaded them."""
+    with _db() as c:
+        rows = c.execute("""SELECT v.id, v.created_by, u.email, u.name FROM adtier_videos v JOIN users u ON u.id = v.created_by
+                            WHERE v.status = 'draft' AND COALESCE(v.stage, 'queued') NOT IN ('error')""").fetchall()
+    by: dict[str, list[str]] = {}
+    who: dict[str, User] = {}
+    for r in rows:
+        by.setdefault(r["created_by"], []).append(r["id"])
+        who[r["created_by"]] = User(id=r["created_by"], email=r["email"], name=r["name"] or "")
+    return sum(start_ingest(who[k], ids) for k, ids in by.items())
+
+
 async def daily_loop() -> None:
+    try:
+        n = resume()
+        if n:
+            log.info("adtier: resuming %d analyses", n)
+    except Exception:  # noqa: BLE001
+        log.exception("adtier resume")
     while True:
         await asyncio.sleep(24 * 3600)
         try:

@@ -32,6 +32,12 @@ export default function AdTier({ onBack }: { onBack: () => void }) {
   const f = useMemo(() => ({ ...filters, ...(DURATIONS.find((d) => d[0] === dur)?.[3] ?? {}) }), [filters, dur])
 
   useEffect(() => { api.adtier(qs(f)).then(setHome).catch((e) => toast.error(tr('No pude leer AdTier', 'Could not read AdTier'), (e as Error).message)) }, [f])
+  // while the team analyses videos, the tier list fills in by itself
+  useEffect(() => {
+    if (!home?.working) return
+    const t = window.setTimeout(() => api.adtier(qs(f)).then(setHome).catch(() => {}), 8000)
+    return () => window.clearTimeout(t)
+  }, [home, f])
   const total = home ? Object.values(home.facets.counts).reduce((a, b) => a + b, 0) : 0
   const tabs: [Tab, string, string][] = [['tiers', 'Tier list', 'Tier list'], ['videos', 'Videos', 'Videos'], ['templates', 'Plantillas maestras', 'Master templates'], ['brands', 'Marcas', 'Brands'], ['api', 'API y MCP', 'API and MCP'], ...(home?.admin ? [['admin', 'Administrar', 'Admin'] as [Tab, string, string]] : [])]
   const set = (k: string, v: string) => setFilters((x) => ({ ...x, [k]: v }))
@@ -59,6 +65,9 @@ export default function AdTier({ onBack }: { onBack: () => void }) {
           {tabs.map(([k, es, e2]) => <button key={k} onClick={() => setTab(k)} className={`rounded-full px-3.5 py-1.5 text-[13px] ${tab === k ? 'bg-ink text-paper font-semibold' : 'text-ink-2 hover:bg-surface-2'}`}>{T(es, e2)}</button>)}
         </div>
 
+        {!!home?.working && (
+          <p className="mt-3 flex items-center gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-3 py-2 text-[13px] text-ink-2"><Loader2 size={14} className="animate-spin text-accent" /> {T(`El equipo está analizando ${home.working} anuncios con Muse: aparecen acá a medida que terminan.`, `The team is analysing ${home.working} ads with Muse: they show up here as they finish.`)}</p>
+        )}
         {!home ? <div className="flex items-center gap-2 py-10 text-ink-3"><Loader2 size={16} className="animate-spin" /> {T('Cargando…', 'Loading…')}</div> : (
           <div className="mt-4 flex flex-col gap-4">
             {(tab === 'tiers' || tab === 'videos') && bar}
@@ -191,6 +200,7 @@ function Detail({ id, admin, onClose, onOpen, onChanged }: { id: string; admin: 
                   <div className="text-[12.5px] text-ink-2">
                     <div className="font-semibold text-ink">{d.tier_info.basis === 'evidence' ? T('Por evidencia externa', 'From external evidence') : d.tier_info.basis === 'human' ? T('Asignado en la revisión', 'Set in review') : T('Por score', 'From the score')}</div>
                     <p>{d.tier_info.justification}</p>
+                    {d.tier_info.assigned_by === 'ai' && <p className="mt-1 text-ink-4">{T('Analizado automáticamente; todavía sin revisión humana.', 'Analysed automatically; not reviewed by a person yet.')}</p>}
                     {admin && d.tier_info.proposed && <p className="mt-1 text-ink-4">{T('Propuesto por la IA', 'Proposed by the AI')}: {d.tier_info.proposed} · {T('evidencia', 'evidence')}: {d.tier_info.evidence_tier ?? '—'} · score: {d.tier_info.score_tier}</p>}
                   </div>
                 </div>
@@ -280,6 +290,7 @@ function Admin({ home, onOpen }: { home: AdTierHome; onOpen: (id: string) => voi
   const [ev, setEv] = useState<AdTierEvidence>({ type: 'award', detail: '', url: '' })
   const [csv, setCsv] = useState('')
   const [busy, setBusy] = useState(false)
+  const [auto, setAuto] = useState(home.autopublish)
   const load = () => api.adtierQueue().then(setQ).catch(() => {})
   useEffect(() => { load(); const t = window.setInterval(load, 5000); return () => window.clearInterval(t) }, [])
   const add = async () => {
@@ -326,10 +337,13 @@ function Admin({ home, onOpen }: { home: AdTierHome; onOpen: (id: string) => voi
       <section className="rounded-2xl border border-line bg-surface p-4 lg:col-span-2">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="flex-1 text-[15px] font-bold text-ink">{T('Cola de revisión', 'Review queue')}</h3>
+          <label className="flex items-center gap-1.5 text-[12.5px] text-ink-2"><input type="checkbox" checked={!!auto} onChange={(e) => api.adtierAutopublish(e.target.checked).then((r) => setAuto(r.autopublish))} /> {T('Publicar automático los que tienen evidencia', 'Auto-publish the ones with evidence')}</label>
+          {!!home.seed_size && <button disabled={busy} onClick={async () => { setBusy(true); try { const r = await api.adtierSeed(); toast.ok(T(`${r.added.length} ganadores nuevos cargados`, `${r.added.length} new winners loaded`), r.errors.join(' · ') || undefined); load() } finally { setBusy(false) } }} className={PILL}><Medal size={13} /> {T(`Cargar ganadores (${home.seed_size})`, `Load winners (${home.seed_size})`)}</button>}
           {q?.agreement.reviewed ? <span className="text-[12px] text-ink-3">{T(`La IA acertó el tier en ${q.agreement.pct} % de ${q.agreement.reviewed} revisados (meta: más de 70 %)`, `The AI got the tier right in ${q.agreement.pct}% of ${q.agreement.reviewed} reviewed (goal: over 70%)`)}</span> : null}
+          {!!q?.drafts.length && <button onClick={() => api.adtierRetry().then((r) => { toast.ok(T(`Reintentando ${r.retrying}`, `Retrying ${r.retrying}`)); load() })} className={PILL}><RefreshCw size={13} /> {T('Reintentar los que fallaron', 'Retry the failed ones')}</button>}
           <button onClick={() => api.adtierCheckEmbeds().then((r) => toast.ok(T(`${r.checked} embeds revisados`, `${r.checked} embeds checked`), r.unpublished.length ? T(`${r.unpublished.length} despublicados`, `${r.unpublished.length} unpublished`) : undefined))} className={PILL}><ShieldCheck size={13} /> {T('Verificar embeds', 'Check embeds')}</button>
         </div>
-        {([['review', T('Para revisar', 'To review')], ['drafts', T('En proceso o con error', 'In progress or failed')]] as const).map(([k, l]) => (
+        {([['review', T('Para revisar', 'To review')], ['drafts', T('En proceso o con error', 'In progress or failed')], ['unreviewed', T('Publicados sin revisar', 'Published, not reviewed')]] as const).map(([k, l]) => (
           <div key={k} className="mt-3">
             <div className={LABEL}>{l} · {q?.[k].length ?? 0}</div>
             <div className="mt-2 grid grid-cols-1 gap-2 min-[520px]:grid-cols-2 min-[900px]:grid-cols-4">

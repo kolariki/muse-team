@@ -359,11 +359,14 @@ export const api = {
   adtierMakeMaster: (format: string, tier: string) => j<AdTierMasters>(post('/api/adtier/admin/masters', { format, tier })),
   adtierAdd: (url: string, evidence: AdTierEvidence[], meta: Record<string, string>) => j<AdTierDetail>(post('/api/adtier/admin/videos', { url, evidence, meta })),
   adtierBatch: (csv: string) => j<{ added: string[]; errors: string[] }>(post('/api/adtier/admin/batch', { csv })),
-  adtierQueue: () => j<{ drafts: AdTierCard[]; review: AdTierCard[]; running: string[]; agreement: AdTierAgreement; columns: string[] }>(authed('/api/adtier/admin/queue')),
+  adtierQueue: () => j<{ drafts: AdTierCard[]; review: AdTierCard[]; unreviewed: AdTierCard[]; running: string[]; agreement: AdTierAgreement; columns: string[] }>(authed('/api/adtier/admin/queue')),
   adtierEdit: (id: string, body: Record<string, unknown>) => j<AdTierDetail>(authed(`/api/adtier/admin/videos/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
   adtierReingest: (id: string) => j<AdTierDetail>(post(`/api/adtier/admin/videos/${id}/ingest`, {})),
   adtierReview: (id: string, body: { tier: string; template?: Record<string, unknown> | null; publish: boolean; note?: string }) => j<AdTierDetail>(post(`/api/adtier/admin/videos/${id}/review`, body)),
   adtierDelete: (id: string) => j<{ ok: boolean }>(authed(`/api/adtier/admin/videos/${id}`, { method: 'DELETE' })),
+  adtierRetry: () => j<{ retrying: number }>(post('/api/adtier/admin/retry', {})),
+  adtierSeed: () => j<{ added: string[]; errors: string[] }>(post('/api/adtier/admin/seed', {})),
+  adtierAutopublish: (on: boolean) => j<{ autopublish: boolean }>(authed('/api/adtier/admin/autopublish', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ on }) })),
   adtierCheckEmbeds: () => j<{ checked: number; unpublished: string[] }>(post('/api/adtier/admin/check-embeds', {})),
   levels: (sessionId: string, id: string) => j<LevelsPayload>(authed(`/api/sessions/${sessionId}/builds/${id}/levels`)),
   marketList: (sessionId: string, id: string, body: { pitch: string; price_usd: number | null; title?: string }) =>
@@ -591,7 +594,7 @@ export interface AdTierDetail extends AdTierCard { source_url: string; embed_url
   template: AdTierTemplate | null; template_version: number | null; similar: AdTierCard[]; transcript?: { start: number; end: number; text: string }[]; stage?: string; error?: string | null; embed_ok?: number }
 export interface AdTierAgreement { reviewed: number; agree: number; pct: number | null }
 export interface AdTierHome { tiers: Record<AdTierTier, AdTierCard[]>; facets: { format: string[]; industry: string[]; language: string[]; country: string[]; platform_origin: string[]; brand: string[]; counts: Record<string, number> }
-  admin: boolean; formats: string[]; agreement?: AdTierAgreement; takedown_email: string | null; public_url: string }
+  admin: boolean; formats: string[]; agreement?: AdTierAgreement; takedown_email: string | null; public_url: string; autopublish?: boolean; seed_size?: number; working?: number }
 export interface AdTierPage { total: number; page: number; per: number; videos: AdTierCard[] }
 export interface AdTierMasters { masters: { format: string; tier: AdTierTier; body: { skeleton?: string; beats?: { from: number; to: number; purpose: string; what: string }[]; top_hooks?: { type: string; share: number; example: string }[]; ctas?: string[]; production?: string; what_wins?: string[]; duration_avg_s?: number }; videos: string[]; model: string; created: number }[]
   status: { format: string; tier: AdTierTier; videos: number; ready: boolean; made: boolean }[]; min: number }
