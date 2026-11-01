@@ -63,6 +63,7 @@ const SCENES = [
   { key: 'refs', label: 'Referentes e ingeniería inversa', label_en: 'References and reverse engineering', desc: 'Cargás apps parecidas para que el equipo las estudie y, si querés, activás la ingeniería inversa para entender cómo están hechas.', desc_en: 'You add similar apps for the team to study and, if you want, turn on reverse engineering to understand how they are built.', dur: 7600 },
   { key: 'arena', label: 'El equipo debate', label_en: 'The team debates', desc: 'Los roles discuten en vivo producto, stack y alcance, se pasan la palabra y cierran decisiones con un responsable por cada paso.', desc_en: 'The roles debate product, stack and scope live, hand the floor to each other and close decisions with an owner for every step.', dur: TURNS.length * 2600 + 600 },
   { key: 'build', label: 'Diseñan, construyen y revisan', label_en: 'They design, build and review', desc: 'Benchmark de referentes, diseño que aprobás, código con Claude Code, pulido visual y revisión del consejo hasta que la app está lista.', desc_en: 'Reference benchmark, a design you approve, code with Claude Code, visual polish and council review until the app is ready.', dur: 12600 },
+  { key: 'deploy', label: 'La publicás con un clic', label_en: 'You publish it in one click', desc: 'Terminada la construcción, la publicás desde Tably Cloud: base de datos, HTTPS y dominio incluidos, con una URL pública que abre desde cualquier lugar.', desc_en: 'Once the build is done, you publish it from Tably Cloud: database, HTTPS and domain included, with a public URL that opens from anywhere.', dur: 10500 },
   { key: 'analytics', label: 'Medís quién la usa', label_en: 'You measure who uses it', desc: 'Cada app publicada trae Tably Analytics: visitas, páginas, eventos y errores reales, sin cookies ni datos personales.', desc_en: 'Every published app comes with Tably Analytics: real visits, pages, events and errors, with no cookies or personal data.', dur: 9000 },
   { key: 'ads', label: 'Creás los anuncios', label_en: 'You create the ads', desc: 'Muse mira tu app, resume qué hace y propone 5 plantillas; cinco agentes arman el video con los colores de la app y queda listo para Meta Ads.', desc_en: 'Muse looks at your app, sums up what it does and suggests 5 templates; five agents make the video in the app’s colours, ready for Meta Ads.', dur: 10000 },
   { key: 'market', label: 'La vendés en el marketplace', label_en: 'You sell it on the marketplace', desc: 'Publicás la app con su nivel, sus visitas reales y un precio; el comprador te escribe y se la transferís desde el constructor.', desc_en: 'You list the app with its level, real visits and a price; the buyer writes to you and you transfer it from the builder.', dur: 9500 },
@@ -357,6 +358,7 @@ function Demo({ clock }: { clock: ReturnType<typeof useClock> }) {
           {clock.key === 'refs' && <SceneRefs key="refs" t={clock.local} />}
           {clock.key === 'arena' && <SceneArena key="arena" t={clock.local} />}
           {clock.key === 'build' && <SceneBuild key="build" t={clock.local} />}
+          {clock.key === 'deploy' && <SceneDeploy key="deploy" t={clock.local} />}
           {clock.key === 'analytics' && <SceneAnalytics key="analytics" t={clock.local} />}
           {clock.key === 'ads' && <SceneAds key="ads" t={clock.local} />}
           {clock.key === 'market' && <SceneMarket key="market" t={clock.local} />}
@@ -925,7 +927,85 @@ function SceneBuild({ t }: { t: number }) {
   )
 }
 
-/* 7 · Tably Analytics: the snippet goes in, real visits arrive, the app reaches level 2 (measured) */
+/* 7 · publish: one click on Tably Cloud, the deploy runs and the app gets a public URL that opens from anywhere */
+const DEPLOY_STEPS: [string, string][] = [
+  ['Empaqueta la v1 aprobada', 'Packs the approved v1'],
+  ['Base de datos y auth si los necesita', 'Database and auth when needed'],
+  ['Repositorio git propio', 'Its own git repository'],
+  ['HTTPS y dominio público', 'HTTPS and a public domain'],
+  ['En línea', 'Live'],
+]
+const DEPLOY_LOG = ['▸ build  vite build · 38 kB gz', '▸ env    3 variables desde «Servicios»', '▸ cert   TLS emitido', '▸ health GET / → 200 en 84 ms']
+const PLACES: [string, string][] = [['📱 Buenos Aires', '📱 Buenos Aires'], ['💻 Madrid', '💻 Madrid'], ['📱 Ciudad de México', '📱 Mexico City'], ['💻 Nueva York', '💻 New York']]
+function SceneDeploy({ t }: { t: number }) {
+  const T = useT()
+  const clicked = t > 1100
+  const STEP = 1100
+  const done = clicked ? Math.min(DEPLOY_STEPS.length, Math.floor((t - 1300) / STEP) + 1) : 0
+  const live = done >= DEPLOY_STEPS.length
+  const url = 'https://paraguas.tablyteam.app'
+  const typed = live ? url.slice(0, Math.floor(ease((t - 6800) / 900) * url.length)) : ''
+  const open = t > 7900
+  return (
+    <motion.div {...sceneProps}>
+      <div className="grid h-full grid-cols-[1.1fr_1fr] gap-5">
+        <div className="min-w-0">
+          <Label>Tably Cloud · {T('publicar', 'publish')}</Label>
+          <div data-r className={`mt-2 flex h-9 items-center justify-center gap-2 rounded-xl text-[13px] font-semibold shadow-md transition-colors ${live ? 'bg-ink text-paper' : 'bg-accent text-white'}`}>
+            {live ? `● ${T('En línea', 'Live')} · v1` : clicked ? T('Publicando…', 'Publishing…') : `⬆ ${T('Publicar ahora', 'Publish now')}`}
+          </div>
+          <ol className="mt-3 space-y-1.5">
+            {DEPLOY_STEPS.map(([es, en], i) => {
+              const ok = i < done
+              const now = clicked && i === done
+              return (
+                <li data-r key={es} className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-[12.5px] ${now ? 'border-accent bg-accent-soft' : ok ? 'border-line bg-surface' : 'border-dashed border-line text-ink-3'}`}>
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${ok ? 'bg-accent text-white' : now ? 'ring-2 ring-accent' : 'bg-surface-2'}`}>{ok ? '✓' : i + 1}</span>
+                  {T(es, en)}
+                </li>
+              )
+            })}
+          </ol>
+          <div data-r className="mt-3 h-[92px] overflow-hidden rounded-lg bg-[#141a17] p-2.5 font-mono text-[10.5px] leading-relaxed text-[#9FCDA8]">
+            {DEPLOY_LOG.filter((_, i) => clicked && t > 1500 + i * 1200).map((l) => <div key={l}>{l}</div>)}
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-col justify-center">
+          <motion.div data-r animate={{ opacity: live ? 1 : 0.35, scale: live ? 1 : 0.97 }} className="overflow-hidden rounded-xl border border-line bg-surface shadow-[0_24px_50px_-24px_rgba(30,38,34,.55)]">
+            <div className="flex items-center gap-1.5 border-b border-line bg-surface-2 px-2.5 py-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#E6A19A]" /><span className="h-2 w-2 rounded-full bg-[#E9C97A]" /><span className="h-2 w-2 rounded-full bg-[#9FCDA8]" />
+              <div className="ml-1.5 flex min-w-0 flex-1 items-center gap-1 rounded-md bg-surface px-2 py-0.5 font-mono text-[10.5px]">
+                <span className="text-accent">🔒</span><span className="truncate">{typed}</span>{live && !open && <span className="caret" />}
+              </div>
+            </div>
+            <div className="h-[150px] bg-[#F3F7FB] p-3 text-ink">
+              {open && (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                  <div className="text-[10px] text-ink-3">Buenos Aires · {T('hoy', 'today')}</div>
+                  <div className="flex items-end gap-2"><span className="font-mono text-[34px] font-bold leading-none">17°</span><span className="mb-1 text-[11px] text-ink-2">{T('lluvia a las 15 h', 'rain at 3 pm')}</span></div>
+                  <div className="mt-2 rounded-lg bg-[#3D5CC4] px-2.5 py-1.5 text-[12px] font-semibold text-white">☂ {T('Sí, llevá paraguas', 'Yes, take an umbrella')}</div>
+                  <div className="mt-2 flex gap-1">{[20, 30, 45, 70, 65, 40, 25].map((r, i) => <div key={i} className="flex-1 rounded-sm bg-[#3D5CC4]" style={{ height: 4 + r / 4, opacity: 0.3 + r / 100 }} />)}</div>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {PLACES.map(([es, en], i) => (
+              <motion.span key={es} initial={false} animate={{ opacity: open && t > 8300 + i * 280 ? 1 : 0, y: open && t > 8300 + i * 280 ? 0 : 6 }} className="rounded-full border border-line bg-surface px-2 py-0.5 text-[11px] text-ink-2">
+                {T(es, en)} <span className="text-accent">✓</span>
+              </motion.span>
+            ))}
+          </div>
+          {open && <div className="mt-2 text-[11px] text-ink-3">{T('Pública, con HTTPS: cualquiera la abre con el link.', 'Public, with HTTPS: anyone opens it with the link.')}</div>}
+        </div>
+      </div>
+      {!clicked && <Cursor x={150} y={70} />}
+      {clicked && t < 1500 && <Cursor x={150} y={70} click />}
+    </motion.div>
+  )
+}
+
+/* 8 · Tably Analytics: the snippet goes in, real visits arrive, the app reaches level 2 (measured) */
 const VISITS = [12, 18, 15, 26, 31, 28, 40, 46, 39, 58, 64, 71, 83, 96]
 function SceneAnalytics({ t }: { t: number }) {
   const T = useT()
@@ -1003,7 +1083,7 @@ function SceneAnalytics({ t }: { t: number }) {
   )
 }
 
-/* 8 · ads: Muse reads the app, 5 templates are recommended, the video is made in the app's colours and goes to Meta Ads */
+/* 9 · ads: Muse reads the app, 5 templates are recommended, the video is made in the app's colours and goes to Meta Ads */
 const AD_TEMPLATES: [string, string][] = [['Problema → solución', 'Problem → solution'], ['Demo en el teléfono', 'Phone demo'], ['3 razones', '3 reasons'], ['Antes / después', 'Before / after'], ['Prueba social', 'Social proof']]
 const AD_AGENTS: [string, string][] = [['Guion con el resumen', 'Script from the summary'], ['Plan de escenas', 'Scene plan'], ['Arma el video', 'Builds the video'], ['Mejora', 'Improves'], ['Aprueba o devuelve', 'Approves or sends back']]
 const AD_LINES: [string, string][] = [['¿Salís sin saber si llueve?', 'Heading out not knowing if it rains?'], ['Te lo dice en 3 segundos', 'It tells you in 3 seconds'], ['Probalo gratis', 'Try it free']]
@@ -1078,7 +1158,7 @@ function SceneAds({ t }: { t: number }) {
   )
 }
 
-/* 9 · marketplace: the app is listed with its level and real visits, a buyer writes, the owner transfers it */
+/* 10 · marketplace: the app is listed with its level and real visits, a buyer writes, the owner transfers it */
 function SceneMarket({ t }: { t: number }) {
   const T = useT()
   const listed = t > 1200
@@ -1138,7 +1218,7 @@ function SceneMarket({ t }: { t: number }) {
             {msg && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="rounded-xl border border-line bg-surface p-3 text-[12px]">
                 <div className="text-[10px] uppercase tracking-widest text-ink-3">{T('Desde el constructor', 'From the builder')}</div>
-                <div className={`mt-2 flex items-center justify-center gap-2 rounded-lg px-3 py-2 font-semibold text-white shadow-md transition-colors ${sold ? 'bg-ink' : 'bg-accent'}`}>
+                <div className={`mt-2 flex items-center justify-center gap-2 rounded-lg px-3 py-2 font-semibold shadow-md transition-colors ${sold ? 'bg-ink text-paper' : 'bg-accent text-white'}`}>
                   {sold ? T('Transferida ✓ · código, dominio y datos', 'Transferred ✓ · code, domain and data') : transferring ? T('Transfiriendo…', 'Transferring…') : T('Transferir la app', 'Transfer the app')}
                 </div>
                 {transferring && <div className="mt-2 h-1 overflow-hidden rounded-full bg-black/5"><div className="h-full bg-accent" style={{ width: `${ease((t - 6000) / 1400) * 100}%` }} /></div>}
@@ -1152,7 +1232,7 @@ function SceneMarket({ t }: { t: number }) {
   )
 }
 
-/* 10 · audit of an existing project: upload, the roles review from their areas, findings and a readiness score */
+/* 11 · audit of an existing project: upload, the roles review from their areas, findings and a readiness score */
 const AUDIT_FINDINGS: { role: string; sev: 'bloqueante' | 'mejora'; text: string; text_en: string; where: string }[] = [
   { role: 'qa', sev: 'bloqueante', text: 'El checkout no valida el stock antes de cobrar', text_en: 'Checkout does not validate stock before charging', where: 'api/checkout.ts:48' },
   { role: 'eng', sev: 'bloqueante', text: 'Secretos en el repo: .env commiteado', text_en: 'Secrets in the repo: .env committed', where: '.env' },
