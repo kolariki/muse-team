@@ -1,24 +1,23 @@
-import ThemeSwitch from './ThemeSwitch'
 import TeamTable from './TeamTable'
-import { loadMyPhoto, useMyPhoto } from '../lib/myPhoto'
+import { loadMyPhoto } from '../lib/myPhoto'
 import { newLookOn } from '../lib/look'
 import { useArena } from '../store'
-import { TeamMemoryButton } from './TeamMemory'
 import { EmployeePicker, employeeToAgent } from './MyTeam'
 import { useBuild, type Activity } from '../buildStore'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Medal, Clapperboard, ArrowLeftRight, BarChart3, Bookmark, Check, Eye, FolderOpen, Gavel, Globe, Loader2, LogOut, Menu, MonitorSmartphone, Play, Plus, Puzzle, Settings2, Smartphone, Store, Trash2, Users, X, Zap } from 'lucide-react'
+import { ArrowLeftRight, Bookmark, Check, Eye, FolderOpen, Globe, Loader2, MonitorSmartphone, Play, Plus, Puzzle, Settings2, Smartphone, Trash2, Users, X, Zap } from 'lucide-react'
 import { toast, useConfirm, usePrompt } from './Toast'
 import SkillPicker from './SkillPicker'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { api, type Employee, type EngineStatus, type User } from '../lib/api'
 import { fmtUsd } from '../lib/parse'
 import Dashboard from './Dashboard'
+import HomeOverview from './HomeOverview'
 import HomeLoader from './HomeLoader'
 import LaneCards from './LaneCards'
 import AgentAvatar from './AgentAvatar'
 import { isMuseReco, museReco, museTeam, museTeamFor } from '../lib/muse'
-import { HACKATHON_MODE, MUSE_FIRST, visibleEngines, visibleProviders, TICKETS_ENABLED } from '../lib/flags'
+import { HACKATHON_MODE, MUSE_FIRST, visibleEngines, visibleProviders } from '../lib/flags'
 import { readCache, writeCache } from '../lib/cache'
 import ModelSelect, { invalidateModels } from './ModelSelect'
 import ArenaIntro, { ICON_STEP, PLAY_OUT, iconExitAt, introTeam } from './ArenaIntro'
@@ -27,7 +26,7 @@ import PersonaField from './PersonaField'
 import ProviderLogo, { BrandLogoRow, BrandStripes, LogoWatermark } from './ProviderLogo'
 import { BRAND_COLOR, MODE_INFO, PALETTE, brandTheme } from '../lib/brand'
 import type { AgentConfig, Mode, Preset, Provider, Role, SessionConfig, SessionSummary } from '../types'
-import { getLang, pick, setLang, tr, useLang, useT } from '../lib/i18n'
+import { getLang, pick, tr, useLang, useT } from '../lib/i18n'
 import Hint from './Hint'
 
 const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'agente'
@@ -45,7 +44,7 @@ interface Props {
 
 export type OpenMode = 'arena' | 'builder' | 'run'
 
-export default function Setup({ user, onLogout, onSettings, onAudit, onStart, onDirect, onReplay, onOpen }: Props) {
+export default function Setup({ user, onSettings, onAudit, onStart, onDirect, onReplay, onOpen }: Props) {
   const T = useT()
   const { prompt: askName, dialog: nameDialog } = usePrompt()
   const { confirm: confirmDelete, dialog: deleteDialog } = useConfirm()
@@ -103,8 +102,6 @@ export default function Setup({ user, onLogout, onSettings, onAudit, onStart, on
     return () => window.removeEventListener('keydown', onKey)
   }, [chooser])
   const lang = useLang()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const myPhoto = useMyPhoto((s) => s.url)
   useEffect(() => { loadMyPhoto() }, [])
   const [providers, setProviders] = useState<Provider[]>(() => visibleProviders(readCache<Provider[]>('providers') ?? []))
   const trialProvider = providers.find((x) => x.id === 'baseten' && x.source === 'trial')
@@ -569,49 +566,23 @@ export default function Setup({ user, onLogout, onSettings, onAudit, onStart, on
         </div>
       )}
       <div className="w-full px-4 py-5 sm:px-8 sm:py-10 2xl:px-12">
-        {/* header: brand on the left, actions on the right, all the same height */}
-        <div className="-mb-2 flex items-center gap-3">
-          <span className="flex items-center gap-2.5">
-            <img src="/icon.svg" alt="" aria-hidden className="h-9 w-9 rounded-xl shadow-sm" draggable={false} />
-            <span className="serif text-xl">Tably <em className="text-accent">Team</em></span>
-          </span>
-          <button type="button" onClick={() => setMenuOpen((v) => !v)} aria-expanded={menuOpen} aria-label={T('Menú', 'Menu')} className="ml-auto flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface text-ink shadow-sm md:hidden">{menuOpen ? <X size={18} /> : <Menu size={18} />}</button>
-          <div onClick={(e) => { if ((e.target as HTMLElement).closest('button') && window.innerWidth < 768) setMenuOpen(false) }} className={`${menuOpen ? 'fixed inset-x-3 top-16 z-[60] flex max-h-[calc(100dvh-5rem)] flex-col items-stretch overflow-y-auto rounded-2xl border border-line bg-surface p-3 shadow-xl [&>*]:w-full [&>*]:justify-center' : 'hidden'} gap-2 whitespace-nowrap md:static md:z-auto md:ml-auto md:flex md:max-h-none md:flex-row md:flex-wrap md:items-center md:justify-end md:overflow-visible md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none md:[&>*]:w-auto`}>
-            <ThemeSwitch />
-            <LangSwitch />
-            <button onClick={onAudit} title={T('Subí un proyecto existente y el equipo lo revisa desde cada rol', 'Upload an existing project and the team reviews it from every role')} className="flex h-10 items-center gap-2 rounded-full bg-accent px-4 text-sm font-semibold text-white shadow-md transition hover:brightness-110 hover:shadow-lg">
-              <Gavel size={16} /> {T('Auditar un proyecto', 'Audit a project')}
-            </button>
-            <button onClick={() => useArena.getState().set({ view: 'adtier' })} title={T('Anuncios en video rankeados S/A/B/C, cada uno con su plantilla', 'Video ads ranked S/A/B/C, each with its template')} className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm text-ink-2 shadow-sm transition hover:border-accent hover:bg-accent-soft hover:text-accent">
-              <Medal size={16} /> AdTier
-            </button>
-            <button onClick={() => useArena.getState().set({ view: 'studio' })} title={T('Subí tus videos e imágenes y el equipo arma un anuncio listo para Meta', 'Upload your videos and images and the team makes an ad ready for Meta')} className="flex h-10 items-center gap-2 rounded-full bg-ink px-4 text-sm font-semibold text-paper shadow-md transition hover:brightness-110 hover:shadow-lg">
-              <Clapperboard size={16} /> {T('Crear anuncio', 'Create ad')}
-            </button>
-            {TICKETS_ENABLED && <button onClick={() => useArena.getState().set({ view: 'tickets' })} title={T('Tus tickets de Notion: el equipo los resuelve y abre el PR', 'Your Notion tickets: the team resolves them and opens the PR')} className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm text-ink-2 shadow-sm transition hover:border-accent hover:bg-accent-soft hover:text-accent">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white ring-1 ring-black/10"><ProviderLogo provider="notion" size={14} /></span> Tickets
-            </button>}
-            <button onClick={() => useArena.getState().set({ view: 'market' })} title={T('Apps construidas con Tably en venta, con su nivel y sus visitas reales', 'Apps built with Tably for sale, with their level and real visits')} className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm text-ink-2 shadow-sm transition hover:border-accent hover:bg-accent-soft hover:text-accent">
-              <Store size={16} /> Marketplace
-            </button>
-            <button onClick={() => useArena.getState().set({ view: 'analytics' })} title={T('Visitas, eventos y errores reales de tus apps publicadas', 'Real visits, events and errors of your published apps')} className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm text-ink-2 shadow-sm transition hover:border-accent hover:bg-accent-soft hover:text-accent">
-              <BarChart3 size={16} /> {T('Analíticas', 'Analytics')}
-            </button>
-            <button onClick={() => useArena.getState().set({ view: 'agents' })} title={T('Tus proyectos y conversaciones de Muse Code, tal como están en esta máquina', 'Your Muse Code projects and conversations, as they are on this machine')} className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm text-ink-2 shadow-sm transition hover:border-accent hover:bg-accent-soft hover:text-accent">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white ring-1 ring-black/10"><ProviderLogo provider="meta" size={15} /></span> {T('Mis sesiones', 'My sessions')}
-            </button>
-            <TeamMemoryButton className="h-10" />
-            <button onClick={onSettings} title={T('Conectá tus IAs, elegí modelos por defecto, deploy y trazas', 'Connect your AIs, pick default models, deploy and tracing')} className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink-2 shadow-sm transition hover:bg-accent-soft hover:border-accent hover:text-accent hover:shadow-md">
-              <Settings2 size={16} /> {T('Modelos y API keys', 'Models & API keys')}
-            </button>
-            <div className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-1.5 text-sm shadow-sm">
-              {myPhoto ? <img src={myPhoto} alt="" className="h-8 w-8 rounded-full object-cover" /> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-[13px] font-semibold uppercase text-white">{user.name.slice(0, 1)}</span>}
-              <span className="max-w-[140px] truncate font-medium text-ink">{user.name}</span>
-              <button onClick={onLogout} className="ml-1 flex h-8 w-8 items-center justify-center rounded-full text-ink-3 transition hover:bg-danger/10 hover:text-danger" title={T('Cerrar sesión', 'Log out')} aria-label={T('Cerrar sesión', 'Log out')}><LogOut size={15} /></button>
-            </div>
+        {/* the sections live in the side bar (AppShell); on a phone only the brand, the tab bar is at the bottom */}
+        <div className="-mb-2 flex items-center gap-3 md:hidden">
+          <img src="/icon.svg" alt="" aria-hidden className="h-9 w-9 rounded-xl shadow-sm" draggable={false} />
+          <span className="serif text-xl">Tably <em className="text-accent">Team</em></span>
+        </div>
+        <div className="mt-5 flex flex-wrap items-end justify-between gap-3 md:mt-0">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.3em] text-accent">{T('Tu tablero', 'Your dashboard')}</div>
+            <h1 className="serif mt-1 text-[30px] leading-tight">{T(`Hola, ${user.name.split(' ')[0]}`, `Hi, ${user.name.split(' ')[0]}`)}</h1>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm text-ink-2 shadow-sm transition hover:border-accent hover:text-accent"><FolderOpen size={16} /> {T('Mis proyectos', 'My projects')}</button>
+            <button onClick={() => document.getElementById('new-project')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex h-10 items-center gap-2 rounded-full bg-accent px-4 text-sm font-semibold text-white shadow-md transition hover:brightness-110"><Plus size={16} /> {T('Nuevo proyecto', 'New project')}</button>
           </div>
         </div>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8">
+        <HomeOverview />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 md:mt-5">
           {/* no hero on the home: the brand is in the header, the companies' row is the first thing */}
           <div className="flex flex-wrap gap-2 text-[11px]">
             {providers.filter((p) => !MUSE_FIRST || showAllProviders || p.id === 'meta' || p.id === 'mock' || p.configured).map((p) => (
@@ -640,6 +611,7 @@ export default function Setup({ user, onLogout, onSettings, onAudit, onStart, on
 
         {newLookOn() && <TeamTable />}
 
+        <div id="new-project" className="scroll-mt-4" />
         {/* the two ways in: the builder alone (one good prompt) or the whole team (council first) */}
         {HACKATHON_MODE ? null : lane === null ? (
           <LaneCards onPick={setLane} />
@@ -1187,13 +1159,3 @@ function ProviderConnect({ provider: p, onClose, onConnected }: { provider: Prov
 }
 
 /** ES / EN switch in the header: every visible text on the start screens follows it. */
-function LangSwitch() {
-  const lang = useLang()
-  return (
-    <div className="flex h-10 items-center rounded-full border border-line bg-surface p-1 text-[12px] font-semibold shadow-sm" title="Idioma / Language">
-      {(['es', 'en'] as const).map((l) => (
-        <button key={l} onClick={() => setLang(l)} className={`h-8 rounded-full px-3 uppercase transition ${lang === l ? 'bg-accent text-white shadow-sm' : 'text-ink-3 hover:bg-surface-2 hover:text-ink'}`}>{l}</button>
-      ))}
-    </div>
-  )
-}

@@ -14,6 +14,7 @@ import { CostChart, LatencyChart, StatTiles, Timeline, TokensChart } from './com
 import Landing from './components/Landing'
 import Login from './components/Login'
 import Settings from './components/Settings'
+import AppShell from './components/AppShell'
 import Setup from './components/Setup'
 import { ErrorBoundary, Toaster, notify, requestNotifications, toast } from './components/Toast'
 import TopBar from './components/TopBar'
@@ -562,16 +563,16 @@ function AppInner() {
       </div>
     )
   }
-  if (view === 'audit') return <>{banner}{demoLayer}<AuditSetup onBack={() => useArena.getState().set({ view: 'setup' })} onStart={startAudit} /></>
-  if (view === 'settings') return <>{banner}{demoLayer}<Settings onBack={() => useArena.getState().set({ view: 'setup' })} /></>
-  if (view === 'agents') return <>{banner}{demoLayer}<AgentSessions onBack={() => useArena.getState().set({ view: 'setup' })} /></>
-  if (view === 'tickets' && TICKETS_ENABLED) return <>{banner}{demoLayer}<Tickets onBack={() => useArena.getState().set({ view: 'setup' })} /></>
-  if (view === 'analytics') return <>{banner}{demoLayer}<AnalyticsPage onBack={() => useArena.getState().set({ view: 'setup' })} /></>
-  if (view === 'team') return <>{banner}{demoLayer}<TeamPage onBack={() => useArena.getState().set({ view: 'setup' })} /></>
-  if (view === 'adtier') return <>{banner}{demoLayer}<Suspense fallback={null}><AdTier onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></>
-  if (view === 'studio') return <>{banner}{demoLayer}<Suspense fallback={null}><AdStudio onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></>
-  if (view === 'market') return <>{banner}{demoLayer}<Marketplace onBack={() => useArena.getState().set({ view: 'setup' })} /></>
-  if (view === 'setup') return <>{banner}{demoLayer}<Setup key={user.id} user={user} onLogout={logout} onSettings={() => useArena.getState().set({ view: 'settings' })} onAudit={() => useArena.getState().set({ view: 'audit' })} onStart={start} onDirect={direct} onReplay={startReplay} onOpen={(id, mode) => (mode === 'run' ? runApp(id) : openSaved(id, mode !== 'arena', mode === 'builder')).catch((e) => toast.error(tr('No se pudo abrir', 'Could not open'), (e as Error).message))} />{runOverlayLayer}</>
+  if (view === 'audit') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><AuditSetup onBack={() => useArena.getState().set({ view: 'setup' })} onStart={startAudit} /></AppShell></>
+  if (view === 'settings') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Settings onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
+  if (view === 'agents') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><AgentSessions onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
+  if (view === 'tickets' && TICKETS_ENABLED) return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Tickets onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
+  if (view === 'analytics') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><AnalyticsPage onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
+  if (view === 'team') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><TeamPage onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
+  if (view === 'adtier') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={null}><AdTier onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
+  if (view === 'studio') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={null}><AdStudio onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
+  if (view === 'market') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Marketplace onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
+  if (view === 'setup') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Setup key={user.id} user={user} onLogout={logout} onSettings={() => useArena.getState().set({ view: 'settings' })} onAudit={() => useArena.getState().set({ view: 'audit' })} onStart={start} onDirect={direct} onReplay={startReplay} onOpen={(id, mode) => (mode === 'run' ? runApp(id) : openSaved(id, mode !== 'arena', mode === 'builder')).catch((e) => toast.error(tr('No se pudo abrir', 'Could not open'), (e as Error).message))} />{runOverlayLayer}</AppShell></>
 
   const exporter = (
     <>
