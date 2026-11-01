@@ -4,6 +4,7 @@ import { api, type StudioEvent, type StudioList, type StudioProject } from '../l
 import { tr, useT } from '../lib/i18n'
 import { useArena } from '../store'
 import PageHeader from './PageHeader'
+import TwinPanel from './TwinPanel'
 import { toast } from './Toast'
 
 const CARD = 'rounded-2xl border border-line bg-surface p-4 sm:p-5 shadow-[0_1px_2px_rgba(30,38,34,.04),0_8px_24px_-16px_rgba(30,38,34,.18)]'
@@ -72,6 +73,16 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
   }
 
   const busy = !!cur && (cur.running || cur.status === 'running')
+  // the ad the twin panel works on: the open one (with what is typed now), or a new one made from the form
+  const ensure = async () => {
+    try {
+      if (cur) { const p = await api.studioPatch(cur.id, { title: draft.title, instructions: draft.instructions, link: draft.link }); setCur(p); return p }
+      if (!draft.instructions.trim()) { toast.error(T('Escribí qué querés anunciar', 'Write what you want to advertise')); return null }
+      const p = await api.studioCreate({ ...draft, title: draft.title || draft.instructions.slice(0, 60), lang: en ? 'en' : 'es' })
+      setCur(p); setDraft((d) => ({ ...d, title: p.title })); loadList()
+      return p
+    } catch (e) { toast.error(T('No se pudo guardar el anuncio', 'Could not save the ad'), (e as Error).message); return null }
+  }
   const agents = list?.agents ?? []
   return (
     <div className="min-h-full bg-paper">
@@ -157,6 +168,12 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
                   </div>
                 )}
               </div>
+
+              {!busy && !cur?.media.length && !ups.length && <TwinPanel cur={cur} ensure={ensure} onCur={(p) => { setCur(p); loadList() }} />}
+              {cur?.gen?.status === 'working' && (
+                <p className="mt-4 flex items-center gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-3 py-2.5 text-[13px] text-ink-2"><Loader2 size={14} className="animate-spin text-accent" /> {cur.gen.step || T('Generando el material…', 'Generating the footage…')}</p>
+              )}
+              {!!cur?.gen?.credits?.length && <p className="mt-2 text-[11.5px] text-ink-4">{T('Tomas de apoyo de Pexels: ', 'Stock shots from Pexels: ')}{cur.gen.credits.map((c, i) => <a key={i} href={c.page} target="_blank" rel="noreferrer" className="hover:underline">{i ? ', ' : ''}{c.author}</a>)}</p>}
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {busy ? (

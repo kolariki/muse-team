@@ -16,7 +16,8 @@ import { Cta, fit, type Ctx } from './scenes'
  */
 export type Word = { w: string; t: number; d: number }  // seconds from the clip's start
 export type Clip =
-  | { kind: 'video'; src: string; from: number; to: number; words?: Word[]; title?: string; emphasis?: string; zoom?: 'in' | 'out' | 'none'; fit?: 'cover' | 'contain'; volume?: number }
+  | { kind: 'video'; src: string; from: number; to: number; words?: Word[]; title?: string; emphasis?: string; zoom?: 'in' | 'out' | 'none'; fit?: 'cover' | 'contain'; volume?: number
+      cover?: { src: string; from: number } }  // a silent shot (stock) shown on top while this clip's voice keeps going
   | { kind: 'image'; src: string; d: number; title?: string; sub?: string; motion?: 'in' | 'out' | 'left' | 'right'; w?: number; h?: number }
   | { kind: 'title'; d: number; text: string; sub?: string; emphasis?: string }
 export type StudioProps = {
@@ -99,6 +100,11 @@ function VideoClip({ c, clip, d, subs }: { c: Ctx; clip: Extract<Clip, { kind: '
       <AbsoluteFill style={{ transform: `scale(${z})` }}>
         <OffthreadVideo src={clip.src} startFrom={startFrom} volume={clip.volume ?? 1} style={{ width: '100%', height: '100%', objectFit: contain ? 'contain' : 'cover' }} />
       </AbsoluteFill>
+      {clip.cover && (
+        <AbsoluteFill style={{ transform: `scale(${z})` }}>
+          <OffthreadVideo src={clip.cover.src} startFrom={Math.round(clip.cover.from * FPS)} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </AbsoluteFill>
+      )}
       <AbsoluteFill style={{ background: 'linear-gradient(180deg, rgba(0,0,0,.35) 0%, transparent 28%, transparent 60%, rgba(0,0,0,.45) 100%)' }} />
       {clip.title && <Title c={c} text={clip.title} emphasis={clip.emphasis} top />}
       {clip.words && clip.words.length > 0 && <Subtitles c={c} words={clip.words} style={subs.style} position={subs.position} />}

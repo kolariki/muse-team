@@ -337,6 +337,23 @@ export const api = {
   studioDelete: (id: string) => j<{ ok: boolean }>(authed(`/api/studio/${id}`, { method: 'DELETE' })),
   studioDeleteMedia: (id: string, mid: string) => j<StudioProject>(authed(`/api/studio/${id}/media/${mid}`, { method: 'DELETE' })),
   studioRun: (id: string) => j<StudioProject>(post(`/api/studio/${id}/run`, {})),
+  twin: () => j<TwinState>(authed('/api/twin')),
+  twinKeys: (body: { heygen?: string; pexels?: string }) => j<TwinState>(authed('/api/twin/keys', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
+  twinFootage: (file: File, onProgress: (p: number) => void) => new Promise<TwinState>((resolve, reject) => {
+    const x = new XMLHttpRequest()
+    x.open('POST', '/api/twin/footage')
+    x.setRequestHeader('Authorization', `Bearer ${getToken() ?? ''}`)
+    x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total) }
+    x.onload = () => { let d: { detail?: string } = {}; try { d = JSON.parse(x.responseText) } catch { /* not JSON */ } if (x.status < 300) resolve(d as TwinState); else reject(new Error(d.detail ?? `HTTP ${x.status}`)) }
+    x.onerror = () => reject(new Error('No se pudo subir el video'))
+    const form = new FormData()
+    form.append('file', file, file.name)
+    x.send(form)
+  }),
+  twinConsent: () => j<TwinState>(post('/api/twin/consent', {})),
+  twinForget: () => j<TwinState>(authed('/api/twin', { method: 'DELETE' })),
+  studioGenPlan: (id: string) => j<StudioGen>(post(`/api/studio/${id}/generate/plan`, {})),
+  studioGenerate: (id: string, body: { voice: string; broll: { query: string; shows: string }[] }) => j<StudioProject>(post(`/api/studio/${id}/generate`, body)),
   studioStop: (id: string) => j<StudioProject>(post(`/api/studio/${id}/stop`, {})),
   studioFileUrl: (id: string, name: string, v: number | string = '', download = false) => `/api/studio/${id}/file/${name}?token=${encodeURIComponent(getToken() ?? '')}&v=${v}${download ? '&download=1' : ''}`,
   /** One upload with progress (XHR: fetch has no upload progress). */
@@ -599,7 +616,12 @@ export interface StudioProject {
   goal: 'sell' | 'awareness' | 'signup'; link: string; instructions: string; language: string; media: StudioMedia[]; running: boolean
   timeline?: StudioEvent[]; agents?: Record<string, { status: 'waiting' | 'working' | 'done' | 'returned' | 'error'; by?: string }>
   preview?: { file: string; round: number; ts: number } | null; final?: { vertical: string; square: string; approved: boolean; ts: number } | null
+  gen?: StudioGen | null
 }
+/** An ad made without footage: what the digital twin says and the stock shots (backend/app/twin.py, studio.gen_plan / generate). */
+export interface StudioGen { status?: 'draft' | 'working' | 'done' | 'error'; step?: string | null; error?: string | null; voice: string; broll: { query: string; shows: string }[]; seconds: number; credits?: { author: string; page: string }[] }
+export interface TwinState { twin: { name: string | null; status: 'new' | 'uploading' | 'training' | 'consent' | 'ready' | 'failed'; step: string | null; consent_url: string | null; consent_status: string | null; error: string | null; working: boolean; updated: number } | null
+  keys: { heygen: { set: boolean; last4: string | null }; pexels: { set: boolean; last4: string | null } }; engine: boolean }
 export interface StudioList { projects: StudioProject[]; ready: boolean; transcriber: string | null; model: boolean; agents: { id: string; es: string; en: string; role_es: string; role_en: string }[]
   limits: { files: number; video_mb: number; image_mb: number; minutes: number } }
 

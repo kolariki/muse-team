@@ -70,6 +70,7 @@ from . import levels as levelsmod
 from . import ads as adsmod
 from . import meta_ads as metaads
 from . import studio as studiomod
+from . import twin as twinmod
 from . import adtier as adtiermod
 from . import adtier_foryou as foryoumod
 from . import tickets as ticketsmod
@@ -3642,6 +3643,80 @@ def studio_media_delete(pid: str, mid: str, user: User = CurrentUser):
         return studiomod.public(studiomod.remove_media(user.id, pid, mid))
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@app.get("/api/twin")
+async def twin_get(user: User = CurrentUser):
+    """The person's digital twin (HeyGen) and whether the HeyGen and Pexels keys are set; refreshes training and consent."""
+    await twinmod.refresh(user.id)
+    return twinmod.public(user.id)
+
+
+@app.put("/api/twin/keys")
+async def twin_keys(body: dict, user: User = CurrentUser):
+    try:
+        await twinmod.save_keys(user.id, str(body.get("heygen") or "").strip() or None, str(body.get("pexels") or "").strip() or None)
+    except twinmod.TwinError as e:
+        raise HTTPException(400, str(e))
+    return twinmod.public(user.id)
+
+
+@app.post("/api/twin/footage")
+async def twin_footage(file: UploadFile, name: str = Form(""), user: User = CurrentUser):
+    """One video of the person talking: it goes to HeyGen, which makes the twin (and clones the voice) from it."""
+    if not keystore.get_key(user.id, "heygen"):
+        raise HTTPException(400, "Primero pegá tu clave de API de HeyGen")
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in (".mp4", ".mov", ".m4v", ".webm", ".mkv"):
+        raise HTTPException(400, "Subí un video (mp4, mov o webm)")
+    d = twinmod.footage_dir(user.id)
+    raw, size = d / f"footage{ext}", 0
+    with raw.open("wb") as f:
+        while data := await file.read(1 << 20):
+            size += len(data)
+            if size > 1024 * 1024 * 1024:
+                raise HTTPException(400, "El video pesa más de 1 GB: con 2 minutos alcanza")
+            f.write(data)
+    try:
+        twinmod.start(user, raw, name)
+    except twinmod.TwinError as e:
+        raise HTTPException(400, str(e))
+    return twinmod.public(user.id)
+
+
+@app.post("/api/twin/consent")
+async def twin_consent(user: User = CurrentUser):
+    try:
+        await twinmod.new_consent(user.id)
+    except twinmod.TwinError as e:
+        raise HTTPException(400, str(e))
+    return twinmod.public(user.id)
+
+
+@app.delete("/api/twin")
+def twin_forget(user: User = CurrentUser):
+    twinmod.forget(user.id)
+    return twinmod.public(user.id)
+
+
+@app.post("/api/studio/{pid}/generate/plan")
+async def studio_gen_plan(pid: str, user: User = CurrentUser):
+    """What the twin will say and the stock shots, to read and edit before spending HeyGen credits."""
+    _studio(user, pid)
+    try:
+        return await studiomod.gen_plan(user, pid)
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/studio/{pid}/generate")
+async def studio_generate(pid: str, body: dict, user: User = CurrentUser):
+    _studio(user, pid)
+    try:
+        studiomod.generate(user, pid, str(body.get("voice") or ""), body.get("broll") if isinstance(body.get("broll"), list) else [])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return studiomod.public(_studio(user, pid))
 
 
 @app.post("/api/studio/{pid}/run")

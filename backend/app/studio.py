@@ -97,7 +97,7 @@ def listing(user_id: str) -> list[dict]:
 
 
 def public(p: dict, brief: bool = False) -> dict:
-    keep = ("id", "title", "created", "updated", "status", "stage", "error", "round", "version", "final", "preview", "goal", "link", "instructions", "language")
+    keep = ("id", "title", "created", "updated", "status", "stage", "error", "round", "version", "final", "preview", "goal", "link", "instructions", "language", "gen")
     out = {k: p.get(k) for k in keep}
     out["media"] = [{k: m.get(k) for k in ("id", "name", "kind", "duration", "width", "height", "audio", "thumb")} for m in p.get("media", [])]
     if not brief:
@@ -129,7 +129,7 @@ async def add_media(user: User, pid: str, name: str, chunks) -> dict:
     proj = load(user.id, pid)
     if not proj:
         raise ValueError("Proyecto no encontrado")
-    if pid in _running:
+    if pid in _running and (proj.get("gen") or {}).get("status") != "working":  # (the footage being generated is added while it runs)
         raise ValueError("El equipo está trabajando: esperá a que termine para sumar archivos")
     if len(proj["media"]) >= MAX_FILES:
         raise ValueError(f"Hasta {MAX_FILES} archivos por anuncio")
@@ -295,12 +295,15 @@ Reglas de un anuncio que rinde:
 - Cerrá con el llamado a la acción. No inventes datos, precios ni promesas que no estén en el material o el pedido.
 - Para un video horizontal en formato vertical usá fit "contain" (va sobre una copia desenfocada); si ya es vertical, "cover".
 - Una imagen chica (menos de 600 px, como un logo) no se agranda a pantalla completa: va centrada a su tamaño; usala en una placa o en el cierre, no como plano principal.
+- Si hay tomas de apoyo (videos sin voz, como los de Pexels) y un video de alguien hablando, la voz no se corta: en los tramos del video
+  que habla poné "cover": "<id de la toma>" (y "cover_from": segundo de la toma) para mostrar la toma mientras sigue la voz. La cara va
+  en el gancho y en el cierre; en el medio, alterná cara y tomas cada 2 a 4 segundos.
 - Escribí todo en {lang}.
 
 Respondé SOLO JSON:
 {{"angle": "el ángulo en 3-6 palabras", "name": "marca o producto (máx. 22)", "palette": {{"bg": "#RRGGBB", "accent": "#RRGGBB"}}, "font": "grotesk|serif|rounded",
 "fx": "rise|pop|box", "transition": "cut|whip|zoom", "subtitles": {{"style": "karaoke|box|clean", "position": "bottom|center"}},
-"sequence": [{{"type": "video", "media": "m1", "from": 0.0, "to": 0.0, "title": "", "emphasis": "", "zoom": "in|out|none", "fit": "cover|contain"}},
+"sequence": [{{"type": "video", "media": "m1", "from": 0.0, "to": 0.0, "title": "", "emphasis": "", "zoom": "in|out|none", "fit": "cover|contain", "cover": "", "cover_from": 0.0}},
              {{"type": "image", "media": "m2", "d": 2.5, "title": "", "sub": "", "motion": "in|out|left|right"}},
              {{"type": "title", "d": 2.0, "text": "", "sub": "", "emphasis": ""}}],
 "cta": {{"text": "botón de 2-3 palabras", "sub": "una línea o vacío"}}, "why": "por qué este corte, en 2 frases"}}"""
@@ -346,6 +349,10 @@ def clean_plan(raw: dict, proj: dict) -> dict:
                 continue
             seq.append({"type": "video", "media": m["id"], "from": round(a, 2), "to": round(min(b, a + 12), 2), "title": adsmod._cut(it.get("title"), 60), "emphasis": adsmod._cut(it.get("emphasis"), 30),
                         "zoom": it.get("zoom") if it.get("zoom") in ("in", "out", "none") else "none", "fit": it.get("fit") if it.get("fit") in ("cover", "contain") else ("cover" if (m.get("height") or 0) >= (m.get("width") or 1) else "contain")})
+            cv = by_id.get(str(it.get("cover") or ""))
+            if cv and cv["kind"] == "video" and cv["id"] != m["id"]:  # a stock shot shown while this clip's voice keeps going
+                span = seq[-1]["to"] - seq[-1]["from"]
+                seq[-1].update(cover=cv["id"], cover_from=round(_num(it.get("cover_from"), 0, max(0, (cv.get("duration") or 0) - span), 0), 2))
             total += seq[-1]["to"] - seq[-1]["from"]
         elif kind == "image" and m and m["kind"] == "image":
             seq.append({"type": "image", "media": m["id"], "d": round(_num(it.get("d"), 1.2, 5, 2.5), 2), "title": adsmod._cut(it.get("title"), 60), "sub": adsmod._cut(it.get("sub"), 80),
@@ -385,6 +392,8 @@ def props(proj: dict, plan: dict, fmt: str) -> dict:
         if it["type"] == "video" and m:
             clips.append({"kind": "video", "src": f"media:{m['id']}.mp4", "from": it["from"], "to": it["to"], "words": _words(proj.get("transcript") or {}, m["id"], it["from"], it["to"]),
                           "title": it.get("title") or None, "emphasis": it.get("emphasis") or "", "zoom": it.get("zoom", "none"), "fit": "cover" if fmt == "square" and it.get("fit") == "cover" else it.get("fit", "contain")})
+            if it.get("cover") and it["cover"] in by_id:
+                clips[-1]["cover"] = {"src": f"media:{it['cover']}.mp4", "from": it.get("cover_from") or 0}
         elif it["type"] == "image" and m:
             clips.append({"kind": "image", "src": f"media:{m['file']}", "d": it["d"], "title": it.get("title") or None, "sub": it.get("sub") or None, "motion": it.get("motion", "in"),
                           "w": m.get("width") or 0, "h": m.get("height") or 0})
@@ -599,3 +608,120 @@ def recover(user_id: str, pid: str) -> dict | None:
     if p and p.get("status") == "running" and pid not in _running:
         p = update(user_id, pid, status="error", stage="", error="Se cortó porque el servidor se reinició: probá de nuevo.")
     return p
+
+
+# ------------------------------------------------------------------------------------------------------------ an ad without footage
+
+GEN_SYSTEM = """Sos guionista de anuncios cortos para Reels. La persona no tiene material filmado: va a hablar a cámara su gemelo digital
+(un video de ella misma hecho con IA, con su voz) y entre medio van tomas de stock de Pexels. Con el pedido, escribí:
+- "voice": lo que la persona dice a cámara, en primera persona, natural, para 15 a 35 segundos (40 a 90 palabras). Gancho en la primera
+  frase, cierre con el llamado a la acción. Solo palabras habladas: nada de indicaciones de escena, emojis ni hashtags. Si el pedido ya
+  trae lo que se dice (líneas «voz: «…»» o un guion), usá esas frases.
+- "broll": 3 a 5 tomas de apoyo que ilustran lo que se dice, en el orden en que aparecen. "query" es la búsqueda en Pexels: 2 a 4 palabras
+  en INGLÉS, concretas y filmables (ej. "pizza oven fire", "woman laptop office"); "shows" es qué se ve, en {lang}.
+No inventes datos, precios ni promesas que no estén en el pedido. Escribí en {lang}.
+Respondé SOLO JSON: {{"voice": "", "broll": [{{"query": "", "shows": ""}}], "title": "nombre corto del anuncio"}}"""
+
+
+async def gen_plan(user: User, pid: str) -> dict:
+    """What the twin says and which stock shots go with it, for the person to read (and edit) before spending HeyGen credits."""
+    from . import twin
+
+    proj = load(user.id, pid)
+    if not proj:
+        raise ValueError("Proyecto no encontrado")
+    if not (proj.get("instructions") or "").strip():
+        raise ValueError("Escribí qué querés anunciar (o tocá «Hacer este reel» en una idea de AdTier)")
+    lang = proj.get("language") or "español rioplatense"
+    msg = f"PEDIDO: {proj.get('instructions')}\nTÍTULO: {proj['title']}\nOBJETIVO: {proj['goal']}\nLINK: {proj.get('link') or '(sin link)'}"
+    raw, by = await ask(user.id, GEN_SYSTEM.format(lang=lang), msg)
+    voice = re.sub(r"\s+", " ", str(raw.get("voice") or "")).strip()[:1200]
+    broll = [{"query": adsmod._cut(b.get("query"), 60), "shows": adsmod._cut(b.get("shows"), 120)} for b in (raw.get("broll") or []) if isinstance(b, dict) and str(b.get("query") or "").strip()][:5]
+    if not voice:
+        raise ValueError("El modelo no escribió el guion: probá de nuevo")
+    plan = {"voice": voice, "broll": broll, "seconds": round(twin.words(voice) / 2.6), "by": by}
+    update(user.id, pid, gen={"status": "draft", **plan})
+    return plan
+
+
+def generate(user: User, pid: str, voice: str, broll: list[dict]) -> dict:
+    """Make the footage (the twin talking on HeyGen + the Pexels shots), add it as the ad's material and start the team."""
+    from .tasks import spawn
+    from . import twin
+
+    proj = load(user.id, pid)
+    if not proj:
+        raise ValueError("Proyecto no encontrado")
+    if pid in _running:
+        raise ValueError("El equipo ya está trabajando en este anuncio")
+    t = twin.get(user.id)
+    if not t or t["status"] != "ready":
+        raise ValueError("Tu gemelo digital todavía no está listo")
+    if not keystore.get_key(user.id, "pexels"):
+        raise ValueError("Falta tu clave de Pexels para las tomas de apoyo")
+    voice = re.sub(r"\s+", " ", voice or "").strip()[:1200]
+    if twin.words(voice) < 8:
+        raise ValueError("El guion es muy corto")
+    broll = [{"query": adsmod._cut(b.get("query"), 60), "shows": adsmod._cut(b.get("shows"), 120)} for b in broll or [] if str(b.get("query") or "").strip()][:5]
+    proj.update(status="running", stage="generate", error=None, gen={"status": "working", "step": "Pidiéndole el video a HeyGen", "voice": voice, "broll": broll,
+                                                                     "seconds": round(twin.words(voice) / 2.6)})
+    save(user.id, proj)
+    _running[pid] = spawn(_generate(user, pid, voice, broll))  # type: ignore[assignment]
+    return proj
+
+
+async def _generate(user: User, pid: str, voice: str, broll: list[dict]) -> None:
+    from . import twin
+
+    uid = user.id
+    tmp = folder(uid, pid) / "work" / "gen"
+    tmp.mkdir(parents=True, exist_ok=True)
+
+    def step(text: str) -> None:
+        p = load(uid, pid) or {}
+        p.setdefault("gen", {})["step"] = text
+        save(uid, p)
+
+    async def add(path: Path, name: str) -> None:
+        async def chunks():
+            with path.open("rb") as f:
+                while c := f.read(1 << 20):
+                    yield c
+        await add_media(user, pid, name, chunks())
+        path.unlink(missing_ok=True)
+    try:
+        proj = load(uid, pid) or {}
+        vid = await twin.render_talk(uid, voice, proj.get("title") or "Anuncio")
+        # the stock shots come down while HeyGen renders
+        used: set[int] = set()
+        credits = []
+        for i, b in enumerate(broll, 1):
+            step(f"Buscando la toma {i} de {len(broll)} en Pexels: «{b['shows'] or b['query']}»")
+            try:
+                hit = await twin.stock(uid, b["query"], used)
+                if not hit:
+                    continue
+                await add(await twin.download(hit["url"], tmp / f"pexels-{hit['id']}.mp4"), f"Toma de apoyo {i} · {b['shows'] or b['query']} · Pexels, {hit['author']}.mp4")
+                credits.append({"author": hit["author"], "page": hit["page"]})
+            except Exception as e:  # noqa: BLE001 — one shot missing does not stop the ad
+                log.warning("pexels %s: %s", b, e)
+        step("HeyGen está haciendo el video de tu gemelo")
+        out = await twin.wait_talk(uid, vid, tmp / "twin.mp4", on_wait=lambda s: step(f"HeyGen está haciendo el video de tu gemelo ({s // 60}:{s % 60:02d})"))
+        await add(out, "Vos hablando (gemelo digital).mp4")
+        p = load(uid, pid) or {}
+        p["gen"] = {**p.get("gen", {}), "status": "done", "step": None, "credits": credits}
+        p.update(status="draft", stage="")
+        save(uid, p)
+        _running.pop(pid, None)
+        run(user, pid)  # the team edits it like any upload
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:  # noqa: BLE001
+        log.warning("studio generate %s: %s", pid, e)
+        p = load(uid, pid) or {}
+        p["gen"] = {**p.get("gen", {}), "status": "error", "step": None, "error": str(e)[:300]}
+        p.update(status="error", stage="", error=str(e)[:300])
+        save(uid, p)
+        _running.pop(pid, None)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
