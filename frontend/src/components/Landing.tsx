@@ -12,7 +12,7 @@ import ProviderLogo, { LogoWatermark } from './ProviderLogo'
 import { brandTheme } from '../lib/brand'
 
 /* ------------------------------------------------------------------ the looping demo
- * One clock (ms since loop start) drives four scenes. Everything is derived from `t`,
+ * One clock (ms since loop start) drives every scene. Everything is derived from `t`,
  * so the animation is deterministic and loops cleanly.
  */
 /* ------------------------------------------------------------------ demo data: a weather app, from the idea to the built product */
@@ -63,6 +63,9 @@ const SCENES = [
   { key: 'refs', label: 'Referentes e ingeniería inversa', label_en: 'References and reverse engineering', desc: 'Cargás apps parecidas para que el equipo las estudie y, si querés, activás la ingeniería inversa para entender cómo están hechas.', desc_en: 'You add similar apps for the team to study and, if you want, turn on reverse engineering to understand how they are built.', dur: 7600 },
   { key: 'arena', label: 'El equipo debate', label_en: 'The team debates', desc: 'Los roles discuten en vivo producto, stack y alcance, se pasan la palabra y cierran decisiones con un responsable por cada paso.', desc_en: 'The roles debate product, stack and scope live, hand the floor to each other and close decisions with an owner for every step.', dur: TURNS.length * 2600 + 600 },
   { key: 'build', label: 'Diseñan, construyen y revisan', label_en: 'They design, build and review', desc: 'Benchmark de referentes, diseño que aprobás, código con Claude Code, pulido visual y revisión del consejo hasta que la app está lista.', desc_en: 'Reference benchmark, a design you approve, code with Claude Code, visual polish and council review until the app is ready.', dur: 12600 },
+  { key: 'analytics', label: 'Medís quién la usa', label_en: 'You measure who uses it', desc: 'Cada app publicada trae Tably Analytics: visitas, páginas, eventos y errores reales, sin cookies ni datos personales.', desc_en: 'Every published app comes with Tably Analytics: real visits, pages, events and errors, with no cookies or personal data.', dur: 9000 },
+  { key: 'ads', label: 'Creás los anuncios', label_en: 'You create the ads', desc: 'Muse mira tu app, resume qué hace y propone 5 plantillas; cinco agentes arman el video con los colores de la app y queda listo para Meta Ads.', desc_en: 'Muse looks at your app, sums up what it does and suggests 5 templates; five agents make the video in the app’s colours, ready for Meta Ads.', dur: 10000 },
+  { key: 'market', label: 'La vendés en el marketplace', label_en: 'You sell it on the marketplace', desc: 'Publicás la app con su nivel, sus visitas reales y un precio; el comprador te escribe y se la transferís desde el constructor.', desc_en: 'You list the app with its level, real visits and a price; the buyer writes to you and you transfer it from the builder.', dur: 9500 },
   { key: 'audit', label: 'Auditan un proyecto que ya tenés', label_en: 'They audit a project you already have', desc: 'Subís un proyecto existente, elegís qué roles lo revisan y el equipo lo audita desde cada área: hallazgos con archivo y línea, qué está listo y qué falta para producción.', desc_en: 'You upload an existing project, pick which roles review it and the team audits it from every area: findings with file and line, what is ready and what is missing for production.', dur: 11000 },
 ] as const
 const TOTAL = SCENES.reduce((a, s) => a + s.dur, 0)
@@ -354,6 +357,9 @@ function Demo({ clock }: { clock: ReturnType<typeof useClock> }) {
           {clock.key === 'refs' && <SceneRefs key="refs" t={clock.local} />}
           {clock.key === 'arena' && <SceneArena key="arena" t={clock.local} />}
           {clock.key === 'build' && <SceneBuild key="build" t={clock.local} />}
+          {clock.key === 'analytics' && <SceneAnalytics key="analytics" t={clock.local} />}
+          {clock.key === 'ads' && <SceneAds key="ads" t={clock.local} />}
+          {clock.key === 'market' && <SceneMarket key="market" t={clock.local} />}
           {clock.key === 'audit' && <SceneAudit key="audit" t={clock.local} />}
         </AnimatePresence>
       </div>
@@ -919,7 +925,234 @@ function SceneBuild({ t }: { t: number }) {
   )
 }
 
-/* 7 · audit of an existing project: upload, the roles review from their areas, findings and a readiness score */
+/* 7 · Tably Analytics: the snippet goes in, real visits arrive, the app reaches level 2 (measured) */
+const VISITS = [12, 18, 15, 26, 31, 28, 40, 46, 39, 58, 64, 71, 83, 96]
+function SceneAnalytics({ t }: { t: number }) {
+  const T = useT()
+  const installed = t > 700
+  const grow = ease((t - 1400) / 4200)
+  const bars = VISITS.map((v, i) => v * ease(grow * VISITS.length - i))
+  const total = Math.round(bars.reduce((a, b) => a + b, 0))
+  const events = Math.round(312 * grow)
+  const errors = t > 4600 ? 1 : 0
+  const level = t > 6400
+  const max = Math.max(...VISITS)
+  const pages: [string, number][] = [['/', 412], ['/hoy', 268], ['/alertas', 131], ['/7-dias', 84]]
+  const evs: [string, number][] = [['consulta_paraguas', 188], ['alerta_abierta', 74], ['ciudad_cambiada', 50]]
+  return (
+    <motion.div {...sceneProps}>
+      <div className="grid h-full grid-cols-[1.35fr_1fr] gap-5">
+        <div className="min-w-0">
+          <Label>Tably Analytics · {T('app del clima', 'weather app')}</Label>
+          <div data-r className={`mt-2 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 font-mono text-[10.5px] transition-colors ${installed ? 'border-accent/40 bg-accent-soft/60 text-ink-2' : 'border-dashed border-line text-ink-3'}`}>
+            <span className="truncate">{'<script src="tablyteam.com/a.js" defer>'}</span>
+            <span className="ml-auto shrink-0 font-sans text-[10.5px] font-semibold text-accent">{installed ? T('instalado ✓', 'installed ✓') : '…'}</span>
+          </div>
+          <div data-r className="mt-3 grid grid-cols-3 gap-2">
+            {([[T('Visitas · 14 d', 'Visits · 14 d'), total, 'text-ink'], [T('Eventos', 'Events'), events, 'text-accent'], [T('Errores', 'Errors'), errors, errors ? 'text-danger' : 'text-ink-3']] as const).map(([k, v, c]) => (
+              <div key={k} className="rounded-xl border border-line bg-surface px-3 py-2">
+                <div className="text-[10px] uppercase tracking-widest text-ink-3">{k}</div>
+                <div className={`font-mono text-[22px] font-bold leading-tight ${c}`}>{v.toLocaleString('es-AR')}</div>
+              </div>
+            ))}
+          </div>
+          <div data-r className="mt-3 rounded-xl border border-line bg-surface p-3">
+            <div className="text-[10px] uppercase tracking-widest text-ink-3">{T('Visitas por día', 'Visits per day')}</div>
+            <div className="mt-2 flex h-[120px] items-end gap-[3px]">
+              {bars.map((v, i) => (
+                <div key={i} className="flex-1 rounded-t-[3px] bg-[#0082FB]" style={{ height: `${(v / max) * 100}%`, opacity: 0.55 + 0.45 * (i / VISITS.length) }} />
+              ))}
+            </div>
+          </div>
+          <AnimatePresence>
+            {errors > 0 && (
+              <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} className="mt-2 flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/10 px-2.5 py-1.5 text-[11.5px]">
+                <span className="font-bold text-danger">!</span>
+                <span className="min-w-0 flex-1 truncate">TypeError: hourly is undefined <span className="font-mono text-[10px] text-ink-3">lib/weather.ts:31</span></span>
+                <span className="shrink-0 rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">{T('el equipo lo arregla', 'the team fixes it')}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        <div className="flex min-w-0 flex-col gap-2.5">
+          {([[T('Páginas más vistas', 'Top pages'), pages], [T('Eventos', 'Events'), evs]] as const).map(([title, rows]) => (
+            <div data-r key={title} className="rounded-xl border border-line bg-surface p-3">
+              <div className="text-[10px] uppercase tracking-widest text-ink-3">{title}</div>
+              <div className="mt-1.5 space-y-1">
+                {rows.map(([k, v]) => (
+                  <div key={k} className="relative flex items-center justify-between overflow-hidden rounded px-1.5 py-0.5 text-[11.5px]">
+                    <div className="absolute inset-y-0 left-0 bg-[#0082FB]/10" style={{ width: `${(v / rows[0][1]) * 100 * grow}%` }} />
+                    <span className="relative truncate font-mono">{k}</span>
+                    <span className="relative font-mono text-ink-2">{Math.round(v * grow)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <AnimatePresence>
+            {level && (
+              <motion.div initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="rounded-xl border px-3 py-2 text-[12px] shadow-md" style={{ borderColor: '#7c3aed55', background: '#7c3aed12' }}>
+                <div className="font-bold" style={{ color: '#7c3aed' }}>🏆 {T('Nivel 2 · Medido', 'Level 2 · Measured')}</div>
+                <div className="text-ink-2">{T('sabés cuánta gente entra, qué hace y qué se rompe', 'you know how many people come in, what they do and what breaks')}</div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+/* 8 · ads: Muse reads the app, 5 templates are recommended, the video is made in the app's colours and goes to Meta Ads */
+const AD_TEMPLATES: [string, string][] = [['Problema → solución', 'Problem → solution'], ['Demo en el teléfono', 'Phone demo'], ['3 razones', '3 reasons'], ['Antes / después', 'Before / after'], ['Prueba social', 'Social proof']]
+const AD_AGENTS: [string, string][] = [['Guion con el resumen', 'Script from the summary'], ['Plan de escenas', 'Scene plan'], ['Arma el video', 'Builds the video'], ['Mejora', 'Improves'], ['Aprueba o devuelve', 'Approves or sends back']]
+const AD_LINES: [string, string][] = [['¿Salís sin saber si llueve?', 'Heading out not knowing if it rains?'], ['Te lo dice en 3 segundos', 'It tells you in 3 seconds'], ['Probalo gratis', 'Try it free']]
+function SceneAds({ t }: { t: number }) {
+  const T = useT()
+  const summary = t > 600
+  const picked = t > 2600 ? 1 : -1
+  const render = ease((t - 3400) / 3600)
+  const ready = t > 7200
+  const line = Math.min(AD_LINES.length - 1, Math.floor(ease((t - 3400) / 4200) * AD_LINES.length))
+  const palette = ['#3D5CC4', '#F3F7FB', '#1E2622', '#F2CC6A']
+  return (
+    <motion.div {...sceneProps}>
+      <div className="grid h-full grid-cols-[1.4fr_1fr] gap-5">
+        <div className="min-w-0">
+          <Label>{T('Anuncios desde tu app', 'Ads from your app')}</Label>
+          <motion.div data-r animate={{ opacity: summary ? 1 : 0.35 }} className="mt-2 rounded-xl border border-line bg-surface p-3">
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-ink-2"><ProviderLogo provider="meta" size={14} /> {T('Muse miró la app y resumió', 'Muse looked at the app and summed up')}</div>
+            <div className="mt-1 text-[12.5px] leading-snug">{T('Te dice en 3 segundos si llevás paraguas hoy, con alertas oficiales y pronóstico por horas.', 'Tells you in 3 seconds whether to take an umbrella today, with official alerts and an hourly forecast.')}</div>
+            <div className="mt-2 flex items-center gap-1.5 text-[10.5px] text-ink-3">
+              {T('colores de la app', 'app colours')}
+              {palette.map((c) => <span key={c} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: c }} />)}
+              <span className="ml-1 font-mono">Inter</span>
+            </div>
+          </motion.div>
+          <div data-r className="mt-3 text-[10px] uppercase tracking-widest text-ink-3">{T('5 plantillas recomendadas · de 20 que se renuevan cada mes', '5 recommended templates · of 20 renewed every month')}</div>
+          <div className="mt-1.5 grid grid-cols-5 gap-1.5">
+            {AD_TEMPLATES.map(([es, en], i) => (
+              <div data-r key={es} className={`flex aspect-[9/14] flex-col justify-end rounded-lg border p-1.5 text-[9.5px] font-semibold leading-tight transition-all ${picked === i ? 'border-accent shadow-[0_0_0_3px_rgba(47,107,93,.2)]' : 'border-line'}`} style={{ background: `linear-gradient(160deg, ${palette[i % 2 ? 0 : 2]}, ${palette[i % 2 ? 2 : 0]})` }}>
+                <span className="text-white/90">{T(es, en)}</span>
+              </div>
+            ))}
+          </div>
+          <div data-r className="mt-3 space-y-1">
+            {AD_AGENTS.map(([a, a_en], i) => {
+              const on = render > i / 5
+              const doneA = render >= (i + 1) / 5 || ready
+              return (
+                <div key={a} className={`flex items-center gap-2 text-[11.5px] ${on ? 'text-ink' : 'text-ink-3'}`}>
+                  <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${doneA ? 'bg-accent text-white' : on ? 'ring-2 ring-accent' : 'bg-surface-2'}`}>{doneA ? '✓' : ''}</span>
+                  {T(a, a_en)}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center">
+          <div data-r className="relative overflow-hidden rounded-[18px] border-[5px] border-black shadow-xl" style={{ width: 170, height: 302, background: 'linear-gradient(170deg,#3D5CC4,#1E2622)' }}>
+            <motion.div animate={{ scale: 1 + render * 0.08 }} className="absolute inset-x-4 top-16 rounded-xl bg-[#F3F7FB] p-2 text-ink shadow-lg">
+              <div className="text-[9px] text-ink-3">Buenos Aires</div>
+              <div className="font-mono text-[26px] font-bold leading-none">17°</div>
+              <div className="mt-1 rounded-md bg-[#3D5CC4]/10 px-1.5 py-1 text-[9.5px] font-semibold text-[#3D5CC4]">☂ {T('Llevá paraguas', 'Take an umbrella')}</div>
+            </motion.div>
+            {render > 0 && (
+              <motion.div key={line} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="absolute inset-x-3 bottom-12 text-center text-[15px] font-extrabold leading-tight text-white drop-shadow">
+                {T(...AD_LINES[line])}
+              </motion.div>
+            )}
+            <div className="absolute inset-x-3 bottom-3 h-1 overflow-hidden rounded-full bg-white/25"><div className="h-full bg-white" style={{ width: `${render * 100}%` }} /></div>
+          </div>
+          <div className="mt-2 font-mono text-[10px] text-ink-3">1080×1920 · 15 s · Remotion</div>
+          <AnimatePresence>
+            {ready && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-2 flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[11.5px] font-semibold text-paper shadow-lg">
+                <ProviderLogo provider="meta" size={13} /> {T('Enviar a Meta Ads · campaña en pausa', 'Send to Meta Ads · paused campaign')}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+/* 9 · marketplace: the app is listed with its level and real visits, a buyer writes, the owner transfers it */
+function SceneMarket({ t }: { t: number }) {
+  const T = useT()
+  const listed = t > 1200
+  const msg = t > 3600
+  const transferring = t > 6000
+  const sold = t > 7400
+  const others = [
+    { name: 'Turnos Peluquería', lvl: 4, visits: '3.910', price: 'USD 4.200' },
+    { name: 'Lista de compras', lvl: 2, visits: '540', price: T('a convenir', 'negotiable') },
+  ]
+  const LV = ['#9aa39e', '#0082FB', '#7c3aed', '#d97706', '#059669']
+  return (
+    <motion.div {...sceneProps}>
+      <div className="grid h-full grid-cols-[1.35fr_1fr] gap-5">
+        <div className="min-w-0">
+          <Label>Marketplace · {T('apps en venta', 'apps for sale')}</Label>
+          <motion.div data-r animate={{ opacity: listed ? 1 : 0.4, y: listed ? 0 : 6 }} className="mt-2 rounded-2xl border border-accent bg-surface p-4 shadow-[0_18px_40px_-22px_rgba(30,38,34,.5)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1 text-[11px] font-bold" style={{ color: LV[3] }}>🏆 {T('Nivel 3 · Visible', 'Level 3 · Visible')}</div>
+                <div className="serif mt-0.5 text-[22px] leading-tight">¿Llevo paraguas?</div>
+                <div className="font-mono text-[11px] text-ink-3">paraguas.tablyteam.app ↗</div>
+              </div>
+              <div className="text-right">
+                <div className="font-mono text-[18px] font-semibold">USD 1.500</div>
+                {sold && <div className="mt-0.5 rounded-full bg-accent px-2 py-0.5 text-[10.5px] font-semibold text-white">{T('vendida', 'sold')}</div>}
+              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+              <span className="rounded-full border border-line px-2 py-0.5 font-mono text-ink-2">👁 1.284 {T('visitas', 'visits')} · 312 / 7d</span>
+              <span className="rounded-full border border-line px-2 py-0.5 text-ink-2">PWA · Vite · Open-Meteo</span>
+            </div>
+            <p className="mt-2 text-[12.5px] leading-snug text-ink-2">{T('Responde en 3 s si llueve hoy. Alertas oficiales, pronóstico por horas y usuarios que vuelven todos los días.', 'Answers in 3 s whether it rains today. Official alerts, an hourly forecast and users who come back every day.')}</p>
+          </motion.div>
+          <div className="mt-3 space-y-1.5">
+            {others.map((o) => (
+              <div data-r key={o.name} className="flex items-center gap-3 rounded-xl border border-line bg-surface-2/50 px-3 py-2 text-[12px] text-ink-2">
+                <span className="text-[10.5px] font-bold" style={{ color: LV[o.lvl] }}>N{o.lvl}</span>
+                <span className="min-w-0 flex-1 truncate font-semibold text-ink">{o.name}</span>
+                <span className="font-mono text-[10.5px]">👁 {o.visits}</span>
+                <span className="font-mono text-[11px]">{o.price}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-col justify-center gap-2.5">
+          <AnimatePresence>
+            {msg && (
+              <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} className="rounded-2xl rounded-tl-sm border border-line bg-surface p-3 text-[12px] shadow-md">
+                <div className="text-[10px] uppercase tracking-widest text-ink-3">✉ {T('Mensaje de un comprador', 'Message from a buyer')}</div>
+                <div className="mt-1 leading-snug">{T('Hola, me interesa la app del clima. ¿Hacemos la transferencia esta semana?', 'Hi, I’m interested in the weather app. Shall we do the transfer this week?')}</div>
+                <div className="mt-1 text-[10.5px] text-ink-3">martina@… · {T('hace 2 min', '2 min ago')}</div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <AnimatePresence>
+            {msg && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="rounded-xl border border-line bg-surface p-3 text-[12px]">
+                <div className="text-[10px] uppercase tracking-widest text-ink-3">{T('Desde el constructor', 'From the builder')}</div>
+                <div className={`mt-2 flex items-center justify-center gap-2 rounded-lg px-3 py-2 font-semibold text-white shadow-md transition-colors ${sold ? 'bg-ink' : 'bg-accent'}`}>
+                  {sold ? T('Transferida ✓ · código, dominio y datos', 'Transferred ✓ · code, domain and data') : transferring ? T('Transfiriendo…', 'Transferring…') : T('Transferir la app', 'Transfer the app')}
+                </div>
+                {transferring && <div className="mt-2 h-1 overflow-hidden rounded-full bg-black/5"><div className="h-full bg-accent" style={{ width: `${ease((t - 6000) / 1400) * 100}%` }} /></div>}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+      {!sold && <Cursor x={transferring ? 470 : msg ? 470 : 120} y={transferring ? 300 : msg ? 300 : 120} click={transferring && t < 6300} />}
+    </motion.div>
+  )
+}
+
+/* 10 · audit of an existing project: upload, the roles review from their areas, findings and a readiness score */
 const AUDIT_FINDINGS: { role: string; sev: 'bloqueante' | 'mejora'; text: string; text_en: string; where: string }[] = [
   { role: 'qa', sev: 'bloqueante', text: 'El checkout no valida el stock antes de cobrar', text_en: 'Checkout does not validate stock before charging', where: 'api/checkout.ts:48' },
   { role: 'eng', sev: 'bloqueante', text: 'Secretos en el repo: .env commiteado', text_en: 'Secrets in the repo: .env committed', where: '.env' },
