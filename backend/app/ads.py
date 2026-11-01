@@ -374,15 +374,48 @@ async def _ask(user_id: str, system: str, user_msg: str, max_tokens: int = 1800,
     return _json("".join(buf)), f"{PROVIDERS[pid].label} · {model}"
 
 
+def _close(s: str) -> str | None:
+    """A JSON object that was cut short (the model ran out of tokens), closed after its last complete element."""
+    stack: list[str] = []
+    in_str = esc = False
+    last: tuple[int, list[str]] | None = None
+    for i, ch in enumerate(s):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+            if not stack:
+                return s[: i + 1]
+        elif ch == "," and stack:
+            last = (i, list(stack))
+    return s[: last[0]] + "".join(reversed(last[1])) if last else None
+
+
 def _json(text: str) -> dict:
-    m = re.search(r"\{.*\}", text or "", re.S)
-    if not m:
+    """The JSON object in a model's answer, even inside a code block or cut short at the end."""
+    start = (text or "").find("{")
+    if start < 0:
         return {}
-    try:
-        v = json.loads(m.group(0))
-        return v if isinstance(v, dict) else {}
-    except ValueError:
-        return {}
+    m = re.search(r"\{.*\}", text, re.S)
+    for cand in filter(None, [m.group(0) if m else None, _close(text[start:])]):
+        try:
+            v = json.loads(cand)
+            if isinstance(v, dict):
+                return v
+        except ValueError:
+            continue
+    return {}
 
 
 def _cut(s, n: int) -> str:

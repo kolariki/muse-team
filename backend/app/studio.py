@@ -278,7 +278,11 @@ Escribí qué se dice, el tono, y elegí los MEJORES MOMENTOS para un anuncio de
 producto o el resultado, o generan confianza. Cada momento con su video, inicio y fin en segundos (que empiece y termine en frase
 completa) y por qué sirve. Ordenalos del más fuerte al más débil. Escribí en {lang}.
 
-Respondé SOLO JSON: {{"summary": "", "tone": "", "highlights": [{{"video": "m1", "start": 0.0, "end": 0.0, "quote": "", "why": "", "score": 1}}], "hooks": [""], "cta_idea": ""}}"""
+La transcripción automática puede tener errores (nombres propios, siglas, palabras repetidas como «y y»). En `clean` devolvé el texto
+corregido SOLO de los segmentos que tienen errores, con su número [n] tal cual, sin cambiar lo que se dijo. `language` es el idioma en que
+HABLAN en los videos (por ejemplo «español rioplatense», «español», «English»): el anuncio va en ese idioma.
+
+Respondé SOLO JSON: {{"language": "", "summary": "", "tone": "", "highlights": [{{"video": "m1", "start": 0.0, "end": 0.0, "quote": "", "why": "", "score": 1}}], "clean": [{{"n": 0, "text": ""}}], "hooks": [""], "cta_idea": ""}}"""
 
 PLAN_SYSTEM = """Sos el/la director/a creativo/a. Armás el plan de edición de un anuncio en video para Meta (Reels, Stories y feed) con el material
 REAL que subió el usuario: sus videos (te paso cuadros de cada uno con su segundo, y la transcripción) y sus imágenes.
@@ -290,6 +294,7 @@ Reglas de un anuncio que rinde:
 - Títulos cortos (máx. 7 palabras) sobre los planos clave; subtítulos de lo que se dice siempre visibles (la mayoría mira sin sonido).
 - Cerrá con el llamado a la acción. No inventes datos, precios ni promesas que no estén en el material o el pedido.
 - Para un video horizontal en formato vertical usá fit "contain" (va sobre una copia desenfocada); si ya es vertical, "cover".
+- Una imagen chica (menos de 600 px, como un logo) no se agranda a pantalla completa: va centrada a su tamaño; usala en una placa o en el cierre, no como plano principal.
 - Escribí todo en {lang}.
 
 Respondé SOLO JSON:
@@ -381,7 +386,8 @@ def props(proj: dict, plan: dict, fmt: str) -> dict:
             clips.append({"kind": "video", "src": f"media:{m['id']}.mp4", "from": it["from"], "to": it["to"], "words": _words(proj.get("transcript") or {}, m["id"], it["from"], it["to"]),
                           "title": it.get("title") or None, "emphasis": it.get("emphasis") or "", "zoom": it.get("zoom", "none"), "fit": "cover" if fmt == "square" and it.get("fit") == "cover" else it.get("fit", "contain")})
         elif it["type"] == "image" and m:
-            clips.append({"kind": "image", "src": f"media:{m['file']}", "d": it["d"], "title": it.get("title") or None, "sub": it.get("sub") or None, "motion": it.get("motion", "in")})
+            clips.append({"kind": "image", "src": f"media:{m['file']}", "d": it["d"], "title": it.get("title") or None, "sub": it.get("sub") or None, "motion": it.get("motion", "in"),
+                          "w": m.get("width") or 0, "h": m.get("height") or 0})
         elif it["type"] == "title":
             clips.append({"kind": "title", "d": it["d"], "text": it["text"], "sub": it.get("sub") or None, "emphasis": it.get("emphasis") or ""})
     url = re.sub(r"^https?://", "", proj.get("link") or "").rstrip("/")
@@ -452,7 +458,7 @@ async def _pipeline(user: User, pid: str) -> None:
         videos = [m for m in proj["media"] if m["kind"] == "video"]
         transcript, heard_by = {}, None
         prior = proj.get("transcript") or {}
-        if proj.get("listen") and all(m["id"] in prior for m in videos if m.get("audio")):  # a retry: the listener already did its part
+        if proj.get("listen") and proj.get("spoken") and all(m["id"] in prior for m in videos if m.get("audio")):  # a retry: the listener already did its part
             transcript, heard_by = prior, proj.get("heard_by")
             videos = [m for m in videos if not (mdir / f"{m['id']}.mp4").exists()]
         for m in videos:
@@ -463,7 +469,7 @@ async def _pipeline(user: User, pid: str) -> None:
             if m.get("audio"):
                 _say(uid, pid, "listen", tx(f"Escuchando «{m['name']}» ({round(m['duration'])} s)", f"Listening to «{m['name']}» ({round(m['duration'])} s)"), "step")
                 try:
-                    segs, heard_by = await stt.transcribe(uid, dst, work, lang)
+                    segs, heard_by = await stt.transcribe(uid, dst, work, keywords=stt.keywords(f"{proj['title']} {proj.get('instructions') or ''}"))
                 except Exception as e:  # noqa: BLE001
                     log.warning("transcribe %s: %s", m["id"], e)
                     segs = []
@@ -471,16 +477,31 @@ async def _pipeline(user: User, pid: str) -> None:
                 transcript[m["id"]] = segs
         update(uid, pid, transcript=transcript, heard_by=heard_by)
         videos = [m for m in proj["media"] if m["kind"] == "video"]
-        lines = "\n".join(f"[{mid} {s['start']:.1f}-{s['end']:.1f}] {s['text']}" for mid, segs in transcript.items() for s in segs)
+        flat = [(mid, sg) for mid, segs in transcript.items() for sg in segs]
+        lines = "\n".join(f"[{n}] [{mid} {sg['start']:.1f}-{sg['end']:.1f}] {sg['text']}" for n, (mid, sg) in enumerate(flat))
         material = "\n".join(f"- {m['id']}: {'video' if m['kind'] == 'video' else 'imagen'} «{m['name']}»" + (f", {m['duration']} s, {m['width']}x{m['height']}, {'con' if m.get('audio') else 'sin'} sonido" if m["kind"] == "video" else f", {m['width']}x{m['height']}") for m in proj["media"])
         ask_ctx = f"PEDIDO DEL USUARIO: {proj.get('instructions') or '(sin pedido)'}\nOBJETIVO: {proj['goal']}\nLINK: {proj.get('link') or '(sin link)'}\nTÍTULO: {proj['title']}\n\nMATERIAL:\n{material}"
         if proj.get("listen") and transcript == prior and prior:
-            listen, by = proj["listen"], proj.get("listen_by")
+            listen, by = {**proj["listen"], "clean": []}, proj.get("listen_by")
         elif lines:
             listen, by = await ask(uid, LISTEN_SYSTEM.format(lang=lang), f"{ask_ctx}\n\nTRANSCRIPCIÓN:\n{lines}")
         else:
             listen, by = {"summary": tx("Los videos no tienen voz (o no hay transcriptor): el anuncio se arma con lo que se ve.", "The videos have no voice (or there is no transcriber): the ad is built from what is on screen."), "highlights": []}, None
-        update(uid, pid, listen=listen, listen_by=by)
+        fixed = 0
+        for c in listen.get("clean") or []:  # the listener's corrections of what the transcriber misheard (names, acronyms, repeats)
+            try:
+                mid, sg = flat[int(c.get("n"))]
+            except (TypeError, ValueError, IndexError):
+                continue
+            text = re.sub(r"\s+", " ", str(c.get("text") or "")).strip()
+            if text and text != sg["text"]:
+                sg["text"], sg["words"] = text, stt.spread(sg["start"], sg["end"], text)
+                fixed += 1
+        if fixed:
+            update(uid, pid, transcript=transcript)
+            lines = "\n".join(f"[{n}] [{mid} {sg['start']:.1f}-{sg['end']:.1f}] {sg['text']}" for n, (mid, sg) in enumerate(flat))
+        spoken = str(listen.get("language") or "").strip()[:40] or lang
+        update(uid, pid, listen=listen, listen_by=by, spoken=spoken)
         _agent(uid, pid, "listen", "done", heard_by or by)
         _say(uid, pid, "listen", listen.get("summary") or "", "result", {"highlights": (listen.get("highlights") or [])[:8], "tone": listen.get("tone"), "heard_by": heard_by})
 
@@ -505,7 +526,7 @@ async def _pipeline(user: User, pid: str) -> None:
             imgs.append(b.getvalue())
             legend.append(f"imagen {len(imgs)}: la imagen {m['id']} «{m['name']}»")
         msg = f"{ask_ctx}\n\nLO QUE ENCONTRÓ EL/LA GUIONISTA:\n{json.dumps(listen, ensure_ascii=False)}\n\nTRANSCRIPCIÓN:\n{lines or '(sin voz)'}\n\nLAS IMÁGENES QUE TE PASO, EN ORDEN:\n" + "\n".join(legend)
-        raw, by = await ask(uid, PLAN_SYSTEM.format(lang=lang), msg, imgs, 3500)
+        raw, by = await ask(uid, PLAN_SYSTEM.format(lang=spoken), msg, imgs)
         plan = clean_plan(raw, proj)
         update(uid, pid, plan=plan)
         _agent(uid, pid, "plan", "done", by)
@@ -528,7 +549,7 @@ async def _pipeline(user: User, pid: str) -> None:
             _agent(uid, pid, "improve", "working")
             frames = await asyncio.to_thread(_frames, uid, pid, folder(uid, pid) / "renders" / cut / "vertical.mp4", cut)
             msg = f"{ask_ctx}\n\nPLAN ACTUAL:\n{json.dumps(plan, ensure_ascii=False)}\n\nMEJORES MOMENTOS:\n{json.dumps(listen.get('highlights') or [], ensure_ascii=False)}\n\nTRANSCRIPCIÓN:\n{lines or '(sin voz)'}" + (f"\n\nDEVOLUCIÓN DE QUIEN APRUEBA (resolvé todo):\n- " + "\n- ".join(feedback) if feedback else "")
-            raw, by = await ask(uid, IMPROVE_SYSTEM.format(lang=lang), msg, frames, 3500)
+            raw, by = await ask(uid, IMPROVE_SYSTEM.format(lang=spoken), msg, frames)
             if isinstance(raw.get("plan"), dict) and raw["plan"].get("sequence"):
                 plan = clean_plan(raw["plan"], load(uid, pid) or proj)
             notes = [adsmod._cut(n, 200) for n in raw.get("notes") or [] if str(n).strip()][:8]
@@ -540,7 +561,7 @@ async def _pipeline(user: User, pid: str) -> None:
 
             _agent(uid, pid, "review", "working")
             frames = await asyncio.to_thread(_frames, uid, pid, folder(uid, pid) / "renders" / cut / "vertical.mp4", f"{cut}-r")
-            rev, by = await ask(uid, REVIEW_SYSTEM.format(lang=lang), f"{ask_ctx}\n\nPLAN:\n{json.dumps(plan, ensure_ascii=False)}", frames, 1500)
+            rev, by = await ask(uid, REVIEW_SYSTEM.format(lang=spoken), f"{ask_ctx}\n\nPLAN:\n{json.dumps(plan, ensure_ascii=False)}", frames)
             score = _num(rev.get("score"), 0, 10, 0)
             approved = bool(rev.get("approved")) and score >= 7
             feedback = [adsmod._cut(f, 220) for f in rev.get("fix") or [] if str(f).strip()][:8]

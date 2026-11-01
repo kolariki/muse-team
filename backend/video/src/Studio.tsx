@@ -17,7 +17,7 @@ import { Cta, fit, type Ctx } from './scenes'
 export type Word = { w: string; t: number; d: number }  // seconds from the clip's start
 export type Clip =
   | { kind: 'video'; src: string; from: number; to: number; words?: Word[]; title?: string; emphasis?: string; zoom?: 'in' | 'out' | 'none'; fit?: 'cover' | 'contain'; volume?: number }
-  | { kind: 'image'; src: string; d: number; title?: string; sub?: string; motion?: 'in' | 'out' | 'left' | 'right' }
+  | { kind: 'image'; src: string; d: number; title?: string; sub?: string; motion?: 'in' | 'out' | 'left' | 'right'; w?: number; h?: number }
   | { kind: 'title'; d: number; text: string; sub?: string; emphasis?: string }
 export type StudioProps = {
   format: 'vertical' | 'square'
@@ -112,10 +112,14 @@ function ImageClip({ c, clip, d }: { c: Ctx; clip: Extract<Clip, { kind: 'image'
   const m = clip.motion ?? 'in'
   const s = m === 'out' ? 1.18 - 0.14 * p : 1.04 + 0.14 * p
   const x = m === 'left' ? 4 - 8 * p : m === 'right' ? -4 + 8 * p : 0
+  const small = !!clip.w && Math.max(clip.w, clip.h ?? 0) < 600
   return (
     <AbsoluteFill style={{ background: '#000' }}>
       <AbsoluteFill style={{ filter: 'blur(36px) brightness(0.5)', transform: 'scale(1.2)' }}><Img src={clip.src} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></AbsoluteFill>
-      <AbsoluteFill style={{ transform: `scale(${s}) translateX(${x}%)` }}><Img src={clip.src} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /></AbsoluteFill>
+      <AbsoluteFill style={{ transform: `scale(${s}) translateX(${x}%)`, alignItems: 'center', justifyContent: 'center' }}>
+        {/* a small image (a logo) is shown at most twice its size, centred: blown up to the full frame it would pixelate */}
+        <Img src={clip.src} style={small ? { width: Math.min(clip.w! * 2, c.v ? 760 : 640), maxHeight: '60%', objectFit: 'contain', borderRadius: 24, boxShadow: '0 30px 80px -30px rgba(0,0,0,.7)' } : { width: '100%', height: '100%', objectFit: 'contain' }} />
+      </AbsoluteFill>
       <AbsoluteFill style={{ background: 'linear-gradient(180deg, rgba(0,0,0,.4) 0%, transparent 30%, transparent 62%, rgba(0,0,0,.5) 100%)' }} />
       {clip.title && <Title c={c} text={clip.title} top />}
       {clip.sub && (

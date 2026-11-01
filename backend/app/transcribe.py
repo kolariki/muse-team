@@ -52,14 +52,23 @@ def who(user_id: str) -> str | None:
     return None
 
 
-async def _muse(key: str, audio: bytes, language: str) -> list[dict]:
+def keywords(text: str) -> list[str]:
+    """Names and acronyms from the user's own words (product, brand, places) to bias the transcriber, e.g. «SICOP»."""
+    out: list[str] = []
+    for w in re.findall(r"\b[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ-]{2,}\b", text or ""):
+        if w not in out and w.lower() not in ("que", "para", "con", "the", "and", "una", "los", "las"):
+            out.append(w)
+    return out[:20]
+
+
+async def _muse(key: str, audio: bytes, words: list[str]) -> list[dict]:
     import websockets
 
     segs: dict[int, dict] = {}
     async with websockets.connect(MUSE_URL, max_size=1 << 22, open_timeout=15) as ws:
         hello = {"authorization": {"accessToken": f"Bearer {key}"}, "audioEncoding": "PCM_16KHZ", "model": MUSE_MODEL, "mode": "ENDPOINTING", "emitAudioProgress": True}
-        if language:
-            hello["languageBias"] = [language]
+        if words:  # the language is detected by Muse itself: the interface language is not the video's
+            hello["keywords"] = words
         await ws.send(json.dumps(hello))
         ack = json.loads(await asyncio.wait_for(ws.recv(), 10))
         if "sessionId" not in ack:
@@ -126,7 +135,7 @@ async def _whisper(pid: str, key: str, wav: Path, language: str) -> list[dict]:
     return out
 
 
-async def transcribe(user_id: str, video: Path, work: Path, language: str = "") -> tuple[list[dict], str | None]:
+async def transcribe(user_id: str, video: Path, work: Path, language: str = "", keywords: list[str] | None = None) -> tuple[list[dict], str | None]:
     """(segments, «who listened») — ([], None) when the video has no voice or there is no transcriber key."""
     pid = who(user_id)
     if not pid:
@@ -137,8 +146,7 @@ async def transcribe(user_id: str, video: Path, work: Path, language: str = "") 
         raw = work / f"{video.stem}.pcm"
         if not await asyncio.to_thread(media.pcm, video, raw, RATE):
             return [], "Meta · Muse Voice Transcribe"
-        lang = re.sub(r"\s+rioplatense|\s+neutro", "", language or "").strip().capitalize()
-        return await _muse(key, raw.read_bytes(), {"Español": "Spanish", "English": "English", "Inglés": "English", "Português": "Portuguese", "Portugués": "Portuguese"}.get(lang, lang)), "Meta · Muse Voice Transcribe"
+        return await _muse(key, raw.read_bytes(), keywords or []), "Meta · Muse Voice Transcribe"
     wav = work / f"{video.stem}.wav"
     if not await asyncio.to_thread(media.wav, video, wav):
         return [], None
