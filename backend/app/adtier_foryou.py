@@ -92,6 +92,10 @@ def remove(user_id: str, pid: str) -> None:
     with _db() as c:
         c.execute("DELETE FROM adtier_profile_videos WHERE profile_id IN (SELECT id FROM adtier_profiles WHERE id = ? AND user_id = ?)", (pid, user_id))
         c.execute("DELETE FROM adtier_profiles WHERE id = ? AND user_id = ?", (pid, user_id))
+    if re.fullmatch(r"[a-f0-9]{12}", pid):  # the frames of the reels the person uploaded go with it
+        import shutil
+
+        shutil.rmtree(uploads_dir(user_id, pid), ignore_errors=True)
 
 
 def found_ids(pid: str) -> list[str]:
@@ -587,7 +591,11 @@ async def read_account(user: User, acc: dict) -> tuple[list[dict], dict]:
 IDEAS_SYSTEM = """Sos director creativo de contenido para redes. Te paso el perfil de un negocio y los últimos reels de las cuentas que
 la persona eligió como referencia (con sus números cuando los hay). Primero mirá qué funciona en esas cuentas (ganchos, formatos,
 temas, duración, los que más vistas o me gusta tienen) y después escribí EXACTAMENTE 5 reels para que este negocio los grabe, adaptados a
-su rubro, su país y su objetivo. Que se puedan grabar con un celular. No copies: tomá el patrón. Respondé SOLO un objeto JSON:
+su rubro, su país y su objetivo. Que se puedan grabar con un celular. No copies: tomá el patrón.
+Si hay REELS QUE SUBIÓ LA PERSONA, quiere reels iguales a esos: al menos 3 de las 5 ideas replican uno de ellos casi toma por toma (el mismo
+tipo de gancho, las mismas tomas en el mismo orden y con los mismos tiempos, el mismo estilo de texto en pantalla, de voz y de ritmo) pero con el
+producto, el negocio y las palabras de la persona; nunca uses la marca, el logo ni las frases textuales de la otra marca. Mirá los cuadros
+(van en orden, con su segundo) y la transcripción para entender cómo está hecho. Respondé SOLO un objeto JSON:
 {"patterns": "2 o 3 oraciones: qué funciona en esas cuentas y por qué",
  "ideas": [{"title": "nombre corto del reel", "duration_s": 15,
             "based_on": [números de los reels de referencia que inspiran esta idea],
@@ -608,7 +616,11 @@ async def _ideas_from(user: User, data: dict, refs: list[dict]) -> tuple[dict, s
     lo, hi = PLACEMENTS.get(data.get("placement") or "reels", PLACEMENTS["reels"])
     prof = {k: data.get(k) for k in ("name", "summary", "sector", "kind", "country", "language", "audience", "goal", "keywords")}
     lines = []
-    for i, r in enumerate(refs, 1):
+    ups = [u for u in data.get("uploads") or [] if u.get("status") == "ready"]
+    for i, u in enumerate(ups, 1):
+        lines.append(f"{i}. REEL QUE SUBIÓ LA PERSONA «{u.get('name')}»" + (f" · {round(u['duration'])} s" if u.get("duration") else " · captura")
+                     + (f"\n   LO QUE SE DICE:\n   {u['transcript'][:1500]}" if u.get("transcript") else ""))
+    for i, r in enumerate(refs, len(ups) + 1):
         nums = " · ".join(x for x in [f"{_number(r.get('views'))} vistas" if r.get("views") else "", f"{_number(r.get('likes'))} me gusta" if r.get("likes") else "",
                                        f"{_number(r.get('comments'))} comentarios" if r.get("comments") else "", f"{round(r['duration'])} s" if r.get("duration") else ""] if x)
         lines.append(f"{i}. @{r.get('account')} ({r.get('platform')}){' · ' + nums if nums else ''}: {(r.get('caption') or '(sin texto)')[:300]}")
@@ -617,10 +629,18 @@ async def _ideas_from(user: User, data: dict, refs: list[dict]) -> tuple[dict, s
             if v:
                 lines.append(f"{i}. {v.get('brand') or ''} (anuncio de YouTube · {round(v.get('duration_s') or 0)} s): {v.get('title') or ''}")
     msg = (f"PERFIL DEL NEGOCIO:\n{json.dumps(prof, ensure_ascii=False)}\n\nLARGO: entre {lo} y {hi} segundos (dónde se publican: {data.get('placement') or 'reels'})\n\n"
-           f"REELS DE REFERENCIA:\n" + ("\n".join(lines) or "(no se pudieron leer: basate en el perfil)") + "\n\nLas imágenes son las portadas de los primeros reels, en orden.")
+           f"REELS DE REFERENCIA:\n" + ("\n".join(lines) or "(no se pudieron leer: basate en el perfil)") + "\n\n"
+           + ("IMÁGENES: primero los cuadros de los reels que subió la persona (" + "; ".join(f"reel {i}: {len(u.get('frames') or [])} cuadros" for i, u in enumerate(ups, 1)) + "), después " if ups else "IMÁGENES: ")
+           + "las portadas de los primeros reels de las cuentas, en orden.")
     images: list[bytes] = []
+    per = max(2, 12 // max(1, len(ups))) if ups else 0  # the uploaded reels are what the person wants: most of the images go to them
+    for u in ups:
+        for name in (u.get("frames") or [])[:per]:
+            f = uploads_dir(user.id, data.get("_pid") or "") / u["id"] / name
+            if f.is_file():
+                images.append(f.read_bytes())
     async with httpx.AsyncClient(timeout=10, follow_redirects=True) as cx:
-        for r in refs[:6]:
+        for r in refs[: min(6, max(0, 16 - len(images)))]:
             if not r.get("thumb"):
                 continue
             try:
@@ -672,8 +692,8 @@ def ideas(user: User, pid: str, accounts: list[str] | None = None) -> int:
             raise ValueError(f"No reconozco «{bad[0][:80]}»: pegá el link del perfil de Instagram, Facebook, TikTok o YouTube (no de un posteo)")
         data["accounts"] = [a["url"] for a in {a["url"]: a for a in parsed}.values()][:MAX_ACCOUNTS]
         _save_data(pid, data)
-    if not data.get("accounts"):
-        raise ValueError("Pegá al menos una cuenta de Instagram, Facebook, TikTok o YouTube")
+    if not data.get("accounts") and not any(u.get("status") == "ready" for u in data.get("uploads") or []):
+        raise ValueError("Pegá al menos una cuenta de Instagram, Facebook, TikTok o YouTube, o subí un reel que te guste")
     if pid in _idea_jobs:
         return 0
     from .tasks import spawn
@@ -682,7 +702,7 @@ def ideas(user: User, pid: str, accounts: list[str] | None = None) -> int:
         d = data
         try:
             refs, notes = [], []
-            for url in d["accounts"]:
+            for url in d.get("accounts") or []:
                 items, note = await read_account(user, parse_account(url) or {})
                 notes.append(note)
                 items.sort(key=lambda x: -((x.get("views") or 0) + 20 * (x.get("likes") or 0)))  # the ones that worked best first
@@ -691,7 +711,8 @@ def ideas(user: User, pid: str, accounts: list[str] | None = None) -> int:
             d.update(refs=refs[:24], notes=notes, ideas_error=None)
             try:
                 raw, by = await _ideas_from(user, d | {"_pid": pid}, refs[:24])
-                d.update(ideas=_clean_ideas(raw, len(refs[:24])), patterns=str(raw.get("patterns") or "")[:600], ideas_by=by, ideas_at=time.time())
+                ups = [u["id"] for u in d.get("uploads") or [] if u.get("status") == "ready"]
+                d.update(ideas=_clean_ideas(raw, len(ups) + len(refs[:24])), ideas_ups=ups, patterns=str(raw.get("patterns") or "")[:600], ideas_by=by, ideas_at=time.time())
                 if not d["ideas"]:
                     d["ideas_error"] = "El modelo no devolvió ideas: probá de nuevo."
             except Exception as e:  # noqa: BLE001
@@ -705,3 +726,133 @@ def ideas(user: User, pid: str, accounts: list[str] | None = None) -> int:
 
     _idea_jobs[pid] = spawn(run())  # type: ignore[assignment]
     return 1
+
+
+# ------------------------------------------------------------------------------------------------------------ uploaded reels: «quiero uno igual a este»
+
+MAX_UPLOADS = 6
+UP_VIDEO_MB, UP_IMAGE_MB, UP_MAX_S = 200, 15, 180
+VIDEO_EXT = (".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi")
+IMAGE_EXT = (".jpg", ".jpeg", ".png", ".webp")
+_upload_jobs: dict[str, asyncio.Task] = {}
+
+
+def uploads_dir(user_id: str, pid: str) -> "Path":
+    return user_dir(user_id) / "adtier_refs" / pid
+
+
+def upload_file(user_id: str, pid: str, rid: str, name: str) -> "Path | None":
+    if not re.fullmatch(r"[a-f0-9]{8}", rid) or not re.fullmatch(r"[a-z0-9]+\.jpg", name):
+        return None
+    f = uploads_dir(user_id, pid) / rid / name
+    return f if f.is_file() else None
+
+
+def _set_upload(user_id: str, pid: str, rid: str, **fields) -> None:
+    p = get(user_id, pid)
+    if not p:
+        return
+    d = p["data"]
+    for u in d.get("uploads") or []:
+        if u["id"] == rid:
+            u.update(fields)
+    _save_data(pid, d)
+
+
+async def add_upload(user: User, pid: str, name: str, chunks) -> dict:
+    """A reel the person saved from another brand (video, or screenshots): it is read here — 8 frames and what is said — and the
+    video itself is deleted right after; only the frames and the transcript stay, for the person's eyes and the model."""
+    from . import media
+
+    p = get(user.id, pid)
+    if not p:
+        raise ValueError("Perfil no encontrado")
+    ups = p["data"].get("uploads") or []
+    if len(ups) >= MAX_UPLOADS:
+        raise ValueError(f"Hasta {MAX_UPLOADS} reels por perfil: borrá alguno para subir otro")
+    ext = "." + name.rsplit(".", 1)[-1].lower() if "." in name else ""
+    kind = "video" if ext in VIDEO_EXT else "image" if ext in IMAGE_EXT else None
+    if not kind:
+        raise ValueError("Subí un video (mp4, mov, webm) o una captura (jpg, png, webp)")
+    if kind == "video" and not media.available():
+        raise ValueError("Este servidor no puede leer videos (falta ffmpeg): subí capturas del reel")
+    rid = secrets.token_hex(4)
+    d = uploads_dir(user.id, pid) / rid
+    d.mkdir(parents=True, exist_ok=True)
+    raw = d / f"raw{ext}"
+    limit, size = (UP_VIDEO_MB if kind == "video" else UP_IMAGE_MB) * 1024 * 1024, 0
+    with raw.open("wb") as f:
+        async for chunk in chunks:
+            size += len(chunk)
+            if size > limit:
+                f.close()
+                import shutil
+
+                shutil.rmtree(d, ignore_errors=True)
+                raise ValueError(f"El archivo supera {limit // (1024 * 1024)} MB")
+            f.write(chunk)
+    item = {"id": rid, "name": name.rsplit("/", 1)[-1][:120], "kind": kind, "status": "reading", "error": None, "duration": None,
+            "frames": [], "transcript": "", "created": time.time()}
+    p = get(user.id, pid) or p
+    p["data"].setdefault("uploads", []).append(item)
+    _save_data(pid, p["data"])
+    from .tasks import spawn
+
+    _upload_jobs[rid] = spawn(_read_upload(user, pid, rid, raw, kind))  # type: ignore[assignment]
+    return item
+
+
+async def _read_upload(user: User, pid: str, rid: str, raw: "Path", kind: str) -> None:
+    from PIL import Image
+
+    from . import media
+    from . import transcribe as stt
+
+    d = raw.parent
+    try:
+        if kind == "image":
+            def shrink() -> None:
+                im = Image.open(raw).convert("RGB")
+                im.thumbnail((720, 1280))
+                im.save(d / "f000000.jpg", quality=82)
+                im.thumbnail((360, 640))
+                im.save(d / "thumb.jpg", quality=80)
+            await asyncio.to_thread(shrink)
+            _set_upload(user.id, pid, rid, status="ready", frames=["f000000.jpg"])
+            return
+        info = await asyncio.to_thread(media.probe, raw)
+        dur = info["duration"]
+        if dur <= 0:
+            raise ValueError("No pude leer ese video")
+        if dur > UP_MAX_S:
+            raise ValueError(f"Dura {round(dur)} s: subí reels de hasta {UP_MAX_S // 60} minutos")
+        shots = await asyncio.to_thread(media.frames, raw, d, max(dur / 8, 0.5), 8, 432)
+        await asyncio.to_thread(media.thumb, raw, d / "thumb.jpg", min(1.0, dur / 3))
+        text = ""
+        if info.get("audio"):
+            segs, _ = await stt.transcribe(user.id, raw, d / "stt")
+            text = "\n".join(f"[{s['start']:.1f}-{s['end']:.1f}] {s['text']}" for s in segs)[:4000]
+        _set_upload(user.id, pid, rid, status="ready", duration=round(dur, 1), frames=[p.name for _, p in shots], transcript=text,
+                    heard=bool(text), audio=bool(info.get("audio")))
+    except Exception as e:  # noqa: BLE001
+        log.warning("adtier upload %s: %s", rid, e)
+        _set_upload(user.id, pid, rid, status="error", error=str(e)[:200])
+    finally:
+        import shutil
+
+        raw.unlink(missing_ok=True)  # the video itself is never kept
+        shutil.rmtree(d / "stt", ignore_errors=True)
+        _upload_jobs.pop(rid, None)
+
+
+def remove_upload(user_id: str, pid: str, rid: str) -> None:
+    import shutil
+
+    p = get(user_id, pid)
+    if not p:
+        raise ValueError("Perfil no encontrado")
+    d = p["data"]
+    d["uploads"] = [u for u in d.get("uploads") or [] if u["id"] != rid]
+    _save_data(pid, d)
+    if re.fullmatch(r"[a-f0-9]{8}", rid):
+        shutil.rmtree(uploads_dir(user_id, pid) / rid, ignore_errors=True)

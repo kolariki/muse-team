@@ -62,3 +62,11 @@ def test_foryou_reference_accounts_and_ideas():
     raw = {"ideas": [{"title": "Uno", "duration_s": "999", "based_on": [1, 7, "x"], "beats": [{"t": "0-2 s", "shot": "plano"}], "hook": "h"}, {"no": "title"}]}
     out = f._clean_ideas(raw, 3)
     assert len(out) == 1 and out[0]["duration_s"] == 180 and out[0]["based_on"] == [1] and out[0]["beats"][0]["voice"] == ""
+
+
+def test_foryou_upload_file_names_are_safe():
+    from app import adtier_foryou as f
+
+    assert f.upload_file("u", "p", "../../x", "thumb.jpg") is None
+    assert f.upload_file("u", "p", "abcd1234", "../secret.jpg") is None
+    assert f.upload_file("u", "p", "abcd1234", "thumb.jpg") is None  # does not exist

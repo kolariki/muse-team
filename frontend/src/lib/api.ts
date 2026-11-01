@@ -375,6 +375,19 @@ export const api = {
   foryouIdeas: (id: string, accounts?: string[]) => j<ForYouMatches>(post(`/api/adtier/foryou/${id}/ideas`, accounts ? { accounts } : {})),
   metaApp: () => j<MetaApp>(authed('/api/settings/meta-app')),
   metaAppSet: (body: { app_id?: string; app_secret?: string }) => j<MetaApp>(authed('/api/settings/meta-app', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
+  foryouUpload: (id: string, file: File, onProgress: (p: number) => void) => new Promise<ForYouMatches>((resolve, reject) => {
+    const x = new XMLHttpRequest()
+    x.open('POST', `/api/adtier/foryou/${id}/uploads`)
+    x.setRequestHeader('Authorization', `Bearer ${getToken() ?? ''}`)
+    x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total) }
+    x.onload = () => { let d: { detail?: string } = {}; try { d = JSON.parse(x.responseText) } catch { /* not JSON */ } if (x.status < 300) resolve(d as ForYouMatches); else reject(new Error(d.detail ?? `HTTP ${x.status}`)) }
+    x.onerror = () => reject(new Error('No se pudo subir el archivo'))
+    const form = new FormData()
+    form.append('file', file, file.name)
+    x.send(form)
+  }),
+  foryouUploadDelete: (id: string, rid: string) => j<ForYouMatches>(authed(`/api/adtier/foryou/${id}/uploads/${rid}`, { method: 'DELETE' })),
+  foryouUploadUrl: (id: string, rid: string, name: string) => `/api/adtier/foryou/${id}/uploads/${rid}/${name}?token=${encodeURIComponent(getToken() ?? '')}`,
   foryouDelete: (id: string) => j<{ ok: boolean }>(authed(`/api/adtier/foryou/${id}`, { method: 'DELETE' })),
   foryouDoc: (file: File) => { const form = new FormData(); form.append('file', file, file.name); return j<{ name: string; text: string }>(authed('/api/adtier/foryou/doc', { method: 'POST', body: form })) },
   adtierCheckEmbeds: () => j<{ checked: number; unpublished: string[] }>(post('/api/adtier/admin/check-embeds', {})),
@@ -605,7 +618,8 @@ export interface AdTierDetail extends AdTierCard { source_url: string; embed_url
 /** AdTier «Para vos»: a profile of the person's business and the ads that fit it (backend/app/adtier_foryou.py). */
 export interface ForYouProfileData { name: string; summary: string; sector: string; kind: string; country: string; language: string; audience: string; goal: string
   industries: string[]; keywords: string[]; formats: string[]; queries: string[]; why: string; by: string | null; placement?: 'reels' | 'stories' | 'long'
-  accounts?: string[]; refs?: ForYouRef[]; notes?: ForYouNote[]; ideas?: ReelIdea[]; patterns?: string; ideas_by?: string | null; ideas_at?: number; ideas_error?: string | null }
+  accounts?: string[]; refs?: ForYouRef[]; notes?: ForYouNote[]; ideas?: ReelIdea[]; patterns?: string; ideas_by?: string | null; ideas_at?: number; ideas_error?: string | null; uploads?: ForYouUpload[]; ideas_ups?: string[] }
+export interface ForYouUpload { id: string; name: string; kind: 'video' | 'image'; status: 'reading' | 'ready' | 'error'; error: string | null; duration: number | null; frames: string[]; transcript: string; heard?: boolean; audio?: boolean }
 export interface MetaApp { admin: boolean; app_id: string | null; has_secret: boolean; configured: boolean; redirect_uri: string }
 export interface ForYouRef { caption: string; url: string; thumb: string | null; views?: number | null; likes?: number | null; comments?: number | null; duration?: number | null; date?: string; platform: string | null; account: string }
 export interface ForYouNote { account: string; platform: string; handle: string; via: string | null; count: number; problem: string | null; action: 'connect_meta' | 'enable_meta' | null; name?: string; followers?: number | null }

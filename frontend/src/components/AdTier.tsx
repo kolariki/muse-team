@@ -578,7 +578,7 @@ function ProfileView({ id, home, onOpen, onDeleted }: { id: string; home: ForYou
   useEffect(() => { load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
   // while the search runs or the found ads are analysed, the list fills in by itself
   useEffect(() => {
-    if (!m || !(m.searching || m.ideating || m.found.some((v) => WORKING.includes(v.stage ?? '')))) return
+    if (!m || !(m.searching || m.ideating || m.profile.data.uploads?.some((u) => u.status === 'reading') || m.found.some((v) => WORKING.includes(v.stage ?? '')))) return
     const t = window.setTimeout(load, 5000)
     return () => window.clearTimeout(t)
   }, [m]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -694,6 +694,8 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
   const [open, setOpen] = useState(!p.accounts?.length)
   const [busy, setBusy] = useState(false)
   const [setup, setSetup] = useState(false)
+  const [ups, setUps] = useState<{ name: string; p: number }[]>([])
+  const [drag, setDrag] = useState(false)
   const [meta, setMeta] = useState(home.meta)  // changes here when the admin enables Meta or the person connects it
   const refs = p.refs ?? []
   const run = async (accounts?: string[]) => {
@@ -714,6 +716,20 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
     } catch (e) { toast.error(T('No se pudo conectar Meta', 'Could not connect Meta'), (e as Error).message) }
   }
   const working = busy || !!m.ideating
+  const uploads = p.uploads ?? []
+  const readyUps = uploads.filter((u) => u.status === 'ready')
+  const reading = uploads.some((u) => u.status === 'reading') || ups.length > 0
+  const upload = async (files: File[]) => {
+    for (const f of files.slice(0, 6)) {
+      setUps((u) => [...u, { name: f.name, p: 0 }])
+      try { onChange(await api.foryouUpload(id, f, (x) => setUps((u) => u.map((it) => (it.name === f.name ? { ...it, p: x } : it))))) }
+      catch (e) { toast.error(T(`No pude subir ${f.name}`, `Could not upload ${f.name}`), (e as Error).message) }
+      finally { setUps((u) => u.filter((it) => it.name !== f.name)) }
+    }
+  }
+  // what each idea's «inspired by #n» points to: the uploaded reels first (as they were when the ideas were written), then the accounts' reels
+  const sources = [...(p.ideas_ups ?? []).map((rid) => { const u = uploads.find((x) => x.id === rid); return { label: T('tu reel', 'your reel') + (u ? ` «${u.name.slice(0, 24)}»` : ''), url: null as string | null } }),
+    ...refs.map((r) => ({ label: `@${r.account}`, url: r.url as string | null }))]
   // what an account that Meta did not let us read needs now (the note was written when it was read; Meta may be on since)
   const act = (n: NonNullable<typeof p.notes>[number]) => {
     if (n.via === n.platform || !['instagram', 'facebook'].includes(n.platform)) return null
@@ -725,18 +741,48 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h4 className="flex items-center gap-1.5 text-[15px] font-bold text-ink"><Sparkles size={15} className="text-accent" /> {T('5 reels para hacer', '5 reels to make')}</h4>
-          <p className="text-[12.5px] text-ink-3">{T('Pegá cuentas de Instagram, Facebook o TikTok que te gusten: miramos sus reels, vemos qué les funciona y te escribimos 5 reels para tu negocio, con gancho, tomas, texto en pantalla y cierre.', 'Paste Instagram, Facebook or TikTok accounts you like: we look at their reels, see what works for them and write 5 reels for your business, with hook, shots, on-screen text and close.')}</p>
+          <p className="text-[12.5px] text-ink-3">{T('Pegá cuentas que te gusten o subí reels de otras marcas: miramos qué les funciona y te escribimos 5 reels para tu negocio, con gancho, tomas, texto en pantalla y cierre.', 'Paste accounts you like or upload reels from other brands: we see what works for them and write 5 reels for your business, with hook, shots, on-screen text and close.')}</p>
         </div>
         {!open && <button onClick={() => setOpen(true)} className={PILL}><Link2 size={14} /> {p.accounts?.length ? T('Cambiar cuentas', 'Change accounts') : T('Agregar cuentas', 'Add accounts')}</button>}
       </div>
       {open && (
         <div className="mt-3 flex flex-col gap-2">
           <AccountsInput value={text} onChange={setText} />
-          <button disabled={working || !splitAccounts(text).length} onClick={() => run(splitAccounts(text))} className={`${PRIMARY} self-start`}>
-            {working ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {T('Mirar sus reels y escribir 5 ideas', 'Look at their reels and write 5 ideas')}
-          </button>
         </div>
       )}
+      <div className="mt-4">
+        <div className={LABEL}>{T('Reels que te gustan', 'Reels you like')}</div>
+        <p className="mt-0.5 text-[12px] text-ink-3">{T('Guardá o grabá la pantalla de reels de otras marcas y subilos (o capturas). Los miramos cuadro por cuadro, escuchamos lo que dicen y te escribimos reels iguales para tu negocio. El video no se guarda: quedan solo los cuadros y la transcripción.', 'Save or screen-record reels from other brands and upload them (or screenshots). We look at them frame by frame, listen to what is said and write you the same reels for your business. The video is not kept: only the frames and the transcript.')}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {uploads.map((u) => (
+            <div key={u.id} className="relative w-[96px] shrink-0">
+              <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-black">
+                {u.status === 'ready' && <img src={api.foryouUploadUrl(id, u.id, 'thumb.jpg')} alt={u.name} className="h-full w-full object-cover" />}
+                {u.status === 'reading' && <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-[10px] text-white/80"><Loader2 size={16} className="animate-spin" /> {T('mirando…', 'looking…')}</span>}
+                {u.status === 'error' && <span className="absolute inset-0 flex items-center justify-center p-1.5 text-center text-[10px] text-[#FF8A8A]">{u.error}</span>}
+                <button onClick={() => api.foryouUploadDelete(id, u.id).then(onChange).catch(() => {})} aria-label={T('Quitar', 'Remove')} className="absolute right-1 top-1 rounded-full bg-black/70 p-0.5 text-white hover:bg-black"><X size={12} /></button>
+              </div>
+              <div className="mt-0.5 truncate text-[10.5px] text-ink-3" title={u.name}>{u.status === 'ready' ? (u.kind === 'image' ? T('captura', 'screenshot') : `${Math.round(u.duration ?? 0)} s · ${u.heard ? T('con voz', 'with voice') : T('sin voz', 'no voice')}`) : u.name}</div>
+            </div>
+          ))}
+          {ups.map((u) => (
+            <div key={u.name} className="flex aspect-[9/16] w-[96px] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line text-[10.5px] text-ink-3"><Loader2 size={14} className="animate-spin text-accent" /> {Math.round(u.p * 100)}%</div>
+          ))}
+          {uploads.length + ups.length < 6 && (
+            <label onDragOver={(e) => { e.preventDefault(); setDrag(true) }} onDragLeave={() => setDrag(false)} onDrop={(e) => { e.preventDefault(); setDrag(false); upload([...e.dataTransfer.files]) }}
+              className={`flex aspect-[9/16] w-[96px] cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-center text-[10.5px] transition ${drag ? 'border-accent bg-accent-soft text-accent' : 'border-line text-ink-3 hover:border-accent hover:text-accent'}`}>
+              <Upload size={16} /> {T('Subir reel o captura', 'Upload reel or screenshot')}
+              <input type="file" multiple accept="video/*,image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { upload([...(e.target.files ?? [])]); e.target.value = '' }} />
+            </label>
+          )}
+        </div>
+        {((open && (splitAccounts(text).length > 0 || readyUps.length > 0)) || (!open && readyUps.length > 0)) && (
+          <button disabled={working || reading} onClick={() => run(open ? splitAccounts(text) : undefined)} className={`${PRIMARY} mt-3`}>
+            {working ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {readyUps.length ? T('Escribir 5 reels como estos', 'Write 5 reels like these') : T('Mirar sus reels y escribir 5 ideas', 'Look at their reels and write 5 ideas')}
+          </button>
+        )}
+        {reading && <p className="mt-2 flex items-center gap-2 text-[12.5px] text-ink-2"><Loader2 size={13} className="animate-spin text-accent" /> {T('Mirando los reels y escuchando lo que dicen…', 'Looking at the reels and listening to what they say…')}</p>}
+      </div>
       {!!p.notes?.length && (
         <div className="mt-3 flex flex-col gap-1.5">
           {p.notes.map((n) => (
@@ -778,14 +824,14 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
       )}
       {!!p.ideas?.length && !working && (() => {
         // say plainly where the ideas come from: an account whose reels could not be read gave nothing to them
-        const read = (p.notes ?? []).filter((n) => n.count > 0).map((n) => `@${n.handle}`)
+        const read = [...((p.ideas_ups ?? []).length ? [T('los reels que subiste', 'the reels you uploaded')] : []), ...(p.notes ?? []).filter((n) => n.count > 0).map((n) => T(`los reels de @${n.handle}`, `the reels of @${n.handle}`))]
         const missed = (p.notes ?? []).filter((n) => !n.count).map((n) => `@${n.handle}`)
         if (!missed.length) return null
         return (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-[#C28A12]/40 bg-[#C28A12]/10 px-3 py-2 text-[12.5px] text-ink-2">
             <AlertTriangle size={14} className="shrink-0 text-[#C28A12]" />
             <span className="min-w-0 flex-1">{read.length
-              ? T(`Estas ideas salen de los reels de ${read.join(', ')}. De ${missed.join(', ')} no pudimos leer nada, así que no las inspiró.`, `These ideas come from the reels of ${read.join(', ')}. Nothing could be read from ${missed.join(', ')}, so it did not inspire them.`)
+              ? T(`Estas ideas salen de ${read.join(' y ')}. De ${missed.join(', ')} no pudimos leer nada, así que no las inspiró.`, `These ideas come from ${read.join(' and ')}. Nothing could be read from ${missed.join(', ')}, so it did not inspire them.`)
               : T(`Estas ideas salen de tu rubro (anuncios que encontramos para tu perfil), no de ${missed.join(', ')}: no pudimos leer sus reels.`, `These ideas come from your sector (ads we found for your profile), not from ${missed.join(', ')}: we could not read their reels.`)}</span>
             <button onClick={() => setOpen(true)} className={PILL}><Link2 size={14} /> {T('Pegar su TikTok o YouTube', 'Paste their TikTok or YouTube')}</button>
           </div>
@@ -794,7 +840,7 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
       {p.patterns && <p className="mt-3 text-[12.5px] text-ink-2">💡 {p.patterns}</p>}
       {!!p.ideas?.length && (
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {p.ideas.map((it, i) => <IdeaCard key={i} n={i + 1} it={it} refs={refs} goal={p.goal} />)}
+          {p.ideas.map((it, i) => <IdeaCard key={i} n={i + 1} it={it} sources={sources} goal={p.goal} />)}
         </div>
       )}
       {!!p.ideas?.length && !working && <button onClick={() => run()} className={`${PILL} mt-3`}><RefreshCw size={14} /> {T('Escribir otras 5', 'Write 5 more')}</button>}
@@ -802,7 +848,7 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
   )
 }
 
-function IdeaCard({ n, it, refs, goal }: { n: number; it: ReelIdea; refs: NonNullable<ForYouMatches['profile']['data']['refs']>; goal: string }) {
+function IdeaCard({ n, it, sources, goal }: { n: number; it: ReelIdea; sources: { label: string; url: string | null }[]; goal: string }) {
   const T = useT()
   const [making, setMaking] = useState(false)
   const script = [`${it.title} (${it.duration_s} s)`, `Gancho: ${it.hook}`, ...it.beats.map((b) => `${b.t}: ${b.shot}${b.text ? ` · texto: «${b.text}»` : ''}${b.voice ? ` · voz: «${b.voice}»` : ''}`),
@@ -821,7 +867,8 @@ function IdeaCard({ n, it, refs, goal }: { n: number; it: ReelIdea; refs: NonNul
         <div className="min-w-0 flex-1">
           <div className="text-[14px] font-semibold leading-snug text-ink">{it.title}</div>
           <div className="text-[11.5px] text-ink-3">{it.duration_s} s{it.based_on.length ? ' · ' + T('inspirado en', 'inspired by') + ' ' : ''}
-            {it.based_on.map((k, j) => refs[k - 1] ? <a key={k} href={refs[k - 1].url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{j ? ', ' : ''}#{k} @{refs[k - 1].account}</a> : null)}</div>
+            {it.based_on.map((k, j) => { const src = sources[k - 1]; if (!src) return null; const label = `${j ? ', ' : ''}${src.label}`
+              return src.url ? <a key={k} href={src.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{label}</a> : <span key={k} className="text-accent">{label}</span> })}</div>
         </div>
       </div>
       {it.why && <p className="text-[12.5px] text-ink-2">{it.why}</p>}

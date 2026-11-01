@@ -3779,6 +3779,42 @@ async def foryou_ideas(pid: str, body: dict, user: User = CurrentUser):
         raise HTTPException(400, str(e))
 
 
+@app.post("/api/adtier/foryou/{pid}/uploads")
+async def foryou_upload(pid: str, file: UploadFile, user: User = CurrentUser):
+    """A reel the person saved from another brand (video or screenshot), streamed to disk; it is read in the background."""
+    async def chunks():
+        while data := await file.read(1 << 20):
+            yield data
+
+    try:
+        await foryoumod.add_upload(user, pid, file.filename or "reel", chunks())
+        return foryoumod.matches(user.id, pid)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/api/adtier/foryou/{pid}/uploads/{rid}")
+def foryou_upload_delete(pid: str, rid: str, user: User = CurrentUser):
+    try:
+        foryoumod.remove_upload(user.id, pid, rid)
+        return foryoumod.matches(user.id, pid)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/adtier/foryou/{pid}/uploads/{rid}/{name}")
+def foryou_upload_file(pid: str, rid: str, name: str, request: Request, token: str = ""):
+    """A frame or the cover of an uploaded reel. Auth by bearer or by `token` query (it goes in an <img>)."""
+    bearer = (request.headers.get("authorization") or "").removeprefix("Bearer ").strip()
+    user = auth.user_from_token(token or bearer or None)
+    if not user or not foryoumod.get(user.id, pid):
+        raise HTTPException(401)
+    f = foryoumod.upload_file(user.id, pid, rid, name)
+    if not f:
+        raise HTTPException(404)
+    return FileResponse(f, media_type="image/jpeg", headers={"cache-control": "private, max-age=86400"})
+
+
 @app.delete("/api/adtier/foryou/{pid}")
 def foryou_delete(pid: str, user: User = CurrentUser):
     foryoumod.remove(user.id, pid)
