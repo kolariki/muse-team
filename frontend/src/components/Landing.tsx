@@ -321,10 +321,10 @@ function Demo({ clock }: { clock: ReturnType<typeof useClock> }) {
         <span className={`ml-auto flex items-center gap-1.5 text-[11px] font-bold ${clock.paused ? 'text-ink-3' : 'text-danger'}`}><span className={`w-1.5 h-1.5 rounded-full ${clock.paused ? 'bg-ink-3' : 'bg-danger animate-pulse'}`} /> {clock.paused ? T('EN PAUSA', 'PAUSED') : T('EN VIVO', 'LIVE')}</span>
       </div>
       {/* what is happening on screen, with ‹ › to go back or skip ahead */}
-      <div className="flex items-center gap-3 border-b border-line bg-accent-soft px-4 py-2.5">
-        <button type="button" onClick={() => clock.jump(clock.scene - 1)} className={btn} aria-label={T('Paso anterior', 'Previous step')}><ChevronLeft size={15} /></button>
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-white">{clock.scene + 1}</span>
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-accent-soft px-4 py-2.5">
+        <button type="button" onClick={() => clock.jump(clock.scene - 1)} className={`${btn} max-sm:order-last max-sm:ml-auto`} aria-label={T('Paso anterior', 'Previous step')}><ChevronLeft size={15} /></button>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-white max-sm:self-start">{clock.scene + 1}</span>
+        <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-2.5rem)]">
           <div className="flex items-baseline gap-2">
             <span className="text-[13.5px] font-semibold text-ink">{T(s.label, s.label_en)}</span>
             <span className="font-mono text-[10.5px] text-ink-3">{clock.scene + 1}/{SCENES.length}</span>
@@ -340,11 +340,12 @@ function Demo({ clock }: { clock: ReturnType<typeof useClock> }) {
             ))}
           </div>
         </div>
-        <button type="button" onClick={clock.toggle} className="flex h-7 w-7 items-center justify-center rounded-full border border-accent bg-accent text-white shadow-sm transition hover:brightness-110" aria-label={clock.paused ? T('Reanudar', 'Resume') : T('Pausar', 'Pause')} title={clock.paused ? T('Reanudar', 'Resume') : T('Pausar para leer', 'Pause to read')}>
+        <button type="button" onClick={clock.toggle} className="flex h-7 w-7 items-center justify-center rounded-full border border-accent bg-accent text-white shadow-sm transition hover:brightness-110 max-sm:order-last" aria-label={clock.paused ? T('Reanudar', 'Resume') : T('Pausar', 'Pause')} title={clock.paused ? T('Reanudar', 'Resume') : T('Pausar para leer', 'Pause to read')}>
           {clock.paused ? <Play size={13} /> : <Pause size={13} />}
         </button>
-        <button type="button" onClick={() => clock.jump(clock.scene + 1)} className={btn} aria-label={T('Paso siguiente', 'Next step')}><ChevronRight size={15} /></button>
+        <button type="button" onClick={() => clock.jump(clock.scene + 1)} className={`${btn} max-sm:order-last`} aria-label={T('Paso siguiente', 'Next step')}><ChevronRight size={15} /></button>
       </div>
+      <FitStage>
       <div ref={stage} className="relative h-[470px] bg-surface">
         <AnimatePresence mode="wait">
           {clock.key === 'idea' && <SceneIdea key="idea" t={clock.local} />}
@@ -356,6 +357,30 @@ function Demo({ clock }: { clock: ReturnType<typeof useClock> }) {
           {clock.key === 'audit' && <SceneAudit key="audit" t={clock.local} />}
         </AnimatePresence>
       </div>
+      </FitStage>
+    </div>
+  )
+}
+
+const STAGE_W = 600
+/** The scenes are drawn for a 600 px stage (the cursor, the debate graph and the columns are placed in pixels): on a
+ *  narrower screen the whole stage is scaled down, like a video of the app, instead of squeezing its pieces together. */
+function FitStage({ children }: { children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null)
+  const [w, setW] = useState<number | null>(null)
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    setW(el.clientWidth)
+    const ro = new ResizeObserver(([e]) => setW(e.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const scale = w && w < STAGE_W ? w / STAGE_W : 1
+  return (
+    <div ref={box} className="relative w-full min-w-0 overflow-hidden" style={{ height: scale < 1 ? 470 * scale : undefined }}>
+      {/* absolute: a 600 px box scaled down still lays out 600 px wide and would push the whole page sideways */}
+      <div style={scale < 1 ? { position: 'absolute', left: 0, top: 0, width: STAGE_W, transform: `scale(${scale})`, transformOrigin: 'top left' } : undefined}>{children}</div>
     </div>
   )
 }
