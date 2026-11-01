@@ -27,6 +27,8 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
   const [ups, setUps] = useState<Up[]>([])
   const [drag, setDrag] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const whatRef = useRef<HTMLTextAreaElement>(null)
+  const [needWhat, setNeedWhat] = useState(false)
 
   const loadList = () => api.studioList().then(setList).catch((e) => toast.error(tr('No pude leer tus anuncios', 'Could not read your ads'), (e as Error).message))
   useEffect(() => { loadList() }, [])
@@ -77,7 +79,13 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
   const ensure = async () => {
     try {
       if (cur) { const p = await api.studioPatch(cur.id, { title: draft.title, instructions: draft.instructions, link: draft.link }); setCur(p); return p }
-      if (!draft.instructions.trim()) { toast.error(T('Escribí qué querés anunciar', 'Write what you want to advertise')); return null }
+      if (!draft.instructions.trim()) {
+        // take them to the field instead of only saying it
+        setNeedWhat(true)
+        whatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        whatRef.current?.focus({ preventScroll: true })
+        return null
+      }
       const p = await api.studioCreate({ ...draft, title: draft.title || draft.instructions.slice(0, 60), lang: en ? 'en' : 'es' })
       setCur(p); setDraft((d) => ({ ...d, title: p.title })); loadList()
       return p
@@ -128,10 +136,11 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
             <section className={CARD}>
               <div className="grid grid-cols-1 gap-3 min-[640px]:grid-cols-2">
                 <label className="min-[640px]:col-span-2"><span className={LABEL}>{T('¿Qué querés anunciar?', 'What do you want to advertise?')}</span>
-                  <textarea value={draft.instructions} disabled={busy} onChange={(e) => setDraft({ ...draft, instructions: e.target.value })} onBlur={() => save({ instructions: draft.instructions })} rows={2} maxLength={2000}
-                    placeholder={T('Ej.: mi estudio de uñas en Palermo; que reserven el primer turno con 20 % off', 'E.g.: my nail studio; get them to book the first appointment at 20% off')} className={`${INPUT} mt-1 resize-y`} /></label>
+                  <textarea ref={whatRef} value={draft.instructions} disabled={busy} onChange={(e) => { setDraft({ ...draft, instructions: e.target.value }); if (e.target.value.trim()) setNeedWhat(false) }} onBlur={() => save({ instructions: draft.instructions })} rows={2} maxLength={2000}
+                    placeholder={T('Ej.: mi estudio de uñas en Palermo; que reserven el primer turno con 20 % off', 'E.g.: my nail studio; get them to book the first appointment at 20% off')} className={`${INPUT} mt-1 resize-y ${needWhat ? 'ring-2 ring-accent' : ''}`} />
+                  {needWhat && <span className="mt-1 block text-[12px] font-semibold text-accent">{T('Escribí acá qué querés anunciar y volvé a tocar «Escribir el guion y las tomas». Con esto Muse escribe lo que decís.', 'Write here what you want to advertise and tap «Write the script and shots» again. Muse uses it to write what you say.')}</span>}</label>
                 <label><span className={LABEL}>{T('Nombre', 'Name')}</span><input value={draft.title} disabled={busy} onChange={(e) => setDraft({ ...draft, title: e.target.value })} onBlur={() => save({ title: draft.title })} maxLength={80} className={`${INPUT} mt-1`} /></label>
-                <label><span className={LABEL}>{T('Link de destino', 'Destination link')}</span><input value={draft.link} disabled={busy} onChange={(e) => setDraft({ ...draft, link: e.target.value })} onBlur={() => save({ link: draft.link })} placeholder="https://" maxLength={300} className={`${INPUT} mt-1`} /></label>
+                <label><span className={LABEL}>{T('Link de destino', 'Destination link')}</span><input value={draft.link} disabled={busy} onChange={(e) => setDraft({ ...draft, link: e.target.value })} onBlur={() => save({ link: draft.link })} placeholder="https://" maxLength={300} type="url" name="ad-destination-link" autoComplete="off" className={`${INPUT} mt-1`} /></label>
                 <div className="min-[640px]:col-span-2 flex flex-wrap items-center gap-1.5">
                   <span className={`${LABEL} mr-1`}>{T('Objetivo', 'Goal')}</span>
                   {GOALS.map(([k, es, e2]) => <button key={k} type="button" disabled={busy} onClick={() => save({ goal: k })} className={`rounded-full border px-3 py-1 text-[12.5px] ${draft.goal === k ? 'border-accent bg-accent text-white' : 'border-line bg-surface text-ink-2 hover:border-accent'}`}>{T(es, e2)}</button>)}
