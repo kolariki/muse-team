@@ -606,7 +606,7 @@ export interface ForYouProfile { id: string; name: string; source: 'tably' | 'fo
   searched: number | null; created: number; updated: number; searching: boolean; found?: number }
 export interface ForYouHome { profiles: ForYouProfile[]; projects: { session_id: string; build_id: string; title: string; updated: number }[]; sectors: { id: string; es: string; en: string }[]
   kinds: string[]; goals: string[]; model: boolean }
-export interface ForYouMatches { profile: ForYouProfile; catalog: (AdTierCard & { match: number; why: string[] })[]; found: (AdTierCard & { stage: string | null; error: string | null; reviewed: boolean })[]; searching: boolean }
+export interface ForYouMatches { profile: ForYouProfile; catalog: (AdTierCard & { match: number; why: string[] })[]; found: (AdTierCard & { stage: string | null; error: string | null; reviewed: boolean })[]; other_length?: number; searching: boolean }
 export interface AdTierAgreement { reviewed: number; agree: number; pct: number | null }
 export interface AdTierHome { tiers: Record<AdTierTier, AdTierCard[]>; facets: { format: string[]; industry: string[]; language: string[]; country: string[]; platform_origin: string[]; brand: string[]; counts: Record<string, number> }
   admin: boolean; formats: string[]; agreement?: AdTierAgreement; takedown_email: string | null; public_url: string; autopublish?: boolean; seed_size?: number; working?: number }

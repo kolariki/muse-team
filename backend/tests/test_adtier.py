@@ -37,3 +37,14 @@ def test_foryou_profile_and_score():
     far, _ = fy.score(p, {"industry": "automotive", "country": "US", "language": "en", "format": "brand_spot", "title": "New truck", "tier": "S", "tags": {}})
     assert near > far and "de tu país" in why
     assert fy._looks_like_ad({"duration": 30, "title": "Comercial Pizza Hut 2024"}) and not fy._looks_like_ad({"duration": 90, "title": "Comercial largo"}) and fy._looks_like_ad({"duration": 90, "title": "Comercial largo"}, "long")
+
+
+def test_foryou_short_pieces():
+    from app import adtier_foryou as fy
+
+    data = {"queries": ["comercial pizzería Argentina"], "keywords": ["pizza"], "country": "AR", "placement": "stories"}
+    plan = fy._plan(data)
+    assert plan[0] == "comercial pizza 15 segundos" and "comercial pizzería Argentina" in plan
+    assert fy._looks_like_ad({"duration": 16, "title": "Pizza Hut Maestro Pizzero"}, "stories", ["pizza"])  # only the product in the title
+    assert fy._looks_like_ad({"duration": 15, "title": "Specialty Pizzas - Hold Up :15"}, "stories")
+    assert not fy._looks_like_ad({"duration": 45, "title": "Comercial pizza"}, "stories") and fy.fits(45, "reels")

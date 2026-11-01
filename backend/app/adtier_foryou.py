@@ -350,12 +350,17 @@ def matches(user_id: str, pid: str, n: int = 24) -> dict:
     close.sort(key=lambda x: -x[0])
     rest.sort(key=lambda x: -x[0])
     ranked = close + rest
-    found = []
+    found, other = [], 0  # only the ones of the length the person picked; the rest are counted
+    placement = p["data"].get("placement") or "reels"
     for vid in found_ids(pid):
         v = at.get(vid)
-        if v:
-            found.append(at.card(v) | {"stage": v.get("stage"), "error": v.get("error"), "reviewed": v.get("status") == "published"})
-    return {"profile": p, "catalog": [x for _, x in ranked[:n]], "found": found, "searching": pid in _search_jobs}
+        if not v:
+            continue
+        if v.get("duration_s") and not fits(v["duration_s"], placement):
+            other += 1
+            continue
+        found.append(at.card(v) | {"stage": v.get("stage"), "error": v.get("error"), "reviewed": v.get("status") == "published"})
+    return {"profile": p, "catalog": [x for _, x in ranked[:n]], "found": found, "other_length": other, "searching": pid in _search_jobs}
 
 
 # ------------------------------------------------------------------------------------------------------------ search: real ads of that sector and country
@@ -372,10 +377,37 @@ def _yt_search(query: str, n: int = 10) -> list[dict]:
         return []
 
 
-def _looks_like_ad(e: dict, placement: str = "reels") -> bool:
+DUR_MARK = re.compile(r"(\b\d{1,2}\s?(s|seg|segundos|sec|seconds)\b|:\d{2}\b|\b\d{1,2}\")", re.I)
+
+
+def fits(duration: float | None, placement: str) -> bool:
     lo, hi = PLACEMENTS.get(placement, PLACEMENTS["reels"])
-    d = e.get("duration") or 0
-    return lo <= d <= hi and bool(AD_WORDS.search(e.get("title") or ""))
+    return lo <= (duration or 0) <= hi
+
+
+def _looks_like_ad(e: dict, placement: str = "reels", keywords: list[str] | None = None) -> bool:
+    """The right length and an ad by its title: it says so («comercial», «spot», «15s») or, coming from an ad search, it is about the
+    business (short pieces often carry only the product in the title)."""
+    if not fits(e.get("duration"), placement):
+        return False
+    title = e.get("title") or ""
+    if AD_WORDS.search(title) or DUR_MARK.search(title):
+        return True
+    return bool(keywords) and bool(_words(title) & _words(" ".join(keywords)))
+
+
+def _plan(data: dict) -> list[str]:
+    """The searches for this profile and this length: the profile's own, then variants that YouTube answers with short pieces."""
+    base = [q for q in data.get("queries") or [] if q]
+    kw = [k for k in data.get("keywords") or [] if k][:3] or [(data.get("industries") or ["publicidad"])[0]]
+    place = COUNTRY_NAMES.get(data.get("country") or "", "")
+    placement = data.get("placement") or "reels"
+    extra: list[str] = []
+    if placement == "stories":
+        extra = [f"comercial {k} 15 segundos" for k in kw] + [f"{q} 15s" for q in base[:2]] + [f"{q} shorts" for q in base[:2]]
+    elif placement == "reels":
+        extra = [f"{q} shorts" for q in base[:3]] + [f"comercial {k} 30 segundos" for k in kw[:2]] + [f"reel publicidad {kw[0]} {place}".strip()]
+    return list(dict.fromkeys(extra + base if placement == "stories" else base + extra))
 
 
 def search(user: User, pid: str) -> int:
@@ -389,13 +421,16 @@ def search(user: User, pid: str) -> int:
 
     async def run():
         try:
-            data, added = p["data"], []
+            data, added, linked = p["data"], [], 0
+            placement = data.get("placement") or "reels"
             seen = set(found_ids(pid))
-            for q in data.get("queries") or []:
-                for e in await asyncio.to_thread(_yt_search, q):
-                    if len(added) >= MAX_FOUND:
+            for q in _plan(data):
+                if linked >= MAX_FOUND:
+                    break
+                for e in await asyncio.to_thread(_yt_search, q, 30):
+                    if linked >= MAX_FOUND:
                         break
-                    if not _looks_like_ad(e, data.get("placement") or "reels") or not e.get("id"):
+                    if not e.get("id") or not _looks_like_ad(e, placement, data.get("keywords")):
                         continue
                     url = f"https://www.youtube.com/watch?v={e['id']}"
                     with _db() as c:
@@ -409,6 +444,7 @@ def search(user: User, pid: str) -> int:
                         added.append(vid)
                     if vid not in seen:
                         seen.add(vid)
+                        linked += 1
                         with _db() as c:
                             c.execute("INSERT OR IGNORE INTO adtier_profile_videos VALUES (?,?,?,?)", (pid, vid, q, time.time()))
             with _db() as c:

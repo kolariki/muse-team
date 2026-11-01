@@ -3718,9 +3718,12 @@ def foryou_get(pid: str, user: User = CurrentUser):
 
 
 @app.patch("/api/adtier/foryou/{pid}")
-def foryou_patch(pid: str, body: dict, user: User = CurrentUser):
+async def foryou_patch(pid: str, body: dict, user: User = CurrentUser):
     try:
-        foryoumod.update(user.id, pid, body)
+        before = (foryoumod.get(user.id, pid) or {}).get("data", {}).get("placement")
+        p = foryoumod.update(user.id, pid, body)
+        if p["data"].get("placement") != before:  # another length: new examples of that length, by themselves
+            foryoumod.search(user, pid)
         return foryoumod.matches(user.id, pid)
     except ValueError as e:
         raise HTTPException(404, str(e))

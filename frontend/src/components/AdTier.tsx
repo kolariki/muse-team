@@ -648,6 +648,7 @@ function ProfileView({ id, home, onOpen, onDeleted }: { id: string; home: ForYou
       <section>
         <h4 className="text-[15px] font-bold text-ink">{T('Anuncios reales de tu rubro y tu país', 'Real ads from your sector and country')}</h4>
         <p className="text-[12.5px] text-ink-3">{T('Los buscamos en YouTube con tu perfil y los analizamos con Muse igual que al catálogo: tier por score, hook, estructura y CTA. No tienen premio verificado, así que llegan como «sin revisar».', 'We search YouTube with your profile and analyse them with Muse like the catalogue: score tier, hook, structure and CTA. They have no verified award, so they arrive as «not reviewed».')}</p>
+        {!!m.other_length && <p className="mt-1 text-[12px] text-ink-4">{T(`Hay ${m.other_length} más de otro largo: no se muestran porque elegiste ${PLACEMENT_LABEL[p.placement ?? 'reels'][2]}.`, `There are ${m.other_length} more of another length: hidden because you picked ${PLACEMENT_LABEL[p.placement ?? 'reels'][3]}.`)}</p>}
         {(m.searching || working > 0) && <p className="mt-2 flex items-center gap-2 text-[13px] text-ink-2"><Loader2 size={14} className="animate-spin text-accent" /> {m.searching ? T('Buscando anuncios con: ', 'Searching ads with: ') + p.queries.map((q) => `«${q}»`).join(', ') : T(`Analizando ${working} anuncios con Muse: aparecen a medida que terminan.`, `Analysing ${working} ads with Muse: they show up as they finish.`)}</p>}
         {m.found.length ? (
           <div className="mt-3 grid grid-cols-1 gap-3 min-[460px]:grid-cols-2 lg:grid-cols-4">
