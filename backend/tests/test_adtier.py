@@ -70,3 +70,20 @@ def test_foryou_upload_file_names_are_safe():
     assert f.upload_file("u", "p", "../../x", "thumb.jpg") is None
     assert f.upload_file("u", "p", "abcd1234", "../secret.jpg") is None
     assert f.upload_file("u", "p", "abcd1234", "thumb.jpg") is None  # does not exist
+
+
+def test_foryou_find_reel_in_a_screen_recording(tmp_path):
+    """A moving reel in the middle of a still page, paused 3 s before and 4 s after: the crop and the cut find it."""
+    from app import adtier_foryou as f
+    from app import media
+
+    if not media.available():
+        return
+    v = tmp_path / "rec.mp4"
+    media.run("ffmpeg", ["-y", "-v", "error", "-f", "lavfi", "-i", "color=c=0xF2F2F2:s=640x360:d=13", "-f", "lavfi", "-i", "testsrc2=s=150x266:d=6",
+                         "-filter_complex", "[1:v]tpad=start_mode=clone:start_duration=3:stop_mode=clone:stop_duration=4[r];[0:v][r]overlay=245:45:shortest=1",
+                         "-t", "13", "-pix_fmt", "yuv420p", str(v)])
+    spot = f.find_reel(v)
+    assert 2 <= spot["start"] <= 3.5 and 8.5 <= spot["end"] <= 10.5
+    x, y, w, h = spot["crop"]
+    assert abs(x - 245) <= 12 and abs(y - 45) <= 12 and abs(w - 150) <= 24 and abs(h - 266) <= 24

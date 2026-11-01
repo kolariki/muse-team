@@ -1,5 +1,5 @@
-import { AlertTriangle, Building2, CheckCircle2, Clapperboard, Copy, Download, ExternalLink, Eye, Heart, KeyRound, Layers, Link2, Loader2, Medal, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, Building2, CheckCircle2, Clapperboard, Copy, Download, ExternalLink, Eye, Heart, KeyRound, Layers, Link2, Loader2, Medal, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Square, Trash2, Upload, Video, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, type AdTierCard, type AdTierDetail, type AdTierEvidence, type AdTierHome, type AdTierMasters, type AdTierPage, type AdTierTemplate, type AdTierTier, type ForYouHome, type ForYouMatches, type MetaApp, type ReelIdea } from '../lib/api'
 import { tr, useT } from '../lib/i18n'
 import { useArena } from '../store'
@@ -696,6 +696,7 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
   const [setup, setSetup] = useState(false)
   const [ups, setUps] = useState<{ name: string; p: number }[]>([])
   const [drag, setDrag] = useState(false)
+  const [rec, setRec] = useState(false)
   const [meta, setMeta] = useState(home.meta)  // changes here when the admin enables Meta or the person connects it
   const refs = p.refs ?? []
   const run = async (accounts?: string[]) => {
@@ -719,14 +720,25 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
   const uploads = p.uploads ?? []
   const readyUps = uploads.filter((u) => u.status === 'ready')
   const reading = uploads.some((u) => u.status === 'reading') || ups.length > 0
-  const upload = async (files: File[]) => {
+  const upload = async (files: File[], source: 'upload' | 'recording' = 'upload') => {
     for (const f of files.slice(0, 6)) {
       setUps((u) => [...u, { name: f.name, p: 0 }])
-      try { onChange(await api.foryouUpload(id, f, (x) => setUps((u) => u.map((it) => (it.name === f.name ? { ...it, p: x } : it))))) }
+      try { onChange(await api.foryouUpload(id, f, (x) => setUps((u) => u.map((it) => (it.name === f.name ? { ...it, p: x } : it))), source)) }
       catch (e) { toast.error(T(`No pude subir ${f.name}`, `Could not upload ${f.name}`), (e as Error).message) }
       finally { setUps((u) => u.filter((it) => it.name !== f.name)) }
     }
   }
+  // a recording that finished being cut: say so, with the reel one click away
+  const seen = useRef<Record<string, string>>({})
+  useEffect(() => {
+    for (const u of uploads) {
+      const before = seen.current[u.id]
+      if (before === 'reading' && u.status === 'ready' && u.video)
+        toast.ok(T('Reel cargado', 'Reel loaded'), T(`Recortamos «${u.name}» a ${Math.round(u.duration ?? 0)} s, solo el reel. Ya lo podés usar para escribir tus reels.`, `We cut «${u.name}» to ${Math.round(u.duration ?? 0)} s, just the reel. You can use it to write your reels now.`),
+          { label: T('Ver el reel', 'Watch the reel'), onClick: () => window.open(api.foryouUploadUrl(id, u.id, u.video!), '_blank') })
+      seen.current[u.id] = u.status
+    }
+  }, [uploads]) // eslint-disable-line react-hooks/exhaustive-deps
   // what each idea's «inspired by #n» points to: the uploaded reels first (as they were when the ideas were written), then the accounts' reels
   const sources = [...(p.ideas_ups ?? []).map((rid) => { const u = uploads.find((x) => x.id === rid); return { label: T('tu reel', 'your reel') + (u ? ` «${u.name.slice(0, 24)}»` : ''), url: null as string | null } }),
     ...refs.map((r) => ({ label: `@${r.account}`, url: r.url as string | null }))]
@@ -752,17 +764,19 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
       )}
       <div className="mt-4">
         <div className={LABEL}>{T('Reels que te gustan', 'Reels you like')}</div>
-        <p className="mt-0.5 text-[12px] text-ink-3">{T('Guardá o grabá la pantalla de reels de otras marcas y subilos (o capturas). Los miramos cuadro por cuadro, escuchamos lo que dicen y te escribimos reels iguales para tu negocio. El video no se guarda: quedan solo los cuadros y la transcripción.', 'Save or screen-record reels from other brands and upload them (or screenshots). We look at them frame by frame, listen to what is said and write you the same reels for your business. The video is not kept: only the frames and the transcript.')}</p>
+        <p className="mt-0.5 text-[12px] text-ink-3">{T('Guardá o grabá la pantalla de reels de otras marcas y subilos (o capturas). Los miramos cuadro por cuadro, escuchamos lo que dicen y te escribimos reels iguales para tu negocio. Si es una grabación de pantalla, recortamos solo el reel (sin la página alrededor ni lo de antes y después) y lo guardamos para vos.', 'Save or screen-record reels from other brands and upload them (or screenshots). We look at them frame by frame, listen to what is said and write you the same reels for your business. If it is a screen recording, we cut out just the reel (without the page around it or what comes before and after) and keep it for you.')}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {uploads.map((u) => (
             <div key={u.id} className="relative w-[96px] shrink-0">
               <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-black">
-                {u.status === 'ready' && <img src={api.foryouUploadUrl(id, u.id, 'thumb.jpg')} alt={u.name} className="h-full w-full object-cover" />}
-                {u.status === 'reading' && <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-[10px] text-white/80"><Loader2 size={16} className="animate-spin" /> {T('mirando…', 'looking…')}</span>}
+                {u.status === 'ready' && (u.video
+                  ? <a href={api.foryouUploadUrl(id, u.id, u.video)} target="_blank" rel="noreferrer" title={T('Ver el reel', 'Watch the reel')}><img src={api.foryouUploadUrl(id, u.id, 'thumb.jpg')} alt={u.name} className="h-full w-full object-cover" /></a>
+                  : <img src={api.foryouUploadUrl(id, u.id, 'thumb.jpg')} alt={u.name} className="h-full w-full object-cover" />)}
+                {u.status === 'reading' && <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-1 text-center text-[10px] text-white/80"><Loader2 size={16} className="animate-spin" /> {u.kind === 'video' ? T('buscando el reel y recortándolo…', 'finding the reel and cutting it…') : T('mirando…', 'looking…')}</span>}
                 {u.status === 'error' && <span className="absolute inset-0 flex items-center justify-center p-1.5 text-center text-[10px] text-[#FF8A8A]">{u.error}</span>}
                 <button onClick={() => api.foryouUploadDelete(id, u.id).then(onChange).catch(() => {})} aria-label={T('Quitar', 'Remove')} className="absolute right-1 top-1 rounded-full bg-black/70 p-0.5 text-white hover:bg-black"><X size={12} /></button>
               </div>
-              <div className="mt-0.5 truncate text-[10.5px] text-ink-3" title={u.name}>{u.status === 'ready' ? (u.kind === 'image' ? T('captura', 'screenshot') : `${Math.round(u.duration ?? 0)} s · ${u.heard ? T('con voz', 'with voice') : T('sin voz', 'no voice')}`) : u.name}</div>
+              <div className="mt-0.5 truncate text-[10.5px] text-ink-3" title={u.name}>{u.status === 'ready' ? (u.kind === 'image' ? T('captura', 'screenshot') : <>{u.source === 'recording' ? <span className="text-accent">✓ {T('cargado', 'loaded')} · </span> : null}{Math.round(u.duration ?? 0)} s · {u.heard ? T('con voz', 'with voice') : T('sin voz', 'no voice')}</>) : u.name}</div>
             </div>
           ))}
           {ups.map((u) => (
@@ -775,6 +789,11 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
               <input type="file" multiple accept="video/*,image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { upload([...(e.target.files ?? [])]); e.target.value = '' }} />
             </label>
           )}
+          {uploads.length + ups.length < 6 && (
+            <button onClick={() => setRec(true)} className="flex aspect-[9/16] w-[96px] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line text-center text-[10.5px] text-ink-3 transition hover:border-accent hover:text-accent">
+              <Video size={16} /> {T('Grabar pantalla', 'Record screen')}
+            </button>
+          )}
         </div>
         {((open && (splitAccounts(text).length > 0 || readyUps.length > 0)) || (!open && readyUps.length > 0)) && (
           <button disabled={working || reading} onClick={() => run(open ? splitAccounts(text) : undefined)} className={`${PRIMARY} mt-3`}>
@@ -783,6 +802,7 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
         )}
         {reading && <p className="mt-2 flex items-center gap-2 text-[12.5px] text-ink-2"><Loader2 size={13} className="animate-spin text-accent" /> {T('Mirando los reels y escuchando lo que dicen…', 'Looking at the reels and listening to what they say…')}</p>}
       </div>
+      {rec && <ScreenRecorder onFile={(f, source) => upload([f], source)} onClose={() => setRec(false)} />}
       {!!p.notes?.length && (
         <div className="mt-3 flex flex-col gap-1.5">
           {p.notes.map((n) => (
@@ -927,6 +947,100 @@ function MetaSetup({ onDone, onCancel }: { onDone: () => void; onCancel: () => v
         <button disabled={busy || !aid.trim() || (!sec.trim() && !st.has_secret)} onClick={save} className={PRIMARY}>{busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} {T('Guardar', 'Save')}</button>
         <button onClick={onCancel} className={PILL}>{T('Cancelar', 'Cancel')}</button>
       </div>
+    </div>
+  )
+}
+
+/** «Grabar pantalla», like Loom: a small panel in the corner that walks the person through recording a reel from another tab
+ *  (Instagram, TikTok…). Tably then finds the reel in the recording, cuts it out and loads it. */
+function ScreenRecorder({ onFile, onClose }: { onFile: (f: File, source: 'upload' | 'recording') => void; onClose: () => void }) {
+  const T = useT()
+  const supported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && typeof MediaRecorder !== 'undefined'
+  const [state, setState] = useState<'intro' | 'recording'>('intro')
+  const [secs, setSecs] = useState(0)
+  const [noAudio, setNoAudio] = useState(false)
+  const recRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const chunks = useRef<Blob[]>([])
+  const cancelled = useRef(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const MAX_S = 180
+  useEffect(() => {
+    if (state !== 'recording') return
+    const t = window.setInterval(() => setSecs((s) => { if (s + 1 >= MAX_S) stop(); return s + 1 }), 1000)
+    return () => window.clearInterval(t)
+  }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()) }, [])
+  const start = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true, selfBrowserSurface: 'exclude', systemAudio: 'include', preferCurrentTab: false } as DisplayMediaStreamOptions)
+      streamRef.current = stream
+      setNoAudio(stream.getAudioTracks().length === 0)
+      const mime = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'].find((m) => MediaRecorder.isTypeSupported(m)) ?? ''
+      const r = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 4_000_000 } : undefined)
+      chunks.current = []
+      cancelled.current = false
+      r.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data) }
+      r.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        if (cancelled.current || !chunks.current.length) return onClose()
+        const type = r.mimeType || 'video/webm'
+        const stamp = new Date().toLocaleTimeString().replace(/\D/g, '')
+        onFile(new File(chunks.current, `grabacion-reel-${stamp}.${type.includes('mp4') ? 'mp4' : 'webm'}`, { type }), 'recording')
+        onClose()
+      }
+      stream.getVideoTracks()[0]?.addEventListener('ended', () => { if (r.state !== 'inactive') r.stop() })  // «Dejar de compartir» from the browser bar
+      r.start(1000)
+      recRef.current = r
+      setSecs(0)
+      setState('recording')
+    } catch (e) {
+      if ((e as Error).name !== 'NotAllowedError') toast.error(T('No se pudo grabar la pantalla', 'Could not record the screen'), (e as Error).message)
+    }
+  }
+  const stop = () => { if (recRef.current && recRef.current.state !== 'inactive') recRef.current.stop() }
+  const cancel = () => { cancelled.current = true; if (recRef.current && recRef.current.state !== 'inactive') recRef.current.stop(); else onClose() }
+  const mmss = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+  const step = 'flex gap-2.5 text-[12.5px] leading-snug text-ink-2'
+  const num = 'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-bold text-accent'
+  return (
+    <div className="fixed bottom-[76px] right-3 z-50 w-[min(340px,calc(100vw-24px))] rounded-2xl border border-line bg-surface p-4 shadow-[0_18px_50px_-12px_rgba(0,0,0,.45)] md:bottom-5 md:right-5">
+      <div className="mb-3 flex items-center gap-2">
+        <span className={`flex h-8 w-8 items-center justify-center rounded-full ${state === 'recording' ? 'bg-[#E5484D] text-white' : 'bg-accent-soft text-accent'}`}><Video size={15} /></span>
+        <span className="min-w-0 flex-1 text-[14px] font-semibold text-ink">{state === 'recording' ? T('Grabando', 'Recording') : T('Grabar un reel', 'Record a reel')}</span>
+        {state === 'recording' && <span className="flex items-center gap-1.5 font-mono text-[13px] text-[#E5484D]"><span className="h-2 w-2 animate-pulse rounded-full bg-[#E5484D]" />{mmss}</span>}
+        <button onClick={cancel} aria-label={T('Cerrar', 'Close')} className="rounded-full p-1 text-ink-3 hover:bg-paper hover:text-ink"><X size={15} /></button>
+      </div>
+      {!supported ? (
+        <>
+          <ol className="flex flex-col gap-2">
+            <li className={step}><span className={num}>1</span><span>{T('Este navegador no deja grabar la pantalla desde una página. Usá la grabación de pantalla del teléfono: en iPhone, desde el Centro de control (botón ⏺); en Android, desde los ajustes rápidos.', 'This browser cannot record the screen from a page. Use the phone’s screen recording: on iPhone, from Control Center (⏺); on Android, from Quick Settings.')}</span></li>
+            <li className={step}><span className={num}>2</span><span>{T('Abrí el reel, grabalo entero y pará la grabación.', 'Open the reel, record it whole and stop the recording.')}</span></li>
+            <li className={step}><span className={num}>3</span><span>{T('Subí la grabación acá: nosotros recortamos solo el reel.', 'Upload the recording here: we cut out just the reel.')}</span></li>
+          </ol>
+          <button onClick={() => fileRef.current?.click()} className={`${PRIMARY} mt-3 w-full`}><Upload size={14} /> {T('Subir la grabación', 'Upload the recording')}</button>
+          <input ref={fileRef} type="file" accept="video/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { onFile(f, 'recording'); onClose() } }} />
+        </>
+      ) : state === 'intro' ? (
+        <>
+          <ol className="flex flex-col gap-2">
+            <li className={step}><span className={num}>1</span><span>{T('Abrí en otra pestaña el reel que querés grabar (Instagram, TikTok, Facebook…).', 'Open the reel you want to record in another tab (Instagram, TikTok, Facebook…).')}</span></li>
+            <li className={step}><span className={num}>2</span><span>{T('Tocá «Grabar», elegí esa pestaña y dejá marcado «Compartir audio de la pestaña», así escuchamos lo que dice.', 'Tap «Record», pick that tab and keep «Share tab audio» checked, so we hear what it says.')}</span></li>
+            <li className={step}><span className={num}>3</span><span>{T('Dale play al reel desde el principio. Cuando termine, volvé acá y tocá «Listo».', 'Play the reel from the start. When it ends, come back here and tap «Done».')}</span></li>
+          </ol>
+          <p className="mt-2.5 text-[11.5px] text-ink-3">{T('Nosotros nos encargamos del resto: cortamos desde donde empieza hasta donde termina el reel, sacamos la página de alrededor y lo cargamos.', 'We take care of the rest: we cut from where the reel starts to where it ends, remove the page around it and load it.')}</p>
+          <button onClick={start} className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#E5484D] text-[14px] font-semibold text-white shadow-sm transition hover:brightness-110"><span className="h-2.5 w-2.5 rounded-full bg-white" /> {T('Grabar', 'Record')}</button>
+        </>
+      ) : (
+        <>
+          <p className="text-[12.5px] leading-snug text-ink-2">{T('Andá a la pestaña del reel y dale play. Cuando termine, tocá «Listo» acá (o «Dejar de compartir» en la barra del navegador).', 'Go to the reel’s tab and play it. When it ends, tap «Done» here (or «Stop sharing» in the browser bar).')}</p>
+          {noAudio && <p className="mt-2 flex gap-1.5 text-[11.5px] text-[#C28A12]"><AlertTriangle size={13} className="mt-0.5 shrink-0" /> {T('No se está grabando el sonido. Sirve igual, pero si querés que escuchemos lo que dice, cancelá y volvé a grabar marcando «Compartir audio de la pestaña».', 'Sound is not being recorded. It still works, but if you want us to hear what it says, cancel and record again with «Share tab audio» checked.')}</p>}
+          <div className="mt-3 flex gap-2">
+            <button onClick={stop} className={`${PRIMARY} flex-1`}><Square size={13} /> {T('Listo, terminar', 'Done, finish')}</button>
+            <button onClick={cancel} className={PILL}>{T('Cancelar', 'Cancel')}</button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

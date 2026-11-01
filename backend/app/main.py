@@ -3780,14 +3780,14 @@ async def foryou_ideas(pid: str, body: dict, user: User = CurrentUser):
 
 
 @app.post("/api/adtier/foryou/{pid}/uploads")
-async def foryou_upload(pid: str, file: UploadFile, user: User = CurrentUser):
+async def foryou_upload(pid: str, file: UploadFile, source: str = Form("upload"), user: User = CurrentUser):
     """A reel the person saved from another brand (video or screenshot), streamed to disk; it is read in the background."""
     async def chunks():
         while data := await file.read(1 << 20):
             yield data
 
     try:
-        await foryoumod.add_upload(user, pid, file.filename or "reel", chunks())
+        await foryoumod.add_upload(user, pid, file.filename or "reel", chunks(), source)
         return foryoumod.matches(user.id, pid)
     except ValueError as e:
         raise HTTPException(400, str(e))
@@ -3812,7 +3812,7 @@ def foryou_upload_file(pid: str, rid: str, name: str, request: Request, token: s
     f = foryoumod.upload_file(user.id, pid, rid, name)
     if not f:
         raise HTTPException(404)
-    return FileResponse(f, media_type="image/jpeg", headers={"cache-control": "private, max-age=86400"})
+    return FileResponse(f, media_type="video/mp4" if name.endswith(".mp4") else "image/jpeg", headers={"cache-control": "private, max-age=86400"})
 
 
 @app.delete("/api/adtier/foryou/{pid}")

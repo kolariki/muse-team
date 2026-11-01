@@ -742,7 +742,7 @@ def uploads_dir(user_id: str, pid: str) -> "Path":
 
 
 def upload_file(user_id: str, pid: str, rid: str, name: str) -> "Path | None":
-    if not re.fullmatch(r"[a-f0-9]{8}", rid) or not re.fullmatch(r"[a-z0-9]+\.jpg", name):
+    if not re.fullmatch(r"[a-f0-9]{8}", rid) or not re.fullmatch(r"[a-z0-9]+\.jpg|reel\.mp4", name):
         return None
     f = uploads_dir(user_id, pid) / rid / name
     return f if f.is_file() else None
@@ -759,7 +759,74 @@ def _set_upload(user_id: str, pid: str, rid: str, **fields) -> None:
     _save_data(pid, d)
 
 
-async def add_upload(user: User, pid: str, name: str, chunks) -> dict:
+def find_reel(video: "Path", fps: int = 4) -> dict:
+    """Where the reel is inside a screen recording: the part of the screen that keeps changing (the video playing; the page around it,
+    the feed and the buttons stay still) and the stretch of time it plays (before the person presses play and after it ends, nothing
+    moves there). {start, end, crop: (x, y, w, h) in the video's pixels or None}."""
+    import io as _io
+    import subprocess
+
+    from PIL import Image, ImageChops, ImageStat
+
+    from . import media
+
+    info = media.probe(video)
+    W, H, dur = info["width"], info["height"], info["duration"]
+    out = {"start": 0.0, "end": dur, "crop": None}
+    if not W or not H or dur < 2:
+        return out
+    w = 160
+    h = max(2, round(H * w / W / 2) * 2)
+    b = media._bin("ffmpeg")
+    r = subprocess.run([b[0], "-v", "error", "-i", str(video), "-vf", f"fps={fps},scale={w}:{h},format=gray", "-f", "rawvideo", "-"],
+                       capture_output=True, timeout=600, env=b[1])
+    raw = r.stdout
+    frames = [Image.frombytes("L", (w, h), raw[i:i + w * h]) for i in range(0, len(raw) - w * h + 1, w * h)]
+    if len(frames) < fps * 2:
+        return out
+    diffs = [ImageChops.difference(a, b_) for a, b_ in zip(frames, frames[1:])]
+    # how often each pixel changes (sampled to ≤ 250 frames so the 8-bit sum does not saturate)
+    step = max(1, len(diffs) // 250)
+    acc = Image.new("L", (w, h), 0)
+    for d in diffs[::step]:
+        acc = ImageChops.add(acc, d.point(lambda v: 1 if v > 10 else 0))
+    n = len(diffs[::step])
+    from PIL import ImageFilter
+
+    # every pixel that changed more than once, without the thin trail of the mouse (eroded away) — then grown back
+    box = acc.point(lambda v: 255 if v >= 2 else 0).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3)).getbbox()
+    if box:
+        x0, y0, x1, y1 = box
+        if (x1 - x0) * (y1 - y0) < w * h * 0.85 and (x1 - x0) * (y1 - y0) > w * h * 0.04:  # a real region, not the whole screen or a cursor
+            sx, sy = W / w, H / h
+            cx, cy = max(0, int(x0 * sx) - 2), max(0, int(y0 * sy) - 2)
+            cw, ch = min(W - cx, int((x1 - x0) * sx) + 4), min(H - cy, int((y1 - y0) * sy) + 4)
+            out["crop"] = (cx, cy, cw - cw % 2, ch - ch % 2)
+    else:
+        box = (0, 0, w, h)
+    motion = [ImageStat.Stat(d.crop(box)).mean[0] for d in diffs]
+    on = [m > 1.2 for m in motion]
+    # the first and last second where it keeps moving (a lone jump of the mouse or a scroll does not count)
+    win = fps
+    starts = [i for i in range(len(on) - win) if sum(on[i:i + win]) >= win * 0.75]
+    if starts:
+        first, last = starts[0], starts[-1] + win
+        if (last - first) / fps >= 2:
+            out["start"], out["end"] = round(max(0.0, first / fps - 0.25), 2), round(min(dur, (last + 1) / fps + 0.25), 2)
+            return out
+    if info.get("audio"):  # a reel that barely moves (text on a still background): its sound says when it plays
+        r = subprocess.run([b[0], "-v", "info", "-i", str(video), "-af", "silencedetect=noise=-38dB:d=0.6", "-f", "null", "-"], capture_output=True, timeout=300, env=b[1])
+        log_ = r.stderr.decode("utf-8", "replace")
+        ends = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", log_)]
+        begins = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", log_)]
+        first = ends[0] if begins and begins[0] < 0.3 and ends else 0.0  # silent at the start: the sound begins when that silence ends
+        last = begins[-1] if begins and (not ends or begins[-1] > ends[-1]) else dur  # silent at the end: it ends where that silence starts
+        if last - first >= 2 and (first > 0.5 or last < dur - 0.5):
+            out["start"], out["end"] = round(max(0.0, first - 0.3), 2), round(min(dur, last + 0.3), 2)
+    return out
+
+
+async def add_upload(user: User, pid: str, name: str, chunks, source: str = "upload") -> dict:
     """A reel the person saved from another brand (video, or screenshots): it is read here — 8 frames and what is said — and the
     video itself is deleted right after; only the frames and the transcript stay, for the person's eyes and the model."""
     from . import media
@@ -792,7 +859,7 @@ async def add_upload(user: User, pid: str, name: str, chunks) -> dict:
                 raise ValueError(f"El archivo supera {limit // (1024 * 1024)} MB")
             f.write(chunk)
     item = {"id": rid, "name": name.rsplit("/", 1)[-1][:120], "kind": kind, "status": "reading", "error": None, "duration": None,
-            "frames": [], "transcript": "", "created": time.time()}
+            "frames": [], "transcript": "", "created": time.time(), "source": source if source in ("upload", "recording") else "upload", "video": None}
     p = get(user.id, pid) or p
     p["data"].setdefault("uploads", []).append(item)
     _save_data(pid, p["data"])
@@ -820,12 +887,28 @@ async def _read_upload(user: User, pid: str, rid: str, raw: "Path", kind: str) -
             await asyncio.to_thread(shrink)
             _set_upload(user.id, pid, rid, status="ready", frames=["f000000.jpg"])
             return
-        info = await asyncio.to_thread(media.probe, raw)
+        # a screen recording (from Tably or the phone) also has the page around the reel and the seconds before and after: we keep
+        # only the reel, as an H.264 file the person can watch and use
+        work = d / "work.mp4"
+        await asyncio.to_thread(media.normalise, raw, work, 1280)  # also fixes recordings from the browser, which carry no duration
+        if (await asyncio.to_thread(media.probe, work))["duration"] > UP_MAX_S + 60:
+            raise ValueError(f"Es muy largo: subí reels de hasta {UP_MAX_S // 60} minutos")
+        spot = await asyncio.to_thread(find_reel, work)
+        vf = "crop={2}:{3}:{0}:{1},".format(*spot["crop"]) if spot["crop"] else ""
+        cut = await asyncio.to_thread(media.run, "ffmpeg", ["-y", "-v", "error", "-ss", str(spot["start"]), "-to", str(spot["end"]), "-i", str(work),
+                                      "-vf", f"{vf}scale='min(720,iw)':-2", "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p",
+                                      "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(d / "reel.mp4")], 900)
+        if cut.returncode != 0 or not (d / "reel.mp4").exists():
+            raise ValueError("No pude recortar el reel")
+        work.unlink(missing_ok=True)
+        info = await asyncio.to_thread(media.probe, d / "reel.mp4")
         dur = info["duration"]
         if dur <= 0:
             raise ValueError("No pude leer ese video")
         if dur > UP_MAX_S:
             raise ValueError(f"Dura {round(dur)} s: subí reels de hasta {UP_MAX_S // 60} minutos")
+        raw.unlink(missing_ok=True)
+        raw = d / "reel.mp4"
         shots = await asyncio.to_thread(media.frames, raw, d, max(dur / 8, 0.5), 8, 432)
         await asyncio.to_thread(media.thumb, raw, d / "thumb.jpg", min(1.0, dur / 3))
         text = ""
@@ -833,14 +916,16 @@ async def _read_upload(user: User, pid: str, rid: str, raw: "Path", kind: str) -
             segs, _ = await stt.transcribe(user.id, raw, d / "stt")
             text = "\n".join(f"[{s['start']:.1f}-{s['end']:.1f}] {s['text']}" for s in segs)[:4000]
         _set_upload(user.id, pid, rid, status="ready", duration=round(dur, 1), frames=[p.name for _, p in shots], transcript=text,
-                    heard=bool(text), audio=bool(info.get("audio")))
+                    heard=bool(text), audio=bool(info.get("audio")), video="reel.mp4", trimmed=bool(spot["crop"]) or spot["start"] > 0.5)
     except Exception as e:  # noqa: BLE001
         log.warning("adtier upload %s: %s", rid, e)
         _set_upload(user.id, pid, rid, status="error", error=str(e)[:200])
     finally:
         import shutil
 
-        raw.unlink(missing_ok=True)  # the video itself is never kept
+        if raw.name != "reel.mp4":  # the original (with the page around it) is never kept: only the reel cut out of it
+            raw.unlink(missing_ok=True)
+        (d / "work.mp4").unlink(missing_ok=True)
         shutil.rmtree(d / "stt", ignore_errors=True)
         _upload_jobs.pop(rid, None)
 
