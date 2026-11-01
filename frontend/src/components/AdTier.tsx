@@ -776,6 +776,21 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
           </div>
         </div>
       )}
+      {!!p.ideas?.length && !working && (() => {
+        // say plainly where the ideas come from: an account whose reels could not be read gave nothing to them
+        const read = (p.notes ?? []).filter((n) => n.count > 0).map((n) => `@${n.handle}`)
+        const missed = (p.notes ?? []).filter((n) => !n.count).map((n) => `@${n.handle}`)
+        if (!missed.length) return null
+        return (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-[#C28A12]/40 bg-[#C28A12]/10 px-3 py-2 text-[12.5px] text-ink-2">
+            <AlertTriangle size={14} className="shrink-0 text-[#C28A12]" />
+            <span className="min-w-0 flex-1">{read.length
+              ? T(`Estas ideas salen de los reels de ${read.join(', ')}. De ${missed.join(', ')} no pudimos leer nada, así que no las inspiró.`, `These ideas come from the reels of ${read.join(', ')}. Nothing could be read from ${missed.join(', ')}, so it did not inspire them.`)
+              : T(`Estas ideas salen de tu rubro (anuncios que encontramos para tu perfil), no de ${missed.join(', ')}: no pudimos leer sus reels.`, `These ideas come from your sector (ads we found for your profile), not from ${missed.join(', ')}: we could not read their reels.`)}</span>
+            <button onClick={() => setOpen(true)} className={PILL}><Link2 size={14} /> {T('Pegar su TikTok o YouTube', 'Paste their TikTok or YouTube')}</button>
+          </div>
+        )
+      })()}
       {p.patterns && <p className="mt-3 text-[12.5px] text-ink-2">💡 {p.patterns}</p>}
       {!!p.ideas?.length && (
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
