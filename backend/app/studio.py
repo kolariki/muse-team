@@ -525,7 +525,7 @@ async def _pipeline(user: User, pid: str) -> None:
             im.save(b, "JPEG", quality=80)
             imgs.append(b.getvalue())
             legend.append(f"imagen {len(imgs)}: la imagen {m['id']} «{m['name']}»")
-        msg = f"{ask_ctx}\n\nLO QUE ENCONTRÓ EL/LA GUIONISTA:\n{json.dumps(listen, ensure_ascii=False)}\n\nTRANSCRIPCIÓN:\n{lines or '(sin voz)'}\n\nLAS IMÁGENES QUE TE PASO, EN ORDEN:\n" + "\n".join(legend)
+        msg = f"{ask_ctx}\n\n{adsmod._references()}\n\nLO QUE ENCONTRÓ EL/LA GUIONISTA:\n{json.dumps(listen, ensure_ascii=False)}\n\nTRANSCRIPCIÓN:\n{lines or '(sin voz)'}\n\nLAS IMÁGENES QUE TE PASO, EN ORDEN:\n" + "\n".join(legend)
         raw, by = await ask(uid, PLAN_SYSTEM.format(lang=spoken), msg, imgs)
         plan = clean_plan(raw, proj)
         update(uid, pid, plan=plan)

@@ -36,6 +36,7 @@ import { useArena } from './store'
 import type { ArenaEvent, SessionConfig } from './types'
 // the Ad Studio (uploads, the five agents, the renders) loads only when it opens
 const AdStudio = lazy(() => import('./components/AdStudio'))
+const AdTier = lazy(() => import('./components/AdTier'))
 
 function onEvent(ev: ArenaEvent) {
   useArena.getState().apply(ev)
@@ -567,6 +568,7 @@ function AppInner() {
   if (view === 'tickets' && TICKETS_ENABLED) return <>{banner}{demoLayer}<Tickets onBack={() => useArena.getState().set({ view: 'setup' })} /></>
   if (view === 'analytics') return <>{banner}{demoLayer}<AnalyticsPage onBack={() => useArena.getState().set({ view: 'setup' })} /></>
   if (view === 'team') return <>{banner}{demoLayer}<TeamPage onBack={() => useArena.getState().set({ view: 'setup' })} /></>
+  if (view === 'adtier') return <>{banner}{demoLayer}<Suspense fallback={null}><AdTier onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></>
   if (view === 'studio') return <>{banner}{demoLayer}<Suspense fallback={null}><AdStudio onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></>
   if (view === 'market') return <>{banner}{demoLayer}<Marketplace onBack={() => useArena.getState().set({ view: 'setup' })} /></>
   if (view === 'setup') return <>{banner}{demoLayer}<Setup key={user.id} user={user} onLogout={logout} onSettings={() => useArena.getState().set({ view: 'settings' })} onAudit={() => useArena.getState().set({ view: 'audit' })} onStart={start} onDirect={direct} onReplay={startReplay} onOpen={(id, mode) => (mode === 'run' ? runApp(id) : openSaved(id, mode !== 'arena', mode === 'builder')).catch((e) => toast.error(tr('No se pudo abrir', 'Could not open'), (e as Error).message))} />{runOverlayLayer}</>

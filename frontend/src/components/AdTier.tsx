@@ -1,0 +1,421 @@
+import { AlertTriangle, CheckCircle2, Copy, Download, ExternalLink, Layers, Loader2, Medal, Plus, RefreshCw, Search, ShieldCheck, Trash2, Upload, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { api, type AdTierCard, type AdTierDetail, type AdTierEvidence, type AdTierHome, type AdTierMasters, type AdTierPage, type AdTierTemplate, type AdTierTier } from '../lib/api'
+import { tr, useT } from '../lib/i18n'
+import PageHeader from './PageHeader'
+import { toast } from './Toast'
+
+const TIER_COLOR: Record<AdTierTier, string> = { S: '#FF6B6B', A: '#FF9F43', B: '#F7C948', C: '#7BC67E' }
+const TIERS: AdTierTier[] = ['S', 'A', 'B', 'C']
+const FORMATS: Record<string, [string, string]> = { brand_spot: ['Spot de marca', 'Brand spot'], ugc: ['UGC', 'UGC'], demo: ['Demo', 'Demo'], testimonial: ['Testimonial', 'Testimonial'], explainer: ['Explicativo', 'Explainer'], other: ['Otro', 'Other'] }
+const DIMS: [keyof NonNullable<AdTierDetail['score']>, string, string, number][] = [['hook', 'Hook (0–3 s)', 'Hook (0–3 s)', 25], ['structure', 'Estructura y ritmo', 'Structure and pace', 25], ['copy', 'Mensaje y copy', 'Message and copy', 20], ['visual', 'Craft visual y sonido', 'Visual and sound craft', 15], ['platform_fit', 'Plataforma y CTA', 'Platform fit and CTA', 15]]
+const PILL = 'flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-surface px-3.5 text-[13px] text-ink-2 shadow-sm transition hover:border-accent hover:bg-accent-soft hover:text-accent disabled:opacity-40'
+const PRIMARY = 'flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-accent px-4 text-[13px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-40'
+const INPUT = 'w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-ink outline-none transition focus:border-accent'
+const SELECT = 'h-9 rounded-full border border-line bg-surface px-3 text-[12.5px] text-ink-2 outline-none focus:border-accent'
+const LABEL = 'block text-[11px] font-semibold uppercase tracking-wide text-ink-3'
+type Tab = 'tiers' | 'videos' | 'templates' | 'brands' | 'admin' | 'api'
+type Filters = Record<string, string>
+const DURATIONS: [string, string, string, Filters][] = [['', 'Cualquier duración', 'Any length', {}], ['15', 'Hasta 15 s', 'Up to 15 s', { max_s: '15' }], ['30', '15–30 s', '15–30 s', { min_s: '15', max_s: '30' }], ['60', '30–60 s', '30–60 s', { min_s: '30', max_s: '60' }], ['61', 'Más de 60 s', 'Over 60 s', { min_s: '60' }]]
+const qs = (f: Filters, extra: Filters = {}) => { const p = new URLSearchParams(Object.entries({ ...f, ...extra }).filter(([, v]) => v)); const s = p.toString(); return s ? `?${s}` : '' }
+const fmtName = (f: string | null | undefined, en: boolean) => (f ? (FORMATS[f]?.[en ? 1 : 0] ?? f) : '')
+
+/** AdTier: video ads ranked S/A/B/C by evidence (awards, performance) and an AI score, each broken down into a template. */
+export default function AdTier({ onBack }: { onBack: () => void }) {
+  const T = useT()
+  const en = T('es', 'en') === 'en'
+  const [tab, setTab] = useState<Tab>('tiers')
+  const [home, setHome] = useState<AdTierHome | null>(null)
+  const [filters, setFilters] = useState<Filters>({})
+  const [dur, setDur] = useState('')
+  const [open, setOpen] = useState<string | null>(null)
+  const f = useMemo(() => ({ ...filters, ...(DURATIONS.find((d) => d[0] === dur)?.[3] ?? {}) }), [filters, dur])
+
+  useEffect(() => { api.adtier(qs(f)).then(setHome).catch((e) => toast.error(tr('No pude leer AdTier', 'Could not read AdTier'), (e as Error).message)) }, [f])
+  const total = home ? Object.values(home.facets.counts).reduce((a, b) => a + b, 0) : 0
+  const tabs: [Tab, string, string][] = [['tiers', 'Tier list', 'Tier list'], ['videos', 'Videos', 'Videos'], ['templates', 'Plantillas maestras', 'Master templates'], ['brands', 'Marcas', 'Brands'], ['api', 'API y MCP', 'API and MCP'], ...(home?.admin ? [['admin', 'Administrar', 'Admin'] as [Tab, string, string]] : [])]
+  const set = (k: string, v: string) => setFilters((x) => ({ ...x, [k]: v }))
+
+  const bar = home && (
+    <div className="flex flex-wrap items-center gap-2">
+      <select value={filters.format ?? ''} onChange={(e) => set('format', e.target.value)} className={SELECT}><option value="">{T('Todos los formatos', 'All formats')}</option>{Object.keys(FORMATS).map((k) => <option key={k} value={k}>{fmtName(k, en)}</option>)}</select>
+      <select value={filters.industry ?? ''} onChange={(e) => set('industry', e.target.value)} className={SELECT}><option value="">{T('Todas las industrias', 'All industries')}</option>{home.facets.industry.map((k) => <option key={k} value={k}>{k}</option>)}</select>
+      <select value={dur} onChange={(e) => setDur(e.target.value)} className={SELECT}>{DURATIONS.map(([k, es, e2]) => <option key={k} value={k}>{T(es, e2)}</option>)}</select>
+      <select value={filters.platform_origin ?? ''} onChange={(e) => set('platform_origin', e.target.value)} className={SELECT}><option value="">{T('Todas las plataformas', 'All platforms')}</option>{['tv', 'youtube', 'tiktok', 'meta'].map((k) => <option key={k} value={k}>{k === 'tv' ? 'TV' : k[0].toUpperCase() + k.slice(1)}</option>)}</select>
+      <select value={filters.language ?? ''} onChange={(e) => set('language', e.target.value)} className={SELECT}><option value="">{T('Todos los idiomas', 'All languages')}</option>{home.facets.language.map((k) => <option key={k} value={k}>{k}</option>)}</select>
+      <button type="button" onClick={() => set('region', filters.region === 'latam' ? '' : 'latam')} className={`h-9 rounded-full border px-3 text-[12.5px] ${filters.region === 'latam' ? 'border-accent bg-accent text-white' : 'border-line bg-surface text-ink-2 hover:border-accent'}`}>LatAm</button>
+      {(Object.values(filters).some(Boolean) || dur) && <button type="button" onClick={() => { setFilters({}); setDur('') }} className="text-[12px] text-ink-3 underline">{T('Limpiar', 'Clear')}</button>}
+    </div>
+  )
+
+  return (
+    <div className="min-h-full bg-paper">
+      <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
+        <PageHeader onBack={onBack} kicker="AdTier" title={T('Los mejores anuncios en video, con su plantilla', 'The best video ads, with their template')}
+          subtitle={T('Cada video tiene un tier S/A/B/C por evidencia (premios, performance) y un score de IA, y está descompuesto en una plantilla que podés copiar: hook, estructura por segundos y CTA.', 'Each video has an S/A/B/C tier from evidence (awards, performance) and an AI score, broken down into a template you can copy: hook, structure by the second and CTA.')}
+          right={<span className="flex items-center gap-1.5 text-[12px] text-ink-3"><Medal size={14} className="text-accent" /> {T(`${total} videos publicados`, `${total} published videos`)}</span>} />
+
+        <div className="mt-4 flex flex-wrap gap-1.5 border-b border-line pb-3">
+          {tabs.map(([k, es, e2]) => <button key={k} onClick={() => setTab(k)} className={`rounded-full px-3.5 py-1.5 text-[13px] ${tab === k ? 'bg-ink text-paper font-semibold' : 'text-ink-2 hover:bg-surface-2'}`}>{T(es, e2)}</button>)}
+        </div>
+
+        {!home ? <div className="flex items-center gap-2 py-10 text-ink-3"><Loader2 size={16} className="animate-spin" /> {T('Cargando…', 'Loading…')}</div> : (
+          <div className="mt-4 flex flex-col gap-4">
+            {(tab === 'tiers' || tab === 'videos') && bar}
+            {tab === 'tiers' && <TierRows home={home} onOpen={setOpen} />}
+            {tab === 'videos' && <Grid filters={f} onOpen={setOpen} />}
+            {tab === 'templates' && <Masters admin={home.admin} />}
+            {tab === 'brands' && <Brands onPick={(b) => { setFilters({ brand: b }); setTab('videos') }} />}
+            {tab === 'api' && <ApiInfo base={home.public_url} />}
+            {tab === 'admin' && home.admin && <Admin home={home} onOpen={setOpen} />}
+            <p className="mt-6 border-t border-line pt-4 text-[11.5px] leading-relaxed text-ink-4">
+              {T('AdTier es un índice con análisis y crítica: los videos se reproducen desde su plataforma oficial (embed) y nunca se descargan ni se alojan acá. Se muestra la atribución de cada uno (marca, agencia, año, fuente de la evidencia). Pedidos de baja: se retiran en 48 h', 'AdTier is an index with analysis and critique: videos play from their official platform (embed) and are never downloaded or hosted here. Each one shows its attribution (brand, agency, year, source of the evidence). Takedown requests: removed within 48 h')}{home.takedown_email ? <> · <a className="underline" href={`mailto:${home.takedown_email}`}>{home.takedown_email}</a></> : '.'}
+              {home.admin && !home.takedown_email && <span className="ml-1 text-[#C28A12]">{T('(Configurá ADTIER_TAKEDOWN_EMAIL para mostrar el email de bajas.)', '(Set ADTIER_TAKEDOWN_EMAIL to show the takedown email.)')}</span>}
+            </p>
+          </div>
+        )}
+      </div>
+      {open && <Detail id={open} admin={!!home?.admin} onClose={() => setOpen(null)} onOpen={setOpen} onChanged={() => api.adtier(qs(f)).then(setHome).catch(() => {})} />}
+    </div>
+  )
+}
+
+function Thumb({ v, onOpen, big = false }: { v: AdTierCard; onOpen: (id: string) => void; big?: boolean }) {
+  const T = useT()
+  const en = T('es', 'en') === 'en'
+  return (
+    <button type="button" onClick={() => onOpen(v.id)} className={`group flex shrink-0 flex-col overflow-hidden rounded-xl border border-line bg-surface text-left transition hover:-translate-y-0.5 hover:border-accent/60 ${big ? 'w-full' : 'w-[220px]'}`}>
+      <span className="relative block aspect-video w-full overflow-hidden bg-black">
+        {v.thumbnail_url ? <img src={v.thumbnail_url} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" /> : null}
+        {v.tier && <span className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-md text-[14px] font-black text-black" style={{ background: TIER_COLOR[v.tier] }}>{v.tier}</span>}
+        {v.duration_s ? <span className="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[10.5px] font-semibold text-white">{Math.round(v.duration_s)} s</span> : null}
+      </span>
+      <span className="flex flex-col gap-0.5 p-2.5">
+        <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-ink">{v.title || v.brand}</span>
+        <span className="truncate text-[11.5px] text-ink-3">{[v.brand, v.year, fmtName(v.format, en)].filter(Boolean).join(' · ')}</span>
+      </span>
+    </button>
+  )
+}
+
+function TierRows({ home, onOpen }: { home: AdTierHome; onOpen: (id: string) => void }) {
+  const T = useT()
+  const empty = TIERS.every((t) => !home.tiers[t].length)
+  if (empty) return <p className="rounded-2xl border border-dashed border-line px-4 py-10 text-center text-[14px] text-ink-3">{home.admin ? T('Todavía no hay videos publicados. Cargalos en «Administrar»: por URL o con un CSV.', 'No published videos yet. Load them in «Admin»: by URL or with a CSV.') : T('Todavía no hay videos publicados con estos filtros.', 'No published videos with these filters yet.')}</p>
+  return (
+    <div className="overflow-hidden rounded-2xl border border-line">
+      {TIERS.map((t) => (
+        <div key={t} className="flex border-b border-line last:border-b-0" style={{ minHeight: 120 }}>
+          <div className="flex w-16 shrink-0 items-center justify-center text-[40px] font-black text-black sm:w-24" style={{ background: TIER_COLOR[t] }}>{t}</div>
+          <div className="flex min-w-0 flex-1 gap-2.5 overflow-x-auto bg-surface-2/40 p-3 scroll-thin">
+            {home.tiers[t].length ? home.tiers[t].map((v) => <Thumb key={v.id} v={v} onOpen={onOpen} />) : <span className="self-center text-[12.5px] text-ink-4">{T('Ninguno todavía', 'None yet')}</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Grid({ filters, onOpen }: { filters: Filters; onOpen: (id: string) => void }) {
+  const T = useT()
+  const [q, setQ] = useState('')
+  const [page, setPage] = useState(1)
+  const [data, setData] = useState<AdTierPage | null>(null)
+  useEffect(() => { setPage(1) }, [filters, q])
+  useEffect(() => { const t = window.setTimeout(() => api.adtierVideos(qs(filters, { q, page: String(page) })).then(setData).catch(() => {}), 250); return () => window.clearTimeout(t) }, [filters, q, page])
+  const pages = data ? Math.max(1, Math.ceil(data.total / data.per)) : 1
+  return (
+    <div className="flex flex-col gap-3">
+      <label className="relative max-w-[460px]"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={T('Buscar en títulos, marcas y lo que se dice en los videos', 'Search titles, brands and what is said in the videos')} className={`${INPUT} pl-8`} /></label>
+      <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 min-[900px]:grid-cols-3 min-[1200px]:grid-cols-4">{data?.videos.map((v) => <Thumb key={v.id} v={v} onOpen={onOpen} big />)}</div>
+      {data && !data.videos.length && <p className="py-8 text-center text-[13px] text-ink-3">{T('Nada con esos filtros.', 'Nothing matches those filters.')}</p>}
+      {pages > 1 && <div className="flex items-center justify-center gap-2 text-[13px]"><button disabled={page <= 1} onClick={() => setPage(page - 1)} className={PILL}>←</button><span className="text-ink-3">{page} / {pages}</span><button disabled={page >= pages} onClick={() => setPage(page + 1)} className={PILL}>→</button></div>}
+    </div>
+  )
+}
+
+function TemplateView({ t }: { t: AdTierTemplate }) {
+  const T = useT()
+  const purpose: Record<string, string> = { hook: '#FF6B6B', problem: '#FF9F43', demo: '#4C9AFF', proof: '#7BC67E', offer: '#B388FF', cta: '#F7C948' }
+  const end = Math.max(1, ...(t.beats ?? []).map((b) => b.to))
+  return (
+    <div className="flex flex-col gap-3 text-[13px]">
+      {t.reusable_skeleton && <p className="rounded-xl bg-accent-soft px-3 py-2 font-semibold text-ink">{t.reusable_skeleton}</p>}
+      {t.hook && <div><div className={LABEL}>{T('Hook', 'Hook')} · {t.hook.seconds ?? '0-3'} s · {t.hook.type}</div><p className="mt-1 text-ink-2">{t.hook.description}</p>{t.hook.line && <p className="mt-1 border-l-2 border-accent pl-2 italic text-ink">«{t.hook.line}»</p>}</div>}
+      {!!t.beats?.length && (
+        <div>
+          <div className={LABEL}>{T('Estructura por segundos', 'Structure by the second')}</div>
+          <div className="mt-1.5 flex h-3 overflow-hidden rounded-full">{t.beats.map((b, i) => <span key={i} title={`${b.from}–${b.to} s · ${b.purpose}`} style={{ width: `${((b.to - b.from) / end) * 100}%`, background: purpose[b.purpose] ?? '#888' }} />)}</div>
+          <ol className="mt-2 flex flex-col gap-1">{t.beats.map((b, i) => <li key={i} className="text-ink-2"><span className="font-mono text-[11.5px] text-ink-4">{b.from}–{b.to} s</span> <b className="text-ink" style={{ color: purpose[b.purpose] }}>{b.purpose}</b> — {b.visual}{b.audio ? <span className="text-ink-3"> · {b.audio}</span> : null}</li>)}</ol>
+        </div>
+      )}
+      {t.cta && <div><div className={LABEL}>CTA · {t.cta.seconds} s · {t.cta.type}</div>{t.cta.line && <p className="mt-1 border-l-2 border-accent pl-2 italic text-ink">«{t.cta.line}»</p>}</div>}
+      <div className="flex flex-wrap gap-1.5">{(t.tone ?? []).map((x) => <span key={x} className="rounded-full border border-line px-2 py-0.5 text-[11.5px] text-ink-2">{x}</span>)}</div>
+      {t.production && <p className="text-ink-3">{T('Producción', 'Production')}: {[t.production.people_on_camera != null && T(`${t.production.people_on_camera} en cámara`, `${t.production.people_on_camera} on camera`), t.production.locations != null && T(`${t.production.locations} locaciones`, `${t.production.locations} locations`), t.production.captions && T('subtítulos', 'captions'), t.production.music, t.production.budget_tier].filter(Boolean).join(' · ')}</p>}
+      {t.adapt_notes && <p className="text-ink-2"><b className="text-ink">{T('Cómo adaptarla:', 'How to adapt it:')}</b> {t.adapt_notes}</p>}
+    </div>
+  )
+}
+
+function Detail({ id, admin, onClose, onOpen, onChanged }: { id: string; admin: boolean; onClose: () => void; onOpen: (id: string) => void; onChanged: () => void }) {
+  const T = useT()
+  const en = T('es', 'en') === 'en'
+  const [d, setD] = useState<AdTierDetail | null>(null)
+  const load = () => api.adtierVideo(id).then(setD).catch((e) => { toast.error(T('No se pudo abrir', 'Could not open'), (e as Error).message); onClose() })
+  useEffect(() => { setD(null); load() }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!d || !admin || !['queued', 'meta', 'frames', 'transcribe', 'analyze'].includes(d.stage ?? '')) return
+    const t = window.setTimeout(load, 3000)
+    return () => window.clearTimeout(t)
+  }, [d]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) }, [onClose])
+  const vertical = d?.embed_provider === 'tiktok'
+  return (
+    <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/60 p-3 sm:p-6" onClick={onClose}>
+      <div className="relative w-full max-w-[1080px] rounded-2xl border border-line bg-paper p-4 shadow-2xl sm:p-6" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-surface text-ink-2 hover:text-ink" aria-label={T('Cerrar', 'Close')}><X size={16} /></button>
+        {!d ? <div className="flex items-center gap-2 py-16 text-ink-3"><Loader2 size={16} className="animate-spin" /> {T('Cargando…', 'Loading…')}</div> : (
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+            <div className="flex min-w-0 flex-col gap-3">
+              <div className={`overflow-hidden rounded-xl bg-black ${vertical ? 'mx-auto aspect-[9/16] w-full max-w-[340px]' : 'aspect-video w-full'}`}>
+                <iframe src={d.embed_url} title={d.title} className="h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+              </div>
+              <div>
+                <h2 className="pr-10 text-[20px] font-bold leading-tight text-ink">{d.title}</h2>
+                <p className="mt-1 text-[13px] text-ink-3">{[d.brand, d.agency, d.year, d.country, d.language, fmtName(d.format, en), d.industry].filter(Boolean).join(' · ')}</p>
+                <a href={d.source_url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[12.5px] text-accent hover:underline"><ExternalLink size={12} /> {T('Ver en la plataforma', 'View on the platform')}</a>
+              </div>
+              {d.tier_info && (
+                <div className="flex items-start gap-3 rounded-xl border border-line bg-surface p-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-[26px] font-black text-black" style={{ background: TIER_COLOR[d.tier_info.tier] }}>{d.tier_info.tier}</span>
+                  <div className="text-[12.5px] text-ink-2">
+                    <div className="font-semibold text-ink">{d.tier_info.basis === 'evidence' ? T('Por evidencia externa', 'From external evidence') : d.tier_info.basis === 'human' ? T('Asignado en la revisión', 'Set in review') : T('Por score', 'From the score')}</div>
+                    <p>{d.tier_info.justification}</p>
+                    {admin && d.tier_info.proposed && <p className="mt-1 text-ink-4">{T('Propuesto por la IA', 'Proposed by the AI')}: {d.tier_info.proposed} · {T('evidencia', 'evidence')}: {d.tier_info.evidence_tier ?? '—'} · score: {d.tier_info.score_tier}</p>}
+                  </div>
+                </div>
+              )}
+              {!!d.evidence.length && (
+                <div><div className={LABEL}>{T('Evidencia', 'Evidence')}</div>
+                  <ul className="mt-1 flex flex-col gap-1 text-[12.5px] text-ink-2">{d.evidence.map((e, i) => <li key={i}><span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase text-ink-3">{e.type}</span> {e.detail}{e.days_active ? ` · ${e.days_active} ${T('días activo', 'days live')}` : ''}{e.url && <> · <a href={e.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{T('fuente', 'source')}</a></>}</li>)}</ul>
+                </div>
+              )}
+              {d.score && (
+                <div><div className={LABEL}>Score {d.score.total}/100{d.score.needs_review ? <span className="ml-1 normal-case text-[#C28A12]">· {T('las dos corridas difieren: revisar', 'the two runs differ: review')}</span> : null}</div>
+                  <div className="mt-1.5 flex flex-col gap-1.5">{DIMS.map(([k, es, e2, w]) => (
+                    <div key={k} title={d.score!.rationale?.[k] ?? ''}>
+                      <div className="flex justify-between text-[12px] text-ink-2"><span>{T(es, e2)} <span className="text-ink-4">({w} %)</span></span><b className="text-ink">{Number(d.score![k])}</b></div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-accent" style={{ width: `${Number(d.score![k])}%` }} /></div>
+                      {d.score!.rationale?.[k] && <p className="mt-0.5 text-[11.5px] leading-snug text-ink-3">{d.score!.rationale[k]}</p>}
+                    </div>
+                  ))}</div>
+                  <p className="mt-1 text-[11px] text-ink-4">{d.score.model}</p>
+                </div>
+              )}
+            </div>
+            <div className="flex min-w-0 flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2 lg:pr-10">
+                <h3 className="flex-1 text-[16px] font-bold text-ink">{T('Plantilla', 'Template')}{d.template_version ? <span className="ml-1 text-[12px] font-normal text-ink-4">v{d.template_version}</span> : null}</h3>
+                {d.template && d.status === 'published' && <>
+                  <a href={`/api/adtier/videos/${d.slug}/template.md`} className={PILL}><Download size={13} /> Markdown</a>
+                  <a href={`/api/adtier/videos/${d.slug}/template.json`} className={PILL}><Download size={13} /> JSON</a>
+                </>}
+              </div>
+              {d.template ? <TemplateView t={d.template} /> : <p className="text-[13px] text-ink-3">{T('Todavía sin plantilla.', 'No template yet.')}</p>}
+              {admin && <AdminBox d={d} onChange={(x) => { setD(x); onChanged() }} onDeleted={() => { onChanged(); onClose() }} />}
+              {!!d.similar.length && (
+                <div><div className={LABEL}>{T('Parecidos', 'Similar')}</div><div className="mt-2 grid grid-cols-2 gap-2">{d.similar.map((v) => <Thumb key={v.id} v={v} onOpen={onOpen} big />)}</div></div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** The admin's part of a video: its ingest state, the review (tier + template + publish), re-run, delete. */
+function AdminBox({ d, onChange, onDeleted }: { d: AdTierDetail; onChange: (d: AdTierDetail) => void; onDeleted: () => void }) {
+  const T = useT()
+  const [tier, setTier] = useState<AdTierTier>(d.tier_info?.tier ?? 'C')
+  const [tpl, setTpl] = useState(JSON.stringify(d.template ?? {}, null, 2))
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const working = ['queued', 'meta', 'frames', 'transcribe', 'analyze'].includes(d.stage ?? '')
+  const save = async (publish: boolean) => {
+    let body: Record<string, unknown> | null = null
+    try { body = JSON.parse(tpl) } catch { return toast.error(T('La plantilla no es JSON válido', 'The template is not valid JSON')) }
+    setBusy(true)
+    try { onChange(await api.adtierReview(d.id, { tier, template: body, publish, note })); toast.ok(publish ? T('Publicado', 'Published') : T('Guardado', 'Saved')) } catch (e) { toast.error(T('No se pudo guardar', 'Could not save'), (e as Error).message) } finally { setBusy(false) }
+  }
+  const stageName: Record<string, [string, string]> = { queued: ['En cola', 'Queued'], meta: ['Leyendo la metadata', 'Reading metadata'], frames: ['Sacando cuadros', 'Taking frames'], transcribe: ['Transcribiendo', 'Transcribing'], analyze: ['Analizando con Muse', 'Analysing with Muse'] }
+  return (
+    <div className="mt-2 flex flex-col gap-2.5 rounded-xl border border-accent/40 bg-accent-soft/30 p-3">
+      <div className="flex items-center gap-2 text-[13px] font-bold text-ink"><ShieldCheck size={15} className="text-accent" /> {T('Revisión', 'Review')} <span className="font-normal text-ink-3">· {d.status}</span></div>
+      {working && <p className="flex items-center gap-2 text-[12.5px] text-ink-2"><Loader2 size={13} className="animate-spin text-accent" /> {T(...(stageName[d.stage ?? ''] ?? ['Trabajando', 'Working']))}</p>}
+      {d.error && <p className="flex items-start gap-1.5 text-[12.5px] text-danger"><AlertTriangle size={13} className="mt-0.5 shrink-0" /> {d.error}</p>}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className={LABEL}>Tier</span>
+        {TIERS.map((t) => <button key={t} onClick={() => setTier(t)} className={`h-8 w-8 rounded-md text-[14px] font-black ${tier === t ? 'text-black ring-2 ring-ink' : 'text-black/60 opacity-60'}`} style={{ background: TIER_COLOR[t] }}>{t}</button>)}
+        {tier === 'S' && !d.evidence.length && <span className="text-[11.5px] text-danger">{T('S necesita evidencia externa', 'S needs external evidence')}</span>}
+      </div>
+      <label><span className={LABEL}>{T('Plantilla (JSON)', 'Template (JSON)')}</span><textarea value={tpl} onChange={(e) => setTpl(e.target.value)} rows={8} className={`${INPUT} mt-1 font-mono text-[11.5px]`} /></label>
+      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={T('Nota de la revisión (opcional): por qué este tier', 'Review note (optional): why this tier')} className={INPUT} />
+      <div className="flex flex-wrap gap-2">
+        <button disabled={busy || working} onClick={() => save(true)} className={PRIMARY}><CheckCircle2 size={14} /> {d.status === 'published' ? T('Guardar publicado', 'Save published') : T('Aprobar y publicar', 'Approve and publish')}</button>
+        <button disabled={busy || working} onClick={() => save(false)} className={PILL}>{T('Guardar sin publicar', 'Save unpublished')}</button>
+        <button disabled={busy || working} onClick={() => api.adtierReingest(d.id).then(onChange)} className={PILL}><RefreshCw size={13} /> {T('Volver a analizar', 'Analyse again')}</button>
+        <button disabled={busy} onClick={() => { if (window.confirm(T('¿Sacar este video del catálogo?', 'Remove this video from the catalogue?'))) api.adtierDelete(d.id).then(onDeleted) }} className="ml-auto flex h-9 w-9 items-center justify-center rounded-full text-ink-3 hover:bg-danger/10 hover:text-danger" aria-label={T('Borrar', 'Delete')}><Trash2 size={14} /></button>
+      </div>
+      {!!d.transcript?.length && <details className="text-[12px] text-ink-3"><summary className="cursor-pointer">{T('Transcripción (solo admin)', 'Transcript (admin only)')}</summary><p className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">{d.transcript.map((s) => `[${s.start.toFixed(1)}] ${s.text}`).join('\n')}</p></details>}
+    </div>
+  )
+}
+
+function Admin({ home, onOpen }: { home: AdTierHome; onOpen: (id: string) => void }) {
+  const T = useT()
+  const [q, setQ] = useState<Awaited<ReturnType<typeof api.adtierQueue>> | null>(null)
+  const [url, setUrl] = useState('')
+  const [meta, setMeta] = useState<Record<string, string>>({})
+  const [ev, setEv] = useState<AdTierEvidence>({ type: 'award', detail: '', url: '' })
+  const [csv, setCsv] = useState('')
+  const [busy, setBusy] = useState(false)
+  const load = () => api.adtierQueue().then(setQ).catch(() => {})
+  useEffect(() => { load(); const t = window.setInterval(load, 5000); return () => window.clearInterval(t) }, [])
+  const add = async () => {
+    setBusy(true)
+    try { await api.adtierAdd(url, ev.detail || ev.url ? [ev] : [], meta); setUrl(''); setMeta({}); setEv({ type: 'award', detail: '', url: '' }); toast.ok(T('Cargado: el equipo lo está analizando', 'Loaded: the team is analysing it')); load() } catch (e) { toast.error(T('No se pudo cargar', 'Could not load'), (e as Error).message) } finally { setBusy(false) }
+  }
+  const lot = async () => {
+    setBusy(true)
+    try { const r = await api.adtierBatch(csv); toast.ok(T(`${r.added.length} cargados`, `${r.added.length} loaded`), r.errors.join(' · ') || undefined); if (!r.errors.length) setCsv(''); load() } catch (e) { toast.error(T('No se pudo cargar el lote', 'Could not load the batch'), (e as Error).message) } finally { setBusy(false) }
+  }
+  const m = (k: string, label: string, w = '') => <label className={w}><span className={LABEL}>{label}</span><input value={meta[k] ?? ''} onChange={(e) => setMeta({ ...meta, [k]: e.target.value })} className={`${INPUT} mt-1`} /></label>
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <section className="rounded-2xl border border-line bg-surface p-4">
+        <h3 className="flex items-center gap-1.5 text-[15px] font-bold text-ink"><Plus size={15} /> {T('Cargar un video', 'Load a video')}</h3>
+        <p className="mt-1 text-[12px] text-ink-3">{T('YouTube, Vimeo o TikTok. Se reproduce por su embed oficial; el equipo lee la metadata, saca 6 cuadros del storyboard del proveedor, transcribe (subtítulos del proveedor o Meta Muse Voice Transcribe) y lo analiza con Muse.', 'YouTube, Vimeo or TikTok. It plays through its official embed; the team reads the metadata, takes 6 frames from the provider’s storyboard, transcribes it (provider captions or Meta Muse Voice Transcribe) and analyses it with Muse.')}</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label className="col-span-2"><span className={LABEL}>URL</span><input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className={`${INPUT} mt-1`} /></label>
+          {m('brand', T('Marca', 'Brand'))}{m('agency', T('Agencia', 'Agency'))}{m('year', T('Año', 'Year'))}{m('country', T('País (AR, MX…)', 'Country (US, GB…)'))}{m('industry', T('Industria', 'Industry'))}
+          <label><span className={LABEL}>{T('Formato', 'Format')}</span><select value={meta.format ?? ''} onChange={(e) => setMeta({ ...meta, format: e.target.value })} className={`${INPUT} mt-1`}><option value="">{T('Que lo detecte la IA', 'Let the AI detect it')}</option>{Object.keys(FORMATS).map((k) => <option key={k} value={k}>{fmtName(k, T('es', 'en') === 'en')}</option>)}</select></label>
+          <div className="col-span-2 mt-1 rounded-xl border border-line p-2.5">
+            <div className={LABEL}>{T('Evidencia externa', 'External evidence')}</div>
+            <div className="mt-1.5 grid grid-cols-[110px_1fr] gap-2">
+              <select value={ev.type} onChange={(e) => setEv({ ...ev, type: e.target.value as AdTierEvidence['type'] })} className={INPUT}><option value="award">{T('Premio', 'Award')}</option><option value="performance">Performance</option><option value="editorial">{T('Lista editorial', 'Editorial list')}</option></select>
+              <input value={ev.detail} onChange={(e) => setEv({ ...ev, detail: e.target.value })} placeholder={T('Ej.: Cannes 2024 Gold Film · 212 días activo, 7 variaciones', 'E.g.: Cannes 2024 Gold Film · 212 days live, 7 variations')} className={INPUT} />
+              <input value={ev.url} onChange={(e) => setEv({ ...ev, url: e.target.value })} placeholder={T('Link verificable de la evidencia', 'Verifiable link to the evidence')} className={`${INPUT} col-span-2`} />
+            </div>
+            <p className="mt-1.5 text-[11px] text-ink-4">{T('Sin evidencia externa un video no puede ser S.', 'Without external evidence a video cannot be S.')}</p>
+          </div>
+        </div>
+        <button disabled={busy || !url.trim()} onClick={add} className={`${PRIMARY} mt-3`}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} {T('Cargar y analizar', 'Load and analyse')}</button>
+      </section>
+
+      <section className="rounded-2xl border border-line bg-surface p-4">
+        <h3 className="flex items-center gap-1.5 text-[15px] font-bold text-ink"><Upload size={15} /> {T('Cargar un lote (CSV)', 'Load a batch (CSV)')}</h3>
+        <p className="mt-1 text-[12px] text-ink-3">{T('Columnas', 'Columns')}: <code className="text-[11px]">{(q?.columns ?? []).join(',')}</code></p>
+        <textarea value={csv} onChange={(e) => setCsv(e.target.value)} rows={8} placeholder={'url,brand,year,country,evidence_type,evidence_detail,evidence_url\nhttps://www.youtube.com/watch?v=…,Marca,2024,AR,award,Cannes 2024 Gold Film,https://…'} className={`${INPUT} mt-2 font-mono text-[11.5px]`} />
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button disabled={busy || !csv.trim()} onClick={lot} className={PRIMARY}><Upload size={14} /> {T('Cargar el lote', 'Load the batch')}</button>
+          <label className={`${PILL} cursor-pointer`}><input type="file" accept=".csv,text/csv" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setCsv(await f.text()); e.target.value = '' }} />{T('Elegir archivo', 'Pick a file')}</label>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-line bg-surface p-4 lg:col-span-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="flex-1 text-[15px] font-bold text-ink">{T('Cola de revisión', 'Review queue')}</h3>
+          {q?.agreement.reviewed ? <span className="text-[12px] text-ink-3">{T(`La IA acertó el tier en ${q.agreement.pct} % de ${q.agreement.reviewed} revisados (meta: más de 70 %)`, `The AI got the tier right in ${q.agreement.pct}% of ${q.agreement.reviewed} reviewed (goal: over 70%)`)}</span> : null}
+          <button onClick={() => api.adtierCheckEmbeds().then((r) => toast.ok(T(`${r.checked} embeds revisados`, `${r.checked} embeds checked`), r.unpublished.length ? T(`${r.unpublished.length} despublicados`, `${r.unpublished.length} unpublished`) : undefined))} className={PILL}><ShieldCheck size={13} /> {T('Verificar embeds', 'Check embeds')}</button>
+        </div>
+        {([['review', T('Para revisar', 'To review')], ['drafts', T('En proceso o con error', 'In progress or failed')]] as const).map(([k, l]) => (
+          <div key={k} className="mt-3">
+            <div className={LABEL}>{l} · {q?.[k].length ?? 0}</div>
+            <div className="mt-2 grid grid-cols-1 gap-2 min-[520px]:grid-cols-2 min-[900px]:grid-cols-4">
+              {(q?.[k] ?? []).map((v) => (
+                <div key={v.id} className="relative">
+                  <Thumb v={{ ...v, tier: v.proposed ?? v.tier }} onOpen={onOpen} big />
+                  {q?.running.includes(v.id) && <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-black/75 px-2 py-0.5 text-[10.5px] text-white"><Loader2 size={10} className="animate-spin" /> {T('analizando', 'analysing')}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {!home.takedown_email && <p className="mt-3 text-[12px] text-[#C28A12]">{T('Falta el email de bajas (ADTIER_TAKEDOWN_EMAIL) para mostrar en el catálogo.', 'The takedown email (ADTIER_TAKEDOWN_EMAIL) is missing from the catalogue.')}</p>}
+      </section>
+    </div>
+  )
+}
+
+function Masters({ admin }: { admin: boolean }) {
+  const T = useT()
+  const en = T('es', 'en') === 'en'
+  const [m, setM] = useState<AdTierMasters | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  useEffect(() => { api.adtierMasters().then(setM).catch(() => {}) }, [])
+  if (!m) return <Loader2 size={16} className="animate-spin text-ink-3" />
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-[13px] text-ink-3">{T(`Con ${m.min} o más videos publicados del mismo formato y tier, el equipo arma la plantilla maestra: estructura promedio, los 5 hooks más frecuentes y qué separa a los mejores.`, `With ${m.min} or more published videos of the same format and tier, the team builds the master template: average structure, the 5 most frequent hooks and what sets the best apart.`)}</p>
+      <div className="flex flex-wrap gap-2">
+        {m.status.map((s) => (
+          <div key={`${s.format}${s.tier}`} className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-[12.5px]">
+            <span className="flex h-6 w-6 items-center justify-center rounded text-[12px] font-black text-black" style={{ background: TIER_COLOR[s.tier] }}>{s.tier}</span>
+            <span className="text-ink">{fmtName(s.format, en)}</span><span className="text-ink-4">{s.videos}/{m.min}</span>
+            {admin && s.ready && <button disabled={!!busy} onClick={async () => { setBusy(s.format + s.tier); try { setM(await api.adtierMakeMaster(s.format, s.tier)) } catch (e) { toast.error(T('No se pudo', 'Could not'), (e as Error).message) } finally { setBusy(null) } }} className="text-accent hover:underline">{busy === s.format + s.tier ? <Loader2 size={12} className="animate-spin" /> : s.made ? T('Rehacer', 'Redo') : T('Armar', 'Build')}</button>}
+          </div>
+        ))}
+        {!m.status.length && <p className="text-[13px] text-ink-4">{T('Todavía no hay videos publicados.', 'No published videos yet.')}</p>}
+      </div>
+      {m.masters.map((x) => (
+        <section key={x.format + x.tier} className="rounded-2xl border border-line bg-surface p-4">
+          <h3 className="flex items-center gap-2 text-[15px] font-bold text-ink"><Layers size={15} /> {fmtName(x.format, en)} · tier {x.tier} <span className="text-[12px] font-normal text-ink-4">{x.videos.length} videos · {x.model}</span></h3>
+          {x.body.skeleton && <p className="mt-2 rounded-xl bg-accent-soft px-3 py-2 text-[13px] font-semibold text-ink">{x.body.skeleton}</p>}
+          <div className="mt-3 grid grid-cols-1 gap-3 text-[12.5px] md:grid-cols-2">
+            <div><div className={LABEL}>{T('Estructura promedio', 'Average structure')}</div><ol className="mt-1 flex flex-col gap-0.5 text-ink-2">{(x.body.beats ?? []).map((b, i) => <li key={i}><span className="font-mono text-[11px] text-ink-4">{b.from}–{b.to} s</span> <b className="text-ink">{b.purpose}</b> — {b.what}</li>)}</ol></div>
+            <div><div className={LABEL}>{T('Hooks más frecuentes', 'Most frequent hooks')}</div><ul className="mt-1 flex flex-col gap-0.5 text-ink-2">{(x.body.top_hooks ?? []).map((h, i) => <li key={i}><b className="text-ink">{h.type}</b> {Math.round((h.share ?? 0) * 100)} % — «{h.example}»</li>)}</ul></div>
+            {!!x.body.what_wins?.length && <div className="md:col-span-2"><div className={LABEL}>{T('Qué separa a los mejores', 'What sets the best apart')}</div><ul className="mt-1 list-disc pl-4 text-ink-2">{x.body.what_wins.map((w, i) => <li key={i}>{w}</li>)}</ul></div>}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+function Brands({ onPick }: { onPick: (b: string) => void }) {
+  const T = useT()
+  const [b, setB] = useState<{ brand: string; videos: number }[] | null>(null)
+  useEffect(() => { api.adtierBrands().then((r) => setB(r.brands)).catch(() => {}) }, [])
+  if (!b) return <Loader2 size={16} className="animate-spin text-ink-3" />
+  return (
+    <div className="flex flex-wrap gap-2">
+      {b.map((x) => <button key={x.brand} onClick={() => onPick(x.brand)} className={PILL}>{x.brand} <span className="text-ink-4">{x.videos}</span></button>)}
+      {!b.length && <p className="text-[13px] text-ink-4">{T('Todavía no hay marcas.', 'No brands yet.')}</p>}
+    </div>
+  )
+}
+
+function ApiInfo({ base }: { base: string }) {
+  const T = useT()
+  const mcp = `${base.replace(/\/$/, '')}/mcp/adtier`
+  const cfg = JSON.stringify({ mcpServers: { adtier: { type: 'http', url: mcp } } }, null, 2)
+  const copy = (t: string) => navigator.clipboard.writeText(t).then(() => toast.ok(T('Copiado', 'Copied')))
+  const rows: [string, string][] = [['GET /api/public/adtier/videos?tier=S&format=ugc&industry=fintech&q=…', T('Videos publicados con filtros (tier, format, industry, language, country, region=latam, min_s, max_s, q, page)', 'Published videos with filters (tier, format, industry, language, country, region=latam, min_s, max_s, q, page)')],
+    ['GET /api/public/adtier/videos/{slug}', T('Ficha: tier y justificación, evidencia, scores y plantilla', 'Card: tier and reason, evidence, scores and template')], ['GET /api/public/adtier/templates/{slug}', T('Solo la plantilla', 'Just the template')]]
+  return (
+    <div className="flex flex-col gap-4 text-[13px]">
+      <section className="rounded-2xl border border-line bg-surface p-4">
+        <h3 className="text-[15px] font-bold text-ink">{T('API pública de lectura', 'Public read API')}</h3>
+        <ul className="mt-2 flex flex-col gap-2">{rows.map(([u, d]) => <li key={u}><code className="break-all text-[12px] text-ink">{base.replace(/\/$/, '')}{u.replace(/^GET /, '')}</code><p className="text-ink-3">{d}</p></li>)}</ul>
+      </section>
+      <section className="rounded-2xl border border-line bg-surface p-4">
+        <h3 className="text-[15px] font-bold text-ink">{T('Servidor MCP', 'MCP server')}</h3>
+        <p className="mt-1 text-ink-3">{T('Herramientas: search_videos, get_template, list_tiers. Conectalo en Claude, Cursor o tu agente y pedí «3 videos tier S formato UGC, industria fintech».', 'Tools: search_videos, get_template, list_tiers. Connect it in Claude, Cursor or your agent and ask for «3 tier S UGC videos in fintech».')}</p>
+        <div className="mt-2 flex items-center gap-2"><code className="flex-1 break-all rounded-lg bg-surface-2 px-3 py-2 text-[12px] text-ink">{mcp}</code><button onClick={() => copy(mcp)} className={PILL}><Copy size={13} /></button></div>
+        <pre className="mt-2 overflow-x-auto rounded-lg bg-surface-2 p-3 text-[11.5px] text-ink-2">{cfg}</pre>
+        <button onClick={() => copy(cfg)} className={`${PILL} mt-2`}><Copy size={13} /> {T('Copiar configuración', 'Copy configuration')}</button>
+      </section>
+    </div>
+  )
+}

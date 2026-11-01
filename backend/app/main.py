@@ -70,6 +70,7 @@ from . import levels as levelsmod
 from . import ads as adsmod
 from . import meta_ads as metaads
 from . import studio as studiomod
+from . import adtier as adtiermod
 from . import tickets as ticketsmod
 from . import gitserver
 from . import agent_sessions
@@ -2541,6 +2542,7 @@ async def _startup():
     start_runner()
     cloudmod.resume_watchers()  # Tably Cloud apps still deploying on Railway get their «is it up yet?» watcher back
     spawn(incidentsmod.monitor())  # published apps: their errors go to the builder, fixed and published again
+    spawn(adtiermod.daily_loop())  # AdTier: videos whose embed stopped working are unpublished
 
 
 # ================================================================================================ Tably Cloud · git propio, publicar, base de datos, migrar
@@ -3650,6 +3652,188 @@ def studio_file(pid: str, name: str, request: Request, token: str = "", download
     slug = re.sub(r"[^a-z0-9]+", "-", (p.get("title") or "anuncio").lower()).strip("-") or "anuncio"
     return FileResponse(f, media_type="video/mp4" if f.suffix == ".mp4" else "image/jpeg", headers={"cache-control": "private, max-age=600"},
                         filename=f"{slug}-{f.name}" if download else None, content_disposition_type="attachment" if download else "inline")
+
+
+# ------------------------------------------------------------------------------------------------ AdTier (ads ranked S/A/B/C with templates)
+
+def _adtier_admin(user: User) -> None:
+    if not _is_admin(user):
+        raise HTTPException(403, "Solo quien administra Tably carga y revisa el catálogo de AdTier")
+
+
+def _adtier_filters(request: Request) -> dict:
+    q = request.query_params
+    return {k: q.get(k) for k in ("tier", "format", "industry", "language", "country", "platform_origin", "brand", "region", "min_s", "max_s", "embed_provider") if q.get(k)}
+
+
+@app.get("/api/adtier")
+def adtier_home(request: Request, user: User = CurrentUser):
+    """The tier list (S, A, B, C rows) with the filters, the facets to filter by and, for the admin, the review numbers."""
+    admin = _is_admin(user)
+    out = {"tiers": adtiermod.tier_list(_adtier_filters(request)), "facets": adtiermod.facets(), "admin": admin, "formats": adtiermod.FORMATS,
+           "takedown_email": env("ADTIER_TAKEDOWN_EMAIL") or None, "public_url": cloudmod.public_url()}
+    if admin:
+        out["agreement"] = adtiermod.agreement()
+    return out
+
+
+@app.get("/api/adtier/videos")
+def adtier_videos(request: Request, q: str = "", page: int = 1, status: str = "published", user: User = CurrentUser):
+    if status != "published":
+        _adtier_admin(user)
+    return adtiermod.search(_adtier_filters(request), q, status, max(1, page))
+
+
+@app.get("/api/adtier/videos/{vid}")
+def adtier_video(vid: str, user: User = CurrentUser):
+    v = adtiermod.get(vid)
+    admin = _is_admin(user)
+    if not v or (v["status"] != "published" and not admin):
+        raise HTTPException(404, "Video no encontrado")
+    return adtiermod.detail(v, admin)
+
+
+@app.get("/api/adtier/videos/{vid}/template.{ext}")
+def adtier_template_export(vid: str, ext: str, token: str = ""):
+    """The template as Markdown or JSON (download). Published videos only."""
+    v = adtiermod.get(vid)
+    tpl = adtiermod.template_of(v["id"], True) if v and v["status"] == "published" else None
+    if not tpl or ext not in ("md", "json"):
+        raise HTTPException(404)
+    name = f"{v['slug']}-plantilla.{ext}"
+    if ext == "md":
+        return Response(adtiermod.template_markdown(v, tpl["body"]), media_type="text/markdown; charset=utf-8", headers={"content-disposition": f'attachment; filename="{name}"'})
+    return Response(json.dumps(tpl["body"], ensure_ascii=False, indent=2), media_type="application/json", headers={"content-disposition": f'attachment; filename="{name}"'})
+
+
+@app.get("/api/adtier/brands")
+def adtier_brands(user: User = CurrentUser):
+    return {"brands": adtiermod.brands()}
+
+
+@app.get("/api/adtier/masters")
+def adtier_masters(user: User = CurrentUser):
+    return {"masters": adtiermod.masters_list(), "status": adtiermod.master_status(), "min": adtiermod.MASTER_MIN}
+
+
+# public read API and MCP (published videos only; no transcript)
+@app.get("/api/public/adtier/videos")
+def adtier_public_videos(request: Request, q: str = "", page: int = 1):
+    return adtiermod.search(_adtier_filters(request), q, "published", max(1, page))
+
+
+@app.get("/api/public/adtier/videos/{vid}")
+def adtier_public_video(vid: str):
+    v = adtiermod.get(vid)
+    if not v or v["status"] != "published":
+        raise HTTPException(404)
+    d = adtiermod.detail(v)
+    d.pop("similar", None)
+    return d
+
+
+@app.get("/api/public/adtier/templates/{vid}")
+def adtier_public_template(vid: str):
+    v = adtiermod.get(vid)
+    tpl = adtiermod.template_of(v["id"], True) if v and v["status"] == "published" else None
+    if not tpl:
+        raise HTTPException(404)
+    return {"video": {k: v.get(k) for k in ("slug", "title", "brand", "year", "source_url")}, "tier": (adtiermod.tier_of(v["id"]) or {}).get("tier"), "template": tpl["body"]}
+
+
+@app.post("/mcp/adtier")
+async def adtier_mcp(request: Request):
+    """AdTier as an MCP server (JSON-RPC over HTTP): search_videos, get_template, list_tiers."""
+    body = await request.json()
+    if isinstance(body, list):
+        out = [r for r in (adtiermod.mcp(x) for x in body) if r]
+        return out if out else Response(status_code=202)
+    res = adtiermod.mcp(body)
+    return res if res else Response(status_code=202)
+
+
+# admin: load, ingest, review
+@app.post("/api/adtier/admin/videos")
+def adtier_add(body: dict, user: User = CurrentUser):
+    """One video by URL with its evidence; the ingest starts right away."""
+    _adtier_admin(user)
+    try:
+        v = adtiermod.add(user, str(body.get("url") or ""), body.get("evidence") or [], body.get("meta") or {})
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    adtiermod.start_ingest(user, [v["id"]])
+    return adtiermod.detail(adtiermod.get(v["id"]) or v, True)
+
+
+@app.post("/api/adtier/admin/batch")
+def adtier_batch(body: dict, user: User = CurrentUser):
+    """A CSV lot: url, brand, agency, year, country, language, industry, format, evidence_type, evidence_detail, evidence_url, days_active, variations_count."""
+    _adtier_admin(user)
+    res = adtiermod.batch(user, str(body.get("csv") or ""))
+    adtiermod.start_ingest(user, res["added"])
+    return res
+
+
+@app.get("/api/adtier/admin/queue")
+def adtier_queue(user: User = CurrentUser):
+    _adtier_admin(user)
+    return {"drafts": adtiermod.search({}, "", "draft", 1, 200)["videos"], "review": adtiermod.search({}, "", "review", 1, 200)["videos"],
+            "running": list(adtiermod._jobs), "agreement": adtiermod.agreement(), "columns": adtiermod.CSV_COLUMNS}
+
+
+@app.patch("/api/adtier/admin/videos/{vid}")
+def adtier_edit(vid: str, body: dict, user: User = CurrentUser):
+    _adtier_admin(user)
+    if not adtiermod.get(vid):
+        raise HTTPException(404)
+    adtiermod.update_meta(vid, body)
+    if isinstance(body.get("evidence"), list):
+        adtiermod.set_evidence(vid, body["evidence"])
+    return adtiermod.detail(adtiermod.get(vid) or {}, True)
+
+
+@app.post("/api/adtier/admin/videos/{vid}/ingest")
+def adtier_reingest(vid: str, user: User = CurrentUser):
+    """Run the analysis again (after new evidence, a corrected format or a failure)."""
+    _adtier_admin(user)
+    if not adtiermod.get(vid):
+        raise HTTPException(404)
+    adtiermod.start_ingest(user, [vid])
+    return adtiermod.detail(adtiermod.get(vid) or {}, True)
+
+
+@app.post("/api/adtier/admin/videos/{vid}/review")
+def adtier_review(vid: str, body: dict, user: User = CurrentUser):
+    """The person's decision on the tier and the template; publishing happens only here."""
+    _adtier_admin(user)
+    try:
+        v = adtiermod.review(user, vid, str(body.get("tier") or ""), body.get("template") if isinstance(body.get("template"), dict) else None, bool(body.get("publish")), str(body.get("note") or "")[:400])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return adtiermod.detail(v, True)
+
+
+@app.delete("/api/adtier/admin/videos/{vid}")
+def adtier_delete(vid: str, user: User = CurrentUser):
+    _adtier_admin(user)
+    adtiermod.remove(vid)
+    return {"ok": True}
+
+
+@app.post("/api/adtier/admin/masters")
+async def adtier_make_master(body: dict, user: User = CurrentUser):
+    _adtier_admin(user)
+    try:
+        await adtiermod.make_master(user, str(body.get("format") or ""), str(body.get("tier") or ""))
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e))
+    return {"masters": adtiermod.masters_list(), "status": adtiermod.master_status(), "min": adtiermod.MASTER_MIN}
+
+
+@app.post("/api/adtier/admin/check-embeds")
+async def adtier_check(user: User = CurrentUser):
+    _adtier_admin(user)
+    return await adtiermod.validate_embeds()
 
 
 @app.get("/api/market")

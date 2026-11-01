@@ -758,6 +758,7 @@ async def write_script(user: User, b, t: dict, summary: dict, shots: list[dict],
         f"PANTALLAS QUE MUESTRA EL VIDEO (una caption por cada una, en este orden): {screens}",
         "\n".join(f"Texto de la pantalla {i + 1}: {s.get('text', '')[:600]}" for i, s in enumerate(shots) if s.get("text")),
         f"DESTINO DEL ANUNCIO: {url}" if url else "",
+        _references(),
         f"YA SE HICIERON ESTOS ÁNGULOS, PROBÁ OTRO DISTINTO: {'; '.join(avoid)}" if avoid else "",
         f"PEDIDO DEL USUARIO PARA ESTE ANUNCIO: {instructions}" if instructions else "",
     ]))
@@ -769,6 +770,20 @@ async def write_script(user: User, b, t: dict, summary: dict, shots: list[dict],
 
 
 # ------------------------------------------------------------------------------------------------------------ render
+
+def _references() -> str:
+    """Skeletons of real S/A ads from the AdTier catalogue: how the best ones are built (to learn from, never to copy)."""
+    try:
+        from . import adtier
+
+        refs = adtier.references(n=3)
+    except Exception:  # noqa: BLE001
+        refs = []
+    if not refs:
+        return ""
+    return "REFERENCIAS DEL CATÁLOGO ADTIER (anuncios reales de tier S/A: aprendé de su estructura, no copies su contenido):\n" + "\n".join(
+        f"- tier {r['tier']} · {r['format'] or ''}: {r['skeleton']} · hook: {r['hook'] or ''} · CTA: {r['cta'] or ''}" for r in refs)
+
 
 def labels(b) -> dict:
     return {"before": b.tx("Antes", "Before"), "after": b.tx("Ahora", "Now"), "pov": "POV:", "stop": b.tx("Basta de", "Stop"),

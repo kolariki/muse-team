@@ -16,6 +16,7 @@ dependencies = [
     "pypdf>=6.20.1",
     "markdown>=3.11.2",
     "pillow>=13.0.0",
+    "yt-dlp>=2026.9",
 ]
 
 [tool.uv]
