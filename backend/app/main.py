@@ -3784,7 +3784,18 @@ async def studio_gen_plan(pid: str, user: User = CurrentUser):
 async def studio_generate(pid: str, body: dict, user: User = CurrentUser):
     _studio(user, pid)
     try:
-        studiomod.generate(user, pid, str(body.get("voice") or ""), body.get("broll") if isinstance(body.get("broll"), list) else [])
+        studiomod.generate(user, pid, str(body.get("voice") or ""), body.get("broll") if isinstance(body.get("broll"), list) else [], str(body.get("app_url") or ""))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return studiomod.public(_studio(user, pid))
+
+
+@app.post("/api/studio/{pid}/tour")
+async def studio_tour(pid: str, body: dict, user: User = CurrentUser):
+    """«Grabar mi app»: Tably opens the app on a phone-sized browser, scrolls it and adds the recording to the ad's material."""
+    _studio(user, pid)
+    try:
+        studiomod.tour(user, pid, str(body.get("url") or ""))
     except ValueError as e:
         raise HTTPException(400, str(e))
     return studiomod.public(_studio(user, pid))

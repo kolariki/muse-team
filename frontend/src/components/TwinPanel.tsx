@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, Sparkles, Trash2, Upload, UserRound, Wand2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ExternalLink, KeyRound, Loader2, MonitorSmartphone, RefreshCw, Sparkles, Trash2, Upload, UserRound, Wand2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { api, type StudioGen, type StudioProject, type TwinState } from '../lib/api'
 import { useT } from '../lib/i18n'
@@ -18,6 +18,8 @@ export default function TwinPanel({ cur, ensure, onCur }: { cur: StudioProject |
   const [showPexels, setShowPexels] = useState(false)
   const [busy, setBusy] = useState(false)
   const [up, setUp] = useState<number | null>(null)
+  const [showApp, setShowApp] = useState(false)
+  const [appUrl, setAppUrl] = useState(cur?.link || '')
   const [plan, setPlan] = useState<StudioGen | null>(cur?.gen?.status === 'draft' ? cur.gen : null)
   const fileRef = useRef<HTMLInputElement>(null)
   const load = () => api.twin().then(setSt).catch(() => {})
@@ -50,7 +52,7 @@ export default function TwinPanel({ cur, ensure, onCur }: { cur: StudioProject |
   const go = async () => {
     if (!cur || !plan) return
     setBusy(true)
-    try { onCur(await api.studioGenerate(cur.id, { voice: plan.voice, broll: plan.broll })); setPlan(null) }
+    try { onCur(await api.studioGenerate(cur.id, { voice: plan.voice, broll: plan.broll, app_url: showApp ? (appUrl || cur.link) : '' })); setPlan(null) }
     catch (e) { toast.error(T('No se pudo generar', 'Could not generate'), (e as Error).message) } finally { setBusy(false) }
   }
 
@@ -142,9 +144,14 @@ export default function TwinPanel({ cur, ensure, onCur }: { cur: StudioProject |
                   ))}
                 </div>
               </div>}
+              <div className="rounded-xl border border-line bg-surface p-3">
+                <label className="flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-ink"><input type="checkbox" checked={showApp} onChange={(e) => { setShowApp(e.target.checked); if (!appUrl) setAppUrl(cur?.link || '') }} className="accent-[var(--color-accent)]" /> <MonitorSmartphone size={14} className="text-accent" /> {T('Mostrar mi app mientras hablo', 'Show my app while I talk')}</label>
+                <p className="mt-1 text-[11.5px] text-ink-3">{T('Tably abre tu app como un celular, la recorre y la graba; el equipo la muestra cuando hablás de lo que hace.', 'Tably opens your app like a phone, walks through it and records it; the team shows it when you talk about what it does.')}</p>
+                {showApp && <input value={appUrl} onChange={(e) => setAppUrl(e.target.value)} placeholder="https://elevum.com" type="url" autoComplete="off" className={`${INPUT} mt-2`} />}
+              </div>
               <p className="text-[11.5px] text-ink-3">{T(`HeyGen va a hacer ~${Math.round(words / 2.6)} s de video de tu gemelo con tu saldo de API.`, `HeyGen will make ~${Math.round(words / 2.6)} s of your twin's video from your API balance.`)} {stockOk ? T('Las tomas de apoyo son gratis.', 'The stock shots are free.') : T('Sin tomas de apoyo: cargá una clave de Pixabay arriba si las querés.', 'No stock shots: add a Pixabay key above if you want them.')}</p>
               <div className="flex flex-wrap gap-2">
-                <button disabled={busy || words < 8} onClick={go} className={PRIMARY}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />} {T('Generar el anuncio', 'Generate the ad')}</button>
+                <button disabled={busy || words < 8 || (showApp && !appUrl.trim())} onClick={go} className={PRIMARY}>{busy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />} {T('Generar el anuncio', 'Generate the ad')}</button>
                 <button disabled={busy} onClick={write} className={PILL}><RefreshCw size={13} /> {T('Escribir otro', 'Write another')}</button>
               </div>
             </>

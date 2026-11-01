@@ -1,4 +1,4 @@
-import { AlertTriangle, BadgeCheck, CheckCircle2, Clapperboard, Download, Ear, Film, ImageIcon, KeyRound, Loader2, Plus, RotateCcw, Scissors, Square, Trash2, Upload, Wand2, X } from 'lucide-react'
+import { AlertTriangle, BadgeCheck, CheckCircle2, Clapperboard, Download, Ear, Film, ImageIcon, KeyRound, Loader2, MonitorSmartphone, Plus, RotateCcw, Scissors, Square, Trash2, Upload, Wand2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { api, type StudioEvent, type StudioList, type StudioProject } from '../lib/api'
 import { tr, useT } from '../lib/i18n'
@@ -35,10 +35,10 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
   useEffect(() => { const sid = useArena.getState().studioOpen; if (sid) { useArena.getState().set({ studioOpen: null }); open(sid) } }, []) // eslint-disable-line react-hooks/exhaustive-deps
   // while the team works, follow it
   useEffect(() => {
-    if (!cur?.running && cur?.status !== 'running') return
+    if (!cur?.running && cur?.status !== 'running' && cur?.tour?.status !== 'working') return
     const t = window.setInterval(() => { if (document.visibilityState === 'visible') api.studio(cur.id).then((p) => { setCur(p); if (!p.running) loadList() }).catch(() => {}) }, 2500)
     return () => window.clearInterval(t)
-  }, [cur?.id, cur?.running, cur?.status])
+  }, [cur?.id, cur?.running, cur?.status, cur?.tour?.status])
 
   const open = (id: string) => api.studio(id).then((p) => { setCur(p); setDraft({ title: p.title, instructions: p.instructions, link: p.link, goal: p.goal }) })
   const fresh = () => { setCur(null); setDraft({ title: '', instructions: '', link: '', goal: 'sell' }); setUps([]) }
@@ -76,21 +76,32 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
 
   const busy = !!cur && (cur.running || cur.status === 'running')
   // the ad the twin panel works on: the open one (with what is typed now), or a new one made from the form
-  const ensure = async () => {
+  const ensure = async (fallbackTitle = '') => {
     try {
       if (cur) { const p = await api.studioPatch(cur.id, { title: draft.title, instructions: draft.instructions, link: draft.link }); setCur(p); return p }
-      if (!draft.instructions.trim()) {
+      if (!draft.instructions.trim() && !fallbackTitle) {
         // take them to the field instead of only saying it
         setNeedWhat(true)
         whatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         whatRef.current?.focus({ preventScroll: true })
         return null
       }
-      const p = await api.studioCreate({ ...draft, title: draft.title || draft.instructions.slice(0, 60), lang: en ? 'en' : 'es' })
+      const p = await api.studioCreate({ ...draft, title: draft.title || draft.instructions.slice(0, 60) || fallbackTitle, lang: en ? 'en' : 'es' })
       setCur(p); setDraft((d) => ({ ...d, title: p.title })); loadList()
       return p
     } catch (e) { toast.error(T('No se pudo guardar el anuncio', 'Could not save the ad'), (e as Error).message); return null }
   }
+  // «Grabar mi app»: Tably opens the app like a phone, scrolls it and adds the recording to the material
+  const [tourUrl, setTourUrl] = useState<string | null>(null)
+  const recordApp = async () => {
+    const url = (tourUrl ?? (draft.link || cur?.tour?.url || '')).trim()
+    if (!url) { toast.error(T('Pegá el link de tu app', 'Paste your app link')); return }
+    if (!draft.link.trim()) { draft.link = url; setDraft((d) => ({ ...d, link: url })) } // it is also where the ad sends people
+    const p = await ensure(url.replace(/^https?:\/\//, '').split('/')[0])
+    if (!p) return
+    try { setCur(await api.studioTour(p.id, url)); setTourUrl(null) } catch (e) { toast.error(T('No se pudo grabar', 'Could not record'), (e as Error).message) }
+  }
+  const touring = cur?.tour?.status === 'working'
   const agents = list?.agents ?? []
   return (
     <div className="min-h-full bg-paper">
@@ -178,7 +189,18 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
                 )}
               </div>
 
-              {!busy && !cur?.media.length && !ups.length && <TwinPanel cur={cur} ensure={ensure} onCur={(p) => { setCur(p); loadList() }} />}
+              {!busy && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 text-[12.5px] text-ink-2">
+                  <MonitorSmartphone size={15} className="shrink-0 text-accent" />
+                  <span className="min-w-[min(100%,220px)] flex-1">{touring ? (cur?.tour?.step || T('Grabando tu app…', 'Recording your app…')) : T('¿Es una app o una web? Tably la abre como un celular, la recorre y suma la grabación.', 'Is it an app or a website? Tably opens it like a phone, walks through it and adds the recording.')}</span>
+                  {touring ? <Loader2 size={15} className="animate-spin text-accent" /> : <>
+                    <input value={tourUrl ?? (draft.link || cur?.tour?.url || '')} onChange={(e) => setTourUrl(e.target.value)} placeholder="https://" type="url" autoComplete="off" className="h-8 w-full rounded-lg border border-line bg-paper px-2.5 text-[12.5px] outline-none focus:border-accent min-[640px]:w-56" />
+                    <button onClick={recordApp} className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110"><Film size={13} /> {T('Grabar mi app', 'Record my app')}</button>
+                  </>}
+                  {cur?.tour?.status === 'error' && !touring && <span className="w-full text-[12px] text-danger">{cur.tour.error} {T('Tocá «Grabar mi app» para probar de nuevo.', 'Tap «Record my app» to try again.')}</span>}
+                </div>
+              )}
+              {!busy && !cur?.media.length && !ups.length && <TwinPanel cur={cur} ensure={() => ensure()} onCur={(p) => { setCur(p); loadList() }} />}
               {cur?.gen?.status === 'working' && (
                 <p className="mt-4 flex items-center gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-3 py-2.5 text-[13px] text-ink-2"><Loader2 size={14} className="animate-spin text-accent" /> {cur.gen.step || T('Generando el material…', 'Generating the footage…')}</p>
               )}

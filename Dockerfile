@@ -23,7 +23,7 @@ WORKDIR /app/backend/video
 COPY backend/video/package*.json ./
 RUN npm ci --no-audit --no-fund && node -e "require('@remotion/renderer').ensureBrowser().then(() => console.log('remotion chrome ok'))"
 COPY backend/video/src ./src
-COPY backend/video/render.mjs ./
+COPY backend/video/render.mjs backend/video/tour.mjs ./
 RUN npx remotion bundle src/index.ts --out-dir build
 # betterleaks: before publishing, Tably looks for keys written in the apps' code (see app/leaks.py); pinned and checked
 ARG BETTERLEAKS=1.9.0

@@ -358,7 +358,8 @@ export const api = {
   twinConsent: () => j<TwinState>(post('/api/twin/consent', {})),
   twinForget: () => j<TwinState>(authed('/api/twin', { method: 'DELETE' })),
   studioGenPlan: (id: string) => j<StudioGen>(post(`/api/studio/${id}/generate/plan`, {})),
-  studioGenerate: (id: string, body: { voice: string; broll: { query: string; shows: string }[] }) => j<StudioProject>(post(`/api/studio/${id}/generate`, body)),
+  studioGenerate: (id: string, body: { voice: string; broll: { query: string; shows: string }[]; app_url?: string }) => j<StudioProject>(post(`/api/studio/${id}/generate`, body)),
+  studioTour: (id: string, url: string) => j<StudioProject>(post(`/api/studio/${id}/tour`, { url })),
   studioStop: (id: string) => j<StudioProject>(post(`/api/studio/${id}/stop`, {})),
   studioFileUrl: (id: string, name: string, v: number | string = '', download = false) => `/api/studio/${id}/file/${name}?token=${encodeURIComponent(getToken() ?? '')}&v=${v}${download ? '&download=1' : ''}`,
   /** One upload with progress (XHR: fetch has no upload progress). */
@@ -624,6 +625,7 @@ export interface StudioProject {
   timeline?: StudioEvent[]; agents?: Record<string, { status: 'waiting' | 'working' | 'done' | 'returned' | 'error'; by?: string }>
   preview?: { file: string; round: number; ts: number } | null; final?: { vertical: string; square: string; approved: boolean; ts: number } | null
   gen?: StudioGen | null
+  tour?: { status: 'working' | 'done' | 'error'; step?: string | null; url: string; error?: string | null } | null  // «Grabar mi app»
 }
 /** An ad made without footage: what the digital twin says and the stock shots (backend/app/twin.py, studio.gen_plan / generate). */
 export interface StudioGen { status?: 'draft' | 'working' | 'done' | 'error'; step?: string | null; error?: string | null; voice: string; broll: { query: string; shows: string }[]; seconds: number; credits?: { author: string; page: string; site?: string }[] }

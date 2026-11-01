@@ -48,6 +48,7 @@ AGENTS = [
 ]
 VISION = ("meta", "anthropic", "openai", "gemini", "xai", "openrouter")
 _running: dict[str, asyncio.Task] = {}
+_tours: dict[str, asyncio.Task] = {}
 
 
 # ------------------------------------------------------------------------------------------------------------ storage
@@ -97,7 +98,7 @@ def listing(user_id: str) -> list[dict]:
 
 
 def public(p: dict, brief: bool = False) -> dict:
-    keep = ("id", "title", "created", "updated", "status", "stage", "error", "round", "version", "final", "preview", "goal", "link", "instructions", "language", "gen")
+    keep = ("id", "title", "created", "updated", "status", "stage", "error", "round", "version", "final", "preview", "goal", "link", "instructions", "language", "gen", "tour")
     out = {k: p.get(k) for k in keep}
     out["media"] = [{k: m.get(k) for k in ("id", "name", "kind", "duration", "width", "height", "audio", "thumb")} for m in p.get("media", [])]
     if not brief:
@@ -298,6 +299,8 @@ Reglas de un anuncio que rinde:
 - Si hay tomas de apoyo (videos sin voz, como los de Pexels) y un video de alguien hablando, la voz no se corta: en los tramos del video
   que habla poné "cover": "<id de la toma>" (y "cover_from": segundo de la toma) para mostrar la toma mientras sigue la voz. La cara va
   en el gancho y en el cierre; en el medio, alterná cara y tomas cada 2 a 4 segundos.
+- Un video «Recorrido de …» es la app o la página del producto en pantalla (sin voz): mostralo (como cover o como plano) cuando se habla
+  de lo que hace el producto, en tramos de 3 a 6 segundos, y avanzá su segundo de inicio para que no se repita la misma parte.
 - Escribí todo en {lang}.
 
 Respondé SOLO JSON:
@@ -644,7 +647,110 @@ async def gen_plan(user: User, pid: str) -> dict:
     return plan
 
 
-def generate(user: User, pid: str, voice: str, broll: list[dict]) -> dict:
+# ------------------------------------------------------------------------------------------------ a recorded walk through the user's app
+
+async def record_app(url: str, out: Path, seconds: int = 24, on_step=None) -> Path:
+    """backend/video/tour.mjs opens the app on a phone-sized headless Chrome and scrolls it (and a few pages of its menu);
+    the frames become a 1080×1920 mp4 at `out`."""
+    import shutil as _sh
+    node = _sh.which("node")
+    if not node or not (adsmod.VIDEO_DIR / "node_modules").exists():
+        raise RuntimeError("Falta el motor de video en el servidor")
+    frames = out.parent / f"{out.stem}-frames"
+    job = out.parent / f"{out.stem}-job.json"
+    job.write_text(json.dumps({"url": url, "out": str(frames), "seconds": seconds, **({"browser": adsmod._browser()["browser"]} if adsmod._browser() else {})}))
+    proc = await asyncio.create_subprocess_exec(node, str(adsmod.VIDEO_DIR / "tour.mjs"), str(job), cwd=str(adsmod.VIDEO_DIR),
+                                                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, limit=1 << 20)
+    err, fps, n = "", 30, 0
+    try:
+        assert proc.stdout
+        async for line in proc.stdout:
+            try:
+                ev = json.loads(line)
+            except ValueError:
+                continue
+            if ev.get("step") and on_step:
+                on_step(ev["step"])
+            elif ev.get("done"):
+                fps, n = ev.get("fps") or 30, ev.get("frames") or 0
+            elif ev.get("error"):
+                err = ev["error"]
+        await asyncio.wait_for(proc.wait(), 30)
+        if err or n < 10:
+            raise RuntimeError(f"No se pudo grabar {url}: {err or 'la página no cargó'}")
+        if on_step:
+            on_step("Armando el video del recorrido")
+        enc = await asyncio.create_subprocess_exec("ffmpeg", "-loglevel", "error", "-y", "-framerate", str(fps), "-i", str(frames / "f%05d.jpg"),
+                                                   "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,format=yuv420p",
+                                                   "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-movflags", "+faststart", str(out),
+                                                   stderr=asyncio.subprocess.PIPE)
+        _, e = await enc.communicate()
+        if enc.returncode != 0:
+            raise RuntimeError("No se pudo armar el video del recorrido: " + e.decode(errors="replace")[-200:])
+        return out
+    finally:
+        if proc.returncode is None:
+            proc.kill()
+        shutil.rmtree(frames, ignore_errors=True)
+        job.unlink(missing_ok=True)
+
+
+def tour(user: User, pid: str, url: str) -> dict:
+    """«Grabar mi app»: a recorded walk through the app, added to the ad's material."""
+    from .tasks import spawn
+    from .sites import normal_url
+
+    proj = load(user.id, pid)
+    if not proj:
+        raise ValueError("Proyecto no encontrado")
+    if pid in _running:
+        raise ValueError("El equipo está trabajando: esperá a que termine")
+    if pid in _tours:
+        raise ValueError("Ya se está grabando la app")
+    url = normal_url(url or proj.get("link") or "") or ""
+    if not url:
+        raise ValueError("Pegá el link de tu app")
+    proj["tour"] = {"status": "working", "step": "Abriendo la página", "url": url}
+    save(user.id, proj)
+    _tours[pid] = spawn(_tour(user, pid, url))  # type: ignore[assignment]
+    return proj
+
+
+async def _tour(user: User, pid: str, url: str) -> None:
+    from urllib.parse import urlparse
+
+    uid = user.id
+    tmp = folder(uid, pid) / "work" / f"tour-{secrets.token_hex(3)}"
+    tmp.mkdir(parents=True, exist_ok=True)
+
+    def step(text: str) -> None:
+        p = load(uid, pid) or {}
+        p.setdefault("tour", {})["step"] = text
+        save(uid, p)
+    try:
+        out = await record_app(url, tmp / "tour.mp4", on_step=step)
+
+        async def chunks():
+            with out.open("rb") as f:
+                while c := f.read(1 << 20):
+                    yield c
+        await add_media(user, pid, f"Recorrido de {urlparse(url).hostname}.mp4", chunks())
+        p = load(uid, pid) or {}
+        p["tour"] = {"status": "done", "step": None, "url": url}
+        save(uid, p)
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:  # noqa: BLE001
+        log.warning("studio tour %s: %s", pid, e)
+        p = load(uid, pid) or {}
+        p["tour"] = {"status": "error", "step": None, "url": url, "error": str(e)[:300]}
+        save(uid, p)
+    finally:
+        _tours.pop(pid, None)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def generate(user: User, pid: str, voice: str, broll: list[dict], app_url: str = "") -> dict:
     """Make the footage (the twin talking on HeyGen + the Pexels shots), add it as the ad's material and start the team."""
     from .tasks import spawn
     from . import twin
@@ -654,6 +760,11 @@ def generate(user: User, pid: str, voice: str, broll: list[dict]) -> dict:
         raise ValueError("Proyecto no encontrado")
     if pid in _running:
         raise ValueError("El equipo ya está trabajando en este anuncio")
+    if pid in _tours:
+        raise ValueError("Esperá a que termine de grabarse tu app")
+    if app_url:
+        from .sites import normal_url
+        app_url = normal_url(app_url) or ""
     t = twin.get(user.id)
     if not t or t["status"] != "ready":
         raise ValueError("Tu gemelo digital todavía no está listo")
@@ -666,11 +777,11 @@ def generate(user: User, pid: str, voice: str, broll: list[dict]) -> dict:
     proj.update(status="running", stage="generate", error=None, gen={"status": "working", "step": "Pidiéndole el video a HeyGen", "voice": voice, "broll": broll,
                                                                      "seconds": round(twin.words(voice) / 2.6)})
     save(user.id, proj)
-    _running[pid] = spawn(_generate(user, pid, voice, broll))  # type: ignore[assignment]
+    _running[pid] = spawn(_generate(user, pid, voice, broll, app_url))  # type: ignore[assignment]
     return proj
 
 
-async def _generate(user: User, pid: str, voice: str, broll: list[dict]) -> None:
+async def _generate(user: User, pid: str, voice: str, broll: list[dict], app_url: str = "") -> None:
     from . import twin
 
     uid = user.id
@@ -692,6 +803,12 @@ async def _generate(user: User, pid: str, voice: str, broll: list[dict]) -> None
     try:
         proj = load(uid, pid) or {}
         vid = await twin.render_talk(uid, voice, proj.get("title") or "Anuncio")
+        if app_url:  # the app on screen while the twin talks: recorded while HeyGen renders
+            step("Grabando tu app")
+            try:
+                await add(await record_app(app_url, tmp / "app.mp4", seconds=min(40, max(12, round(twin.words(voice) / 2.6)))), "Recorrido de tu app.mp4")
+            except Exception as e:  # noqa: BLE001 — the ad still works without it
+                log.warning("gen tour %s: %s", app_url, e)
         # the stock shots come down while HeyGen renders
         used: set[int] = set()
         credits = []
