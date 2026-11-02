@@ -403,7 +403,7 @@ export const api = {
   foryouSearch: (id: string) => j<ForYouMatches>(post(`/api/adtier/foryou/${id}/search`, {})),
   foryouIdeas: (id: string, accounts?: string[]) => j<ForYouMatches>(post(`/api/adtier/foryou/${id}/ideas`, accounts ? { accounts } : {})),
   metaApp: () => j<MetaApp>(authed('/api/settings/meta-app')),
-  metaAppSet: (body: { app_id?: string; app_secret?: string }) => j<MetaApp>(authed('/api/settings/meta-app', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
+  metaAppSet: (body: { app_id?: string; app_secret?: string; config_id?: string }) => j<MetaApp>(authed('/api/settings/meta-app', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
   foryouUpload: (id: string, file: File, onProgress: (p: number) => void, source: 'upload' | 'recording' = 'upload') => new Promise<ForYouMatches>((resolve, reject) => {
     const x = new XMLHttpRequest()
     x.open('POST', `/api/adtier/foryou/${id}/uploads`)
@@ -677,7 +677,7 @@ export interface ForYouProfileData { name: string; summary: string; sector: stri
   industries: string[]; keywords: string[]; formats: string[]; queries: string[]; why: string; by: string | null; placement?: 'reels' | 'stories' | 'long'
   accounts?: string[]; refs?: ForYouRef[]; notes?: ForYouNote[]; ideas?: ReelIdea[]; patterns?: string; ideas_by?: string | null; ideas_at?: number; ideas_error?: string | null; uploads?: ForYouUpload[]; ideas_ups?: string[] }
 export interface ForYouUpload { id: string; name: string; kind: 'video' | 'image'; status: 'reading' | 'ready' | 'error'; error: string | null; duration: number | null; frames: string[]; transcript: string; heard?: boolean; audio?: boolean; source?: 'upload' | 'recording'; video?: string | null; trimmed?: boolean }
-export interface MetaApp { admin: boolean; app_id: string | null; has_secret: boolean; configured: boolean; redirect_uri: string }
+export interface MetaApp { admin: boolean; app_id: string | null; has_secret: boolean; configured: boolean; redirect_uri: string; config_id?: string | null }
 export interface ForYouRef { caption: string; url: string; thumb: string | null; views?: number | null; likes?: number | null; comments?: number | null; duration?: number | null; date?: string; platform: string | null; account: string }
 export interface ForYouNote { account: string; platform: string; handle: string; via: string | null; count: number; problem: string | null; action: 'connect_meta' | 'enable_meta' | null; name?: string; followers?: number | null }
 export interface ReelIdea { title: string; duration_s: number; based_on: number[]; why: string; hook: string; beats: { t: string; shot: string; text: string; voice: string }[]; cta: string; caption: string; audio: string }

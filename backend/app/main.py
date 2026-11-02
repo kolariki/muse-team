@@ -2607,7 +2607,7 @@ def notion_app_set(body: dict, user: User = CurrentUser):
 def meta_app_get(user: User = CurrentUser):
     """The installation's Meta app (Ads + Instagram reading): set from the UI by the admin, the secret never goes back to a browser."""
     aid, sec = metaads.app_creds()
-    return {"admin": _is_admin(user), "app_id": aid if _is_admin(user) else None, "has_secret": bool(sec), "configured": metaads.ready(),
+    return {"admin": _is_admin(user), "app_id": aid if _is_admin(user) else None, "has_secret": bool(sec), "configured": metaads.ready(), "config_id": metaads.config_id() if _is_admin(user) else None,
             "redirect_uri": metaads.redirect_uri(cloudmod.public_url())}
 
 
@@ -2618,6 +2618,11 @@ def meta_app_set(body: dict, user: User = CurrentUser):
     aid, sec = str(body.get("app_id") or "").strip(), str(body.get("app_secret") or "").strip()
     if aid and not aid.isdigit():
         raise HTTPException(400, "El App ID de Meta son solo números (lo ves arriba en developers.facebook.com → tu app).")
+    cfg = str(body.get("config_id") or "").strip()
+    if cfg and not cfg.isdigit():
+        raise HTTPException(400, "El identificador de configuración son solo números (Inicio de sesión con Facebook para empresas → Configuraciones).")
+    if cfg:
+        ticketsmod.set_setting("meta_ads_config_id", cfg)
     if aid:
         ticketsmod.set_setting("meta_ads_app_id", aid)
     if sec:

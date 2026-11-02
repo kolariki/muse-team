@@ -56,6 +56,13 @@ def app_creds() -> tuple[str | None, str | None]:
     return (_setting("meta_ads_app_id") or env("META_ADS_APP_ID") or None, _setting("meta_ads_app_secret") or env("META_ADS_APP_SECRET") or None)
 
 
+def config_id() -> str | None:
+    """A «Facebook Login for Business» configuration (Business-type apps ask for permissions through it instead of a scope list)."""
+    from .tickets import _setting
+
+    return _setting("meta_ads_config_id") or env("META_ADS_CONFIG_ID") or None
+
+
 def ready() -> bool:
     a, s = app_creds()
     return bool(a and s)
@@ -79,8 +86,10 @@ def start(user_id: str, public_url: str, scopes: tuple[str, ...] = SCOPES) -> st
         _STATES.pop(k, None)
     state = secrets.token_urlsafe(24)
     _STATES[state] = (user_id, now + 600, scopes)
-    return f"https://www.facebook.com/{version()}/dialog/oauth?" + urlencode({
-        "client_id": app_creds()[0], "redirect_uri": redirect_uri(public_url), "state": state, "response_type": "code", "scope": ",".join(scopes)})
+    params = {"client_id": app_creds()[0], "redirect_uri": redirect_uri(public_url), "state": state, "response_type": "code"}
+    cfg = config_id()
+    params.update({"config_id": cfg, "override_default_response_type": "true"} if cfg else {"scope": ",".join(scopes)})
+    return f"https://www.facebook.com/{version()}/dialog/oauth?" + urlencode(params)
 
 
 def _check(r: httpx.Response) -> dict:

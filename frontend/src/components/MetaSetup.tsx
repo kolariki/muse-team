@@ -15,12 +15,13 @@ export default function MetaSetup({ onDone, onCancel }: { onDone: () => void; on
   const [st, setSt] = useState<MetaApp | null>(null)
   const [aid, setAid] = useState('')
   const [sec, setSec] = useState('')
+  const [cfg, setCfg] = useState('')
   const [busy, setBusy] = useState(false)
-  useEffect(() => { api.metaApp().then((s) => { setSt(s); setAid(s.app_id ?? '') }).catch(() => {}) }, [])
+  useEffect(() => { api.metaApp().then((s) => { setSt(s); setAid(s.app_id ?? ''); setCfg(s.config_id ?? '') }).catch(() => {}) }, [])
   const save = async () => {
     setBusy(true)
     try {
-      const s = await api.metaAppSet({ app_id: aid.trim(), app_secret: sec.trim() || undefined })
+      const s = await api.metaAppSet({ app_id: aid.trim(), app_secret: sec.trim() || undefined, config_id: cfg.trim() || undefined })
       setSt(s)
       if (s.configured) { toast.ok(T('Meta quedó habilitado', 'Meta is enabled'), T('Ahora tocá «Conectar Meta Ads» para conectar tu cuenta.', 'Now tap «Connect Meta Ads» to connect your account.')); onDone() }
     } catch (e) { toast.error(T('No pude guardar', 'Could not save'), (e as Error).message) } finally { setBusy(false) }
@@ -40,6 +41,7 @@ export default function MetaSetup({ onDone, onCancel }: { onDone: () => void; on
       <div className="grid gap-2 sm:grid-cols-2">
         <input value={aid} onChange={(e) => setAid(e.target.value)} placeholder={T('Identificador de la app (App ID)', 'App ID')} className={INPUT} inputMode="numeric" />
         <input value={sec} onChange={(e) => setSec(e.target.value)} placeholder={st.has_secret ? T('Clave secreta (ya cargada; dejala vacía para no cambiarla)', 'App secret (already set; leave empty to keep it)') : T('Clave secreta de la app', 'App secret')} className={INPUT} type="password" autoComplete="off" />
+        <input value={cfg} onChange={(e) => setCfg(e.target.value)} placeholder={T('Identificador de configuración (Inicio de sesión para empresas → Configuraciones)', 'Configuration ID (Login for Business → Configurations)')} className={`${INPUT} sm:col-span-2`} inputMode="numeric" />
       </div>
       <p className="text-[11.5px] text-ink-3">{T('Mientras Meta no apruebe la app (revisión de la app), solo funciona con las cuentas que sean administradoras o testers de esa app. La clave se guarda cifrada y nunca vuelve al navegador.', 'Until Meta approves the app (App Review), it only works with accounts that are admins or testers of that app. The secret is stored encrypted and never goes back to the browser.')}</p>
       <div className="flex flex-wrap gap-2">
