@@ -1,5 +1,6 @@
 import { AlertTriangle, BadgeCheck, CheckCircle2, Clapperboard, Download, Ear, Film, ImageIcon, KeyRound, Loader2, MonitorSmartphone, Plus, RotateCcw, Scissors, Square, Trash2, Upload, Wand2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { PageLoader } from './HomeLoader'
 import { api, type StudioEvent, type StudioList, type StudioProject } from '../lib/api'
 import { tr, useT } from '../lib/i18n'
 import { useArena } from '../store'
@@ -30,7 +31,8 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
   const whatRef = useRef<HTMLTextAreaElement>(null)
   const [needWhat, setNeedWhat] = useState(false)
 
-  const loadList = () => api.studioList().then(setList).catch((e) => toast.error(tr('No pude leer tus anuncios', 'Could not read your ads'), (e as Error).message))
+  const [failed, setFailed] = useState(false)
+  const loadList = () => api.studioList().then(setList).catch((e) => { setFailed(true); toast.error(tr('No pude leer tus anuncios', 'Could not read your ads'), (e as Error).message) })
   useEffect(() => { loadList() }, [])
   useEffect(() => { const sid = useArena.getState().studioOpen; if (sid) { useArena.getState().set({ studioOpen: null }); open(sid) } }, []) // eslint-disable-line react-hooks/exhaustive-deps
   // while the team works, follow it
@@ -103,9 +105,10 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
   }
   const touring = cur?.tour?.status === 'working'
   const agents = list?.agents ?? []
+  if (!list && !failed) return <PageLoader caption={T('Abriendo el estudio de anuncios…', 'Opening the ad studio…')} />
   return (
     <div className="min-h-full bg-paper">
-      <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6">
+      <div className="w-full px-4 py-5 sm:px-8 sm:py-8 2xl:px-12">
         <PageHeader onBack={onBack} kicker={T('Estudio de anuncios', 'Ad Studio')} title={T('Un anuncio con tus videos e imágenes', 'An ad from your videos and images')}
           subtitle={T('Subí lo que tengas. El equipo escucha lo que se dice, elige los mejores momentos, arma el video con subtítulos, transiciones y tus imágenes, lo revisa hasta aprobarlo y te lo deja en vertical y cuadrado para Meta.', 'Upload what you have. The team listens to what is said, picks the best moments, edits the video with subtitles, transitions and your images, reviews it until it is approved and gives it to you vertical and square for Meta.')} />
 

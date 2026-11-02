@@ -1,5 +1,6 @@
 import { AnimatePresence } from 'framer-motion'
 import { TeamMemoryWatcher, TeamPage } from './components/TeamMemory'
+import { PageLoader } from './components/HomeLoader'
 import AnalyticsPage from './components/AnalyticsPage'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import ArenaGraph from './components/ArenaGraph'
@@ -570,9 +571,9 @@ function AppInner() {
   if (view === 'tickets' && TICKETS_ENABLED) return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Tickets onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
   if (view === 'analytics') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><AnalyticsPage onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
   if (view === 'team') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><TeamPage onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
-  if (view === 'adtier') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={null}><AdTier onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
-  if (view === 'metaads') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={null}><MetaAdsPage onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
-  if (view === 'studio') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={null}><AdStudio onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
+  if (view === 'adtier') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={<PageLoader />}><AdTier onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
+  if (view === 'metaads') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={<PageLoader />}><MetaAdsPage onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
+  if (view === 'studio') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={<PageLoader />}><AdStudio onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
   if (view === 'market') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Marketplace onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
   if (view === 'setup') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Setup key={user.id} user={user} onLogout={logout} onSettings={() => useArena.getState().set({ view: 'settings' })} onAudit={() => useArena.getState().set({ view: 'audit' })} onStart={start} onDirect={direct} onReplay={startReplay} onOpen={(id, mode) => (mode === 'run' ? runApp(id) : openSaved(id, mode !== 'arena', mode === 'builder')).catch((e) => toast.error(tr('No se pudo abrir', 'Could not open'), (e as Error).message))} />{runOverlayLayer}</AppShell></>
 

@@ -7,7 +7,7 @@ import { getLang, tr, useT } from '../lib/i18n'
 import { useArena } from '../store'
 import AgentAvatar from './AgentAvatar'
 import PageHeader from './PageHeader'
-import { PanelLoader } from './HomeLoader'
+import { PageLoader, PanelLoader } from './HomeLoader'
 import { Employees, loadEmployees, useEmployees } from './MyTeam'
 import { toast } from './Toast'
 
@@ -69,15 +69,16 @@ export function TeamMemoryButton({ className = '' }: { className?: string }) {
 
 type Tab = 'team' | 'review' | 'memory' | 'score'
 
-/** Opens «Mi equipo»: as its own page from the home (like «Modelos y API keys»), as a window over the builder. */
+/** Opens «Mi equipo»: as its own screen from any section, as a window over the builder or a live council. */
 export function openTeam(tab?: Tab) {
   const view = useArena.getState().view
   const t = tab ?? ((useMemory.getState().data?.insights.length ?? 0) > 0 ? 'review' : 'team')
   useMemory.getState().set({ tab: t })
   load()
   loadEmployees()
-  if (view === 'setup' || view === 'team') useArena.getState().set({ view: 'team' })
-  else useMemory.getState().set({ open: true })
+  // inside the builder or a live council it stays a window over the work; everywhere else it is its own screen
+  if (view === 'builder' || view === 'arena') useMemory.getState().set({ open: true })
+  else useArena.getState().set({ view: 'team' })
 }
 
 function TeamTabs() {
@@ -135,7 +136,10 @@ const INTRO: [string, string] = ['Tus roles quedan guardados con su prompt, su c
 export function TeamPage({ onBack }: { onBack: () => void }) {
   const T = useT()
   const n = useEmployees((s) => s.list?.length ?? 0)
-  useEffect(() => { load(); loadEmployees() }, [])
+  const ready = useEmployees((s) => !!s.list)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => { load(); loadEmployees().then((r) => { if (!r) setFailed(true) }) }, [])
+  if (!ready && !failed) return <PageLoader caption={T('Reuniendo a tu equipo…', 'Gathering your team…')} />
   return (
     <div className="h-full overflow-y-auto scroll-thin arena-bg">
       <div className="w-full px-4 py-5 sm:px-8 sm:py-8 2xl:px-12">

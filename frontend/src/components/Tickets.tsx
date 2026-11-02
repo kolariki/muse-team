@@ -191,7 +191,7 @@ export default function Tickets({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="min-h-full bg-paper">
-      <div className="mx-auto max-w-[1100px] px-6 py-6">
+      <div className="w-full px-4 py-5 sm:px-8 sm:py-8 2xl:px-12">
         <PageHeader onBack={onBack} kicker="Notion" title="Tickets" subtitle={T('Tus tickets de Notion, por urgencia. «Resolver ticket» se lo da al equipo: lo construye, el consejo lo verifica contra el ticket y, si aprueba, abre el pull request y lo pasa a code review.', 'Your Notion tickets, by urgency. "Resolve ticket" hands it to the team: it builds it, the council verifies it against the ticket and, if it approves, opens the pull request and moves it to code review.')}
           right={ready ? <button onClick={() => setSetup((v) => !v)} className={PILL}><Settings2 size={14} /> {T('Configurar', 'Set up')}</button> : undefined} />
 

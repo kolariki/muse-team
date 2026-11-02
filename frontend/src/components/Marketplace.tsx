@@ -18,7 +18,7 @@ export default function Marketplace({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="min-h-full bg-paper">
-      <div className="mx-auto max-w-[1100px] px-6 py-6">
+      <div className="w-full px-4 py-5 sm:px-8 sm:py-8 2xl:px-12">
         <PageHeader
           onBack={onBack}
           kicker={T('Apps en venta', 'Apps for sale')}

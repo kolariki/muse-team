@@ -1,10 +1,12 @@
-import { AlertTriangle, Brain, CheckCircle2, Clapperboard, ExternalLink, KeyRound, LayoutGrid, Link2, Loader2, Megaphone, Pause, Pencil, Play, RefreshCw, SlidersHorizontal, Sparkles, Target, ThumbsUp, Trash2, TrendingDown, Users, Wallet } from 'lucide-react'
+import { Warning as AlertTriangle, Brain, CheckCircle as CheckCircle2, FilmSlate as Clapperboard, ArrowSquareOut as ExternalLink, IconContext, Key as KeyRound, SquaresFour as LayoutGrid, LinkSimple as Link2, CircleNotch as Loader2, MegaphoneSimple as Megaphone, Pause, PencilSimple as Pencil, Play, ArrowsClockwise as RefreshCw, Sliders as SlidersHorizontal, ChartLineUp as Sparkles, Target, ThumbsUp, Trash as Trash2, TrendDown as TrendingDown, UsersThree as Users, Wallet } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { api, type MetaAction, type MetaBrain, type MetaBrainAd } from '../lib/api'
 import { getLang, tr, useT } from '../lib/i18n'
 import { useArena } from '../store'
+import { PageLoader } from './HomeLoader'
 import MetaSetup from './MetaSetup'
 import PageHeader from './PageHeader'
+import ProviderLogo from './ProviderLogo'
 import { toast } from './Toast'
 
 const CARD = 'rounded-2xl border border-line bg-surface p-4 sm:p-5 shadow-[0_1px_2px_rgba(30,38,34,.04),0_8px_24px_-16px_rgba(30,38,34,.18)]'
@@ -28,7 +30,8 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
   const [page, setPage] = useState('')
   const [setup, setSetup] = useState(false)
 
-  const load = () => api.metaBrain().then(setB).catch((e) => toast.error(tr('No pude leer Meta Ads', 'Could not read Meta Ads'), (e as Error).message))
+  const [failed, setFailed] = useState<string | null>(null)
+  const load = () => api.metaBrain().then((x) => { setB(x); setFailed(null) }).catch((e) => setFailed((e as Error).message))
   useEffect(() => { load() }, [])
   // the window Meta opens tells us when the connection is done
   useEffect(() => {
@@ -70,17 +73,20 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
   const cur = b?.account?.currency ?? 'USD'
 
   return (
+    <IconContext.Provider value={{ weight: 'duotone' }}>
     <div className="min-h-full bg-paper">
-      <div className="mx-auto max-w-[1100px] px-4 py-6 sm:px-6">
+      <div className="w-full px-4 py-5 sm:px-8 sm:py-8 2xl:px-12">
         <PageHeader onBack={onBack} kicker="Meta Ads" title={T('Tu cuenta de Meta Ads, leída por la IA', 'Your Meta Ads account, read by the AI')}
           subtitle={T('Conectá tu cuenta publicitaria. Tably lee tus campañas, ve qué anuncios, públicos y ubicaciones te traen resultados al menor costo, y arma los anuncios nuevos con los videos que hiciste en «Crear anuncio», listos para publicar en pausa.', 'Connect your ad account. Tably reads your campaigns, sees which ads, audiences and placements bring results at the lowest cost, and builds new ads with the videos you made in «Create ad», ready to publish paused.')} />
 
-        {!b ? <p className="mt-6 flex items-center gap-2 text-[13px] text-ink-3"><Loader2 size={14} className="animate-spin" /> {T('Cargando…', 'Loading…')}</p> : (
+        {!b ? (failed ? (
+          <div className={`${CARD} mt-5 flex flex-wrap items-center gap-3 text-[13.5px] text-ink-2`}><AlertTriangle size={18} className="text-danger" /><span className="min-w-[min(100%,260px)] flex-1">{T('No pude leer Meta Ads', 'Could not read Meta Ads')}: {failed}</span><button onClick={load} className={PILL}><RefreshCw size={14} /> {T('Reintentar', 'Retry')}</button></div>
+        ) : <PageLoader caption={T('Leyendo tu cuenta de Meta Ads…', 'Reading your Meta Ads account…')} />) : (
           <div className="mt-5 flex flex-col gap-4">
             {/* 1. the connection */}
             <section className={CARD}>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0082FB]/12 text-[#0082FB]"><Megaphone size={17} /></span>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-surface shadow-sm"><ProviderLogo provider="meta" size={22} /></span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] font-bold text-ink">{connected ? T('Meta Ads conectado', 'Meta Ads connected') : T('Conectá tu cuenta de Meta Ads', 'Connect your Meta Ads account')}{connected && b.meta.account ? <span className="font-normal text-ink-3"> · {b.meta.account}</span> : null}</span>
                   <span className="block text-[12.5px] text-ink-3">{!b.meta.ready ? T('La conexión con Meta todavía no está habilitada en esta instalación.', 'The Meta connection is not enabled on this install yet.') : connected ? T('Tably solo lee tus números y crea anuncios en pausa: nada se gasta hasta que vos los actives.', 'Tably only reads your numbers and creates paused ads: nothing is spent until you turn them on.') : b.meta.expired ? T('La conexión venció (dura unos 60 días).', 'The connection expired (it lasts about 60 days).') : T('Una sola vez. Se abre Meta para que elijas la cuenta y das permiso.', 'Just once. Meta opens so you pick the account and allow it.')}</span>
@@ -192,6 +198,7 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
         )}
       </div>
     </div>
+    </IconContext.Provider>
   )
 }
 

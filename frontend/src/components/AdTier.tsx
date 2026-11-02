@@ -1,5 +1,6 @@
 import { AlertTriangle, Building2, CheckCircle2, Clapperboard, Copy, Download, ExternalLink, Eye, Heart, KeyRound, Layers, Link2, Loader2, Medal, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Square, Trash2, Upload, Video, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { PageLoader } from './HomeLoader'
 import MetaSetup from './MetaSetup'
 import { api, type AdTierCard, type AdTierDetail, type AdTierEvidence, type AdTierHome, type AdTierMasters, type AdTierPage, type AdTierTemplate, type AdTierTier, type ForYouHome, type ForYouMatches, type ReelIdea } from '../lib/api'
 import { tr, useT } from '../lib/i18n'
@@ -33,7 +34,8 @@ export default function AdTier({ onBack }: { onBack: () => void }) {
   const [open, setOpen] = useState<string | null>(null)
   const f = useMemo(() => ({ ...filters, ...(DURATIONS.find((d) => d[0] === dur)?.[3] ?? {}) }), [filters, dur])
 
-  useEffect(() => { api.adtier(qs(f)).then(setHome).catch((e) => toast.error(tr('No pude leer AdTier', 'Could not read AdTier'), (e as Error).message)) }, [f])
+  const [failed, setFailed] = useState(false)
+  useEffect(() => { api.adtier(qs(f)).then(setHome).catch((e) => { setFailed(true); toast.error(tr('No pude leer AdTier', 'Could not read AdTier'), (e as Error).message) }) }, [f])
   // while the team analyses videos, the tier list fills in by itself
   useEffect(() => {
     if (!home?.working) return
@@ -57,9 +59,10 @@ export default function AdTier({ onBack }: { onBack: () => void }) {
     </div>
   )
 
+  if (!home && !failed) return <PageLoader caption={T('Abriendo AdTier…', 'Opening AdTier…')} />
   return (
     <div className="min-h-full bg-paper">
-      <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6">
+      <div className="w-full px-4 py-5 sm:px-8 sm:py-8 2xl:px-12">
         <PageHeader onBack={onBack} kicker="AdTier" title={T('Los mejores anuncios en video, con su plantilla', 'The best video ads, with their template')}
           subtitle={T('Cada video tiene un tier S/A/B/C por evidencia (premios, performance) y un score de IA, y está descompuesto en una plantilla que podés copiar: hook, estructura por segundos y CTA.', 'Each video has an S/A/B/C tier from evidence (awards, performance) and an AI score, broken down into a template you can copy: hook, structure by the second and CTA.')}
           right={<span className="flex items-center gap-1.5 text-[12px] text-ink-3"><Medal size={14} className="text-accent" /> {T(`${total} videos publicados`, `${total} published videos`)}</span>} />
