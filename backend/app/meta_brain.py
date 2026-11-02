@@ -29,7 +29,7 @@ RESULTS = [
     ("onsite_conversion.messaging_conversation_started_7d", "conversaciones"),
     ("landing_page_view", "visitas a la página"), ("link_click", "clics en el link"),
 ]
-AD_FIELDS = ("ad_id,ad_name,campaign_name,adset_name,objective,spend,impressions,reach,frequency,clicks,inline_link_clicks,ctr,cpc,cpm,"
+AD_FIELDS = ("ad_id,ad_name,adset_id,campaign_id,campaign_name,adset_name,objective,spend,impressions,reach,frequency,clicks,inline_link_clicks,ctr,cpc,cpm,"
              "actions,video_thruplay_watched_actions,video_p25_watched_actions,video_p100_watched_actions")
 
 
@@ -110,6 +110,13 @@ async def read_account(user_id: str, account_id: str) -> dict:
             for a in await _all(cx, f"{g}/{act}/ads", {"fields": "id,effective_status,creative{title,body,call_to_action_type,object_type,thumbnail_url,video_id,object_story_spec,asset_feed_spec}",
                                                        "limit": 100, "access_token": token}, pages=3):
                 creatives[a["id"]] = {**(a.get("creative") or {}), "status": a.get("effective_status")}
+        adsets, camps = [], []
+        if rows:
+            try:
+                adsets = await _all(cx, f"{g}/{act}/adsets", {"fields": "id,name,campaign_id,effective_status,daily_budget,lifetime_budget,targeting", "limit": 100, "access_token": token}, pages=2)
+                camps = await _all(cx, f"{g}/{act}/campaigns", {"fields": "id,name,objective,effective_status,daily_budget,lifetime_budget", "limit": 100, "access_token": token}, pages=2)
+            except metaads.MetaError as e:
+                log.info("meta brain adsets/campaigns: %s", e)
         splits = {}
         for name, bd in (("edad_y_genero", "age,gender"), ("ubicacion", "publisher_platform,platform_position"), ("pais", "country")):
             if not rows:
@@ -128,7 +135,7 @@ async def read_account(user_id: str, account_id: str) -> dict:
         title, body = _text(cr)
         spend, res, imp = _f(r.get("spend")), _act(r, result), _f(r.get("impressions"))
         p25, p100 = _video(r, "video_p25_watched_actions"), _video(r, "video_p100_watched_actions")
-        ads.append({"id": r.get("ad_id"), "ad": r.get("ad_name"), "campaign": r.get("campaign_name"), "adset": r.get("adset_name"), "objective": r.get("objective"),
+        ads.append({"id": r.get("ad_id"), "adset_id": r.get("adset_id"), "campaign_id": r.get("campaign_id"), "ad": r.get("ad_name"), "campaign": r.get("campaign_name"), "adset": r.get("adset_name"), "objective": r.get("objective"),
                     "status": cr.get("status"), "kind": "video" if cr.get("video_id") or cr.get("object_type") == "VIDEO" else (cr.get("object_type") or "").lower() or None,
                     "spend": round(spend, 2), "impressions": int(imp), "reach": int(_f(r.get("reach"))), "frequency": round(_f(r.get("frequency")), 2),
                     "link_clicks": int(_f(r.get("inline_link_clicks"))), "ctr": round(_f(r.get("ctr")), 2), "cpc": round(_f(r.get("cpc")), 2), "cpm": round(_f(r.get("cpm")), 2),
@@ -147,7 +154,21 @@ async def read_account(user_id: str, account_id: str) -> dict:
 
     spend = sum(a["spend"] for a in ads)
     results = sum(a["results"] for a in ads)
-    return {"account": {"id": act.removeprefix("act_"), "name": info.get("name"), "currency": info.get("currency") or "USD", "active": info.get("account_status") == 1},
+    cur = info.get("currency") or "USD"
+    money = lambda v: (_f(v) if cur.upper() in metaads.NO_CENTS else _f(v) / 100) if v else None  # noqa: E731  Meta keeps budgets in cents
+
+    def aud(t: dict) -> dict:
+        t = t or {}
+        return {"age_min": t.get("age_min"), "age_max": t.get("age_max"), "genders": {1: "men", 2: "women"}.get((t.get("genders") or [0])[0], "all") if len(t.get("genders") or []) == 1 else "all",
+                "countries": (t.get("geo_locations") or {}).get("countries"), "publisher_platforms": t.get("publisher_platforms") or "automáticas",
+                "advantage_audience": (t.get("targeting_automation") or {}).get("advantage_audience")}
+
+    used = {a["adset_id"] for a in ads} | {a["campaign_id"] for a in ads}
+    sets = [{"id": x["id"], "name": x.get("name"), "campaign_id": x.get("campaign_id"), "status": x.get("effective_status"), "daily_budget": money(x.get("daily_budget")),
+             "lifetime_budget": money(x.get("lifetime_budget")), **aud(x.get("targeting"))} for x in adsets if x["id"] in used or x.get("effective_status") == "ACTIVE"][:40]
+    cps = [{"id": x["id"], "name": x.get("name"), "objective": x.get("objective"), "status": x.get("effective_status"), "daily_budget": money(x.get("daily_budget")),
+            "lifetime_budget": money(x.get("lifetime_budget"))} for x in camps if x["id"] in used or x.get("effective_status") == "ACTIVE"][:30]
+    return {"adsets": sets, "campaigns": cps, "account": {"id": act.removeprefix("act_"), "name": info.get("name"), "currency": info.get("currency") or "USD", "active": info.get("account_status") == 1},
             "period": "últimos 90 días" if period == "last_90d" else "toda la historia de la cuenta",
             "result": result_name, "totals": {"spend": round(spend, 2), "results": results, "cost_per_result": round(spend / results, 2) if results else None,
                                                "impressions": sum(a["impressions"] for a in ads), "link_clicks": sum(a["link_clicks"] for a in ads), "ads": len(ads)},
@@ -180,17 +201,78 @@ API) y los videos que el equipo ya le hizo. Tu trabajo:
    (máx. 300, que abra con el gancho que mejor le funcionó a la cuenta o con el más fuerte del video), descripción corta, el botón
    (uno de: {ctas}), países, edades y presupuesto diario en la moneda de la cuenta. Usá lo que aprendiste de la cuenta: el público y
    las ubicaciones que mejor rinden, el tipo de mensaje que funcionó. El link es el del video (no inventes links).
+3. A cada punto de «works» y «fix» agregale las acciones concretas que Tably puede hacer en la cuenta con un toque (si no hay ninguna,
+   dejá actions vacío). Usá SOLO los id de anuncios (ads), conjuntos (adsets) y campañas (campaigns) que te paso. Tipos:
+   - {{"type": "pause", "level": "ad|adset|campaign", "id": "", "name": "", "label": "Pausar …"}}  (frenarlo; se puede reactivar)
+   - {{"type": "activate", "level": "ad|adset|campaign", "id": "", "name": "", "label": "Activar …"}}
+   - {{"type": "delete", "level": "ad|adset|campaign", "id": "", "name": "", "label": "Eliminar …"}}  (solo si no sirve más; no se puede deshacer)
+   - {{"type": "budget", "level": "adset|campaign", "id": "", "name": "", "daily_budget": 0, "label": "Subir/Bajar el presupuesto a …"}}  (en la
+     moneda de la cuenta y en el nivel donde está el presupuesto: si la campaña tiene daily_budget, en la campaña; si no, en el conjunto)
+   - {{"type": "targeting", "level": "adset", "id": "", "name": "", "age_min": 18, "age_max": 65, "genders": "all|women|men",
+     "publisher_platforms": ["facebook","instagram"], "facebook_positions": ["feed","story","facebook_reels"], "instagram_positions": ["stream","story","reels"], "label": "…"}}
+     (solo los campos que cambian; las ubicaciones solo si hay que sacar alguna)
+   Un «label» corto con el verbo y el nombre, por ejemplo «Pausar Lote Maipú 1».
 Escribí en {lang}, claro y concreto, sin jerga innecesaria.
-Respondé SOLO JSON: {{"summary": "2-3 frases con lo más importante", "history": true, "works": [{{"title": "", "detail": "con el dato"}}],
-"fix": [{{"title": "", "detail": "con el dato y qué hacer"}}], "audience": {{"countries": ["AR"], "age_min": 18, "age_max": 65, "genders": "all", "why": ""}},
+Respondé SOLO JSON: {{"summary": "2-3 frases con lo más importante", "history": true, "works": [{{"title": "", "detail": "con el dato", "actions": []}}],
+"fix": [{{"title": "", "detail": "con el dato y qué hacer", "actions": [{{"type": "pause", "level": "ad", "id": "", "name": "", "label": ""}}]}}], "audience": {{"countries": ["AR"], "age_min": 18, "age_max": 65, "genders": "all", "why": ""}},
 "placements": "qué ubicaciones priorizar y por qué", "budget": {{"daily": 10, "why": ""}},
 "ads": [{{"video": "id del video", "name": "", "angle": "", "headline": "", "primary_text": "", "description": "", "cta_type": "LEARN_MORE",
 "countries": ["AR"], "age_min": 18, "age_max": 65, "genders": "all", "daily_budget": 10, "why": "por qué este anuncio así, según la cuenta"}}]}}"""
 
 
-def _clean(raw: dict, vids: list[dict], currency: str) -> dict:
+FB_POS = {"feed", "right_hand_column", "marketplace", "video_feeds", "story", "search", "instream_video", "facebook_reels", "facebook_reels_overlay", "profile_feed", "notification"}
+IG_POS = {"stream", "story", "explore", "explore_home", "reels", "profile_feed", "ig_search", "profile_reels"}
+
+
+def clean_actions(xs, data: dict) -> list[dict]:
+    """The model's actions on ids that exist in the account, with only the fields each type takes."""
+    ids = {"ad": {a["id"]: a.get("ad") for a in data.get("ads") or []}, "adset": {a["id"]: a.get("name") for a in data.get("adsets") or []},
+           "campaign": {c["id"]: c.get("name") for c in data.get("campaigns") or []}}
+    for a in data.get("ads") or []:  # an ad's set and campaign are known even when their listing was cut
+        ids["adset"].setdefault(a.get("adset_id"), a.get("adset"))
+        ids["campaign"].setdefault(a.get("campaign_id"), a.get("campaign"))
+    out = []
+    for x in (xs or [])[:5]:
+        if not isinstance(x, dict) or x.get("type") not in ("pause", "activate", "delete", "budget", "targeting"):
+            continue
+        lvl = x.get("level") if x.get("level") in ids else None
+        if x["type"] == "targeting":
+            lvl = "adset"
+        if x["type"] == "budget" and lvl == "ad":
+            continue
+        i = str(x.get("id") or "")
+        if not lvl or i not in ids[lvl]:
+            continue
+        a = {"type": x["type"], "level": lvl, "id": i, "name": adsmod._cut(x.get("name") or ids[lvl][i], 80), "label": adsmod._cut(x.get("label"), 70)}
+        if x["type"] == "budget":
+            if _f(x.get("daily_budget")) <= 0:
+                continue
+            a["daily_budget"] = round(_f(x["daily_budget"]), 2)
+        if x["type"] == "targeting":
+            for k in ("age_min", "age_max"):
+                if x.get(k) is not None:
+                    try:
+                        a[k] = max(13, min(65, int(x[k])))
+                    except (TypeError, ValueError):
+                        pass
+            if x.get("genders") in ("all", "women", "men"):
+                a["genders"] = x["genders"]
+            pp = [p for p in x.get("publisher_platforms") or [] if p in ("facebook", "instagram", "audience_network", "messenger")]
+            if pp:
+                a["publisher_platforms"] = pp
+                a["facebook_positions"] = [p for p in x.get("facebook_positions") or [] if p in FB_POS]
+                a["instagram_positions"] = [p for p in x.get("instagram_positions") or [] if p in IG_POS]
+            if len(a) <= 5:
+                continue
+        a["label"] = a["label"] or {"pause": "Pausar", "activate": "Activar", "delete": "Eliminar", "budget": "Cambiar presupuesto", "targeting": "Cambiar público"}[x["type"]] + f" {a['name']}"
+        out.append(a)
+    return out
+
+
+def _clean(raw: dict, vids: list[dict], currency: str, data: dict | None = None) -> dict:
     def items(xs) -> list[dict]:
-        return [{"title": adsmod._cut(x.get("title"), 90), "detail": adsmod._cut(x.get("detail"), 400)} for x in (xs or []) if isinstance(x, dict) and x.get("title")][:6]
+        return [{"title": adsmod._cut(x.get("title"), 90), "detail": adsmod._cut(x.get("detail"), 400), "actions": clean_actions(x.get("actions"), data or {})}
+                for x in (xs or []) if isinstance(x, dict) and x.get("title")][:6]
 
     def countries(xs, fallback: list[str]) -> list[str]:
         out = [str(c).upper() for c in (xs or []) if isinstance(c, str) and len(c) == 2 and c.isalpha()]
@@ -236,10 +318,10 @@ async def analyze(user_id: str, account_id: str, english: bool = False) -> None:
         cur = data["account"]["currency"]
         system = SYSTEM.format(ctas=", ".join(adsmod.CTA_TYPES), lang="English" if english else "español rioplatense")
         msg = (f"CUENTA ({data['account']['name']}, moneda {cur}, {data['period']}, el resultado que se mide: {data['result']}):\n"
-               f"{json.dumps({k: data[k] for k in ('totals', 'ads', 'by_age_gender', 'by_placement', 'by_country')}, ensure_ascii=False)[:30000]}\n\n"
+               f"{json.dumps({k: data.get(k) for k in ('totals', 'campaigns', 'adsets', 'ads', 'by_age_gender', 'by_placement', 'by_country')}, ensure_ascii=False)[:40000]}\n\n"
                f"VIDEOS PARA ARMAR LOS ANUNCIOS ({len(vids)}):\n{json.dumps([{k: v[k] for k in ('id', 'title', 'what', 'goal', 'link', 'angle', 'cta', 'on_screen', 'said', 'seconds')} for v in vids], ensure_ascii=False)[:12000] if vids else '(ninguno terminado todavía: dejá ads vacío)'}")
         raw, by = await studiomod.ask(user_id, system, msg, max_tokens=8000)
-        res = _clean(raw, vids, cur)
+        res = _clean(raw, vids, cur, data)
         old = {a["video"]: a for a in (load(user_id).get("analysis") or {}).get("ads") or [] if a.get("meta")}
         for a in res["ads"]:  # an ad already published keeps its campaign link
             if a["video"] in old:
@@ -317,3 +399,65 @@ async def publish(user_id: str, video: str, page_id: str, edits: dict) -> None:
     except Exception as e:  # noqa: BLE001
         log.exception("meta brain publish %s", video)
         save_ad({"status": "error", "error": str(e)[:400]})
+
+
+async def run_action(user_id: str, kind: str, idx: int, j: int, edits: dict) -> dict:
+    """One of the analysis' actions on the ad account (pause, activate, delete, budget, audience or placements), done through the
+    Marketing API. The result is kept on the action so the page shows it done."""
+    d = load(user_id)
+    try:
+        a = {**((d.get("analysis") or {})[kind][idx]["actions"][j])}
+    except (KeyError, IndexError, TypeError):
+        raise metaads.MetaError("Esa acción ya no está: volvé a analizar la cuenta.")
+    if a["type"] in ("pause", "activate", "delete") and edits.get("type") in ("pause", "activate", "delete"):  # the same ad, another way
+        a["type"] = edits["type"]
+    if a["type"] == "budget" and _f(edits.get("daily_budget")) > 0:
+        a["daily_budget"] = round(_f(edits["daily_budget"]), 2)
+    if a["type"] == "targeting":
+        for k in ("age_min", "age_max"):
+            if edits.get(k) is not None:
+                a[k] = max(13, min(65, int(_f(edits[k]))))
+        if edits.get("genders") in ("all", "women", "men"):
+            a["genders"] = edits["genders"]
+    token = metaads._token(user_id)
+    g = metaads.graph()
+    cur = ((d.get("data") or {}).get("account") or {}).get("currency") or "USD"
+    async with httpx.AsyncClient(timeout=40) as cx:
+        async def post(body: dict) -> dict:
+            return metaads._check(await cx.post(f"{g}/{a['id']}", data={k: (json.dumps(v) if isinstance(v, (dict, list)) else v) for k, v in body.items()} | {"access_token": token}))
+
+        if a["type"] in ("pause", "activate", "delete"):
+            await post({"status": {"pause": "PAUSED", "activate": "ACTIVE", "delete": "DELETED"}[a["type"]]})
+            msg = {"pause": "Pausado", "activate": "Activado", "delete": "Eliminado"}[a["type"]]
+        elif a["type"] == "budget":
+            await post({"daily_budget": metaads.budget_units(a["daily_budget"], cur)})
+            msg = f"Presupuesto diario: {a['daily_budget']:g} {cur}"
+        else:
+            t = metaads._check(await cx.get(f"{g}/{a['id']}", params={"fields": "targeting", "access_token": token})).get("targeting") or {}
+            for k in ("age_min", "age_max"):
+                if a.get(k) is not None:
+                    t[k] = a[k]
+            if a.get("genders"):
+                if a["genders"] == "all":
+                    t.pop("genders", None)
+                else:
+                    t["genders"] = [1 if a["genders"] == "men" else 2]
+            if a.get("publisher_platforms"):
+                t["publisher_platforms"] = a["publisher_platforms"]
+                for k in ("facebook_positions", "instagram_positions"):
+                    if a.get(k):
+                        t[k] = a[k]
+                    else:
+                        t.pop(k, None)
+                for k in ("audience_network_positions", "messenger_positions"):
+                    if k.split("_")[0] not in "".join(a["publisher_platforms"]):
+                        t.pop(k, None)
+            # a top age, a single gender or chosen placements are hard limits: Advantage+ audience only takes them as suggestions
+            if (t.get("age_max") and t["age_max"] < 65) or t.get("genders"):
+                t["targeting_automation"] = {**(t.get("targeting_automation") or {}), "advantage_audience": 0}
+            await post({"targeting": t})
+            msg = "Público y ubicaciones actualizados"
+    cur_d = load(user_id)
+    cur_d["analysis"][kind][idx]["actions"][j] = {**a, "done": {"ok": True, "msg": msg, "ts": time.time()}}
+    save(user_id, cur_d)
+    return {"ok": True, "msg": msg}

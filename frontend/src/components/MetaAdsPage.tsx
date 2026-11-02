@@ -1,6 +1,6 @@
-import { AlertTriangle, Brain, CheckCircle2, Clapperboard, ExternalLink, KeyRound, Link2, Loader2, Megaphone, RefreshCw, ThumbsDown, ThumbsUp, Users } from 'lucide-react'
+import { AlertTriangle, Brain, CheckCircle2, Clapperboard, ExternalLink, KeyRound, Link2, Loader2, Megaphone, Pause, Pencil, Play, RefreshCw, SlidersHorizontal, ThumbsDown, ThumbsUp, Trash2, Users, Wallet } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { api, type MetaBrain, type MetaBrainAd } from '../lib/api'
+import { api, type MetaAction, type MetaBrain, type MetaBrainAd } from '../lib/api'
 import { tr, useT } from '../lib/i18n'
 import { useArena } from '../store'
 import MetaSetup from './MetaSetup'
@@ -122,9 +122,10 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
                   ))}
                 </div>
                 {an.summary && <p className="mt-3 text-[14px] leading-relaxed text-ink">{an.summary}</p>}
+                {![...an.works, ...an.fix].some((x) => x.actions?.length) && <p className="mt-2 text-[12.5px] text-ink-3">{T('Tocá «Volver a analizar» para que cada punto traiga sus botones (pausar, eliminar, cambiar presupuesto o público).', 'Tap «Analyse again» so each point comes with its buttons (pause, delete, change budget or audience).')}</p>}
                 <div className="mt-4 grid grid-cols-1 gap-4 min-[760px]:grid-cols-2">
-                  <Findings icon={<ThumbsUp size={14} />} tone="good" title={T('Lo que funciona', 'What works')} items={an.works} />
-                  <Findings icon={<ThumbsDown size={14} />} tone="bad" title={T('Lo que hay que cambiar', 'What to change')} items={an.fix} />
+                  <Findings icon={<ThumbsUp size={14} />} tone="good" kind="works" title={T('Lo que funciona', 'What works')} items={an.works} cur={cur} onB={setB} />
+                  <Findings icon={<ThumbsDown size={14} />} tone="bad" kind="fix" title={T('Lo que hay que cambiar', 'What to change')} items={an.fix} cur={cur} onB={setB} />
                 </div>
                 <div className="mt-4 grid grid-cols-1 gap-2 text-[13px] text-ink-2 min-[760px]:grid-cols-3">
                   <p className="rounded-xl bg-surface-2 px-3 py-2.5"><span className="mb-0.5 flex items-center gap-1 font-semibold text-ink"><Users size={13} /> {T('Público', 'Audience')}</span>{an.audience.countries.join(', ')} · {an.audience.age_min}–{an.audience.age_max}{an.audience.age_max >= 65 ? '+' : ''} · {an.audience.genders === 'women' ? T('mujeres', 'women') : an.audience.genders === 'men' ? T('hombres', 'men') : T('todos', 'everyone')}{an.audience.why ? <span className="mt-1 block text-ink-3">{an.audience.why}</span> : null}</p>
@@ -156,16 +157,76 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
   )
 }
 
-function Findings({ icon, tone, title, items }: { icon: React.ReactNode; tone: 'good' | 'bad'; title: string; items: { title: string; detail: string }[] }) {
+function Findings({ icon, tone, kind, title, items, cur, onB }: { icon: React.ReactNode; tone: 'good' | 'bad'; kind: 'works' | 'fix'; title: string; items: { title: string; detail: string; actions?: MetaAction[] }[]; cur: string; onB: (b: MetaBrain) => void }) {
   const color = tone === 'good' ? 'text-[#2E9E6A]' : 'text-[#C28A12]'
   return (
     <div>
       <div className={`mb-2 flex items-center gap-1.5 text-[13px] font-bold ${color}`}>{icon} {title}</div>
       {!items.length ? <p className="text-[13px] text-ink-3">—</p> : (
         <ul className="flex flex-col gap-2">
-          {items.map((it, i) => <li key={i} className="rounded-xl border border-line bg-paper px-3 py-2"><span className="block text-[13.5px] font-semibold text-ink">{it.title}</span><span className="block text-[12.5px] leading-snug text-ink-2">{it.detail}</span></li>)}
+          {items.map((it, i) => (
+            <li key={i} className="rounded-xl border border-line bg-paper px-3 py-2">
+              <span className="block text-[13.5px] font-semibold text-ink">{it.title}</span>
+              <span className="block text-[12.5px] leading-snug text-ink-2">{it.detail}</span>
+              {!!it.actions?.length && <div className="mt-2 flex flex-col gap-1.5">{it.actions.map((a, j) => <Action key={j} a={a} kind={kind} i={i} j={j} cur={cur} onB={onB} />)}</div>}
+            </li>
+          ))}
         </ul>
       )}
+    </div>
+  )
+}
+
+/** One thing Tably can do in the ad account for a finding: pause, turn on, delete, change the budget or the audience. Budget and
+ *  audience open their values first so they can be changed before applying; deleting asks once more. */
+function Action({ a, kind, i, j, cur, onB }: { a: MetaAction; kind: 'works' | 'fix'; i: number; j: number; cur: string; onB: (b: MetaBrain) => void }) {
+  const T = useT()
+  const [busy, setBusy] = useState(false)
+  const [edit, setEdit] = useState(false)
+  const [v, setV] = useState({ daily_budget: a.daily_budget ?? 0, age_min: a.age_min ?? 18, age_max: a.age_max ?? 65, genders: a.genders ?? 'all' })
+  const lvl = a.level === 'ad' ? T('anuncio', 'ad') : a.level === 'adset' ? T('conjunto', 'ad set') : T('campaña', 'campaign')
+  const go = async (type?: 'pause' | 'activate' | 'delete') => {
+    if ((type ?? a.type) === 'delete' && !window.confirm(T(`¿Eliminar ${lvl} «${a.name}» en Meta? No se puede deshacer.`, `Delete ${lvl} «${a.name}» in Meta? It cannot be undone.`))) return
+    setBusy(true)
+    try {
+      const r = await api.metaBrainAction({ kind, i, j, type, ...(a.type === 'budget' ? { daily_budget: v.daily_budget } : a.type === 'targeting' ? { age_min: v.age_min, age_max: v.age_max, genders: v.genders } : {}) })
+      onB(r); setEdit(false)
+      toast.ok(r.msg, a.name)
+    } catch (e) { toast.error(T('No se pudo hacer', 'Could not do it'), (e as Error).message) } finally { setBusy(false) }
+  }
+  if (a.done?.ok) return <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-[#2E9E6A]"><CheckCircle2 size={13} /> {a.done.msg} · {a.name}</span>
+  const btn = 'flex h-7 items-center gap-1 rounded-full px-3 text-[12px] font-semibold transition disabled:opacity-40'
+  const main = a.type === 'delete' ? `${btn} bg-danger text-white hover:brightness-110` : `${btn} bg-accent text-white hover:brightness-110`
+  const Icon = a.type === 'pause' ? Pause : a.type === 'activate' ? Play : a.type === 'delete' ? Trash2 : a.type === 'budget' ? Wallet : SlidersHorizontal
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {(a.type === 'budget' || a.type === 'targeting') && !edit ? (
+        <>
+          <button onClick={() => go()} disabled={busy} className={main}>{busy ? <Loader2 size={12} className="animate-spin" /> : <Icon size={12} />} {a.label}</button>
+          <button onClick={() => setEdit(true)} disabled={busy} className={`${btn} border border-line text-ink-2 hover:border-accent hover:text-accent`}><Pencil size={12} /> {T('Modificar', 'Edit')}</button>
+        </>
+      ) : edit ? (
+        <span className="flex w-full flex-wrap items-center gap-1.5 rounded-lg border border-line bg-surface px-2 py-1.5 text-[12px] text-ink-2">
+          {a.type === 'budget' ? (
+            <label className="flex items-center gap-1">{T('Por día', 'Per day')} <input type="number" min={1} step="any" value={v.daily_budget} onChange={(e) => setV({ ...v, daily_budget: Number(e.target.value) })} className="h-7 w-24 rounded-md border border-line bg-paper px-2 outline-none focus:border-accent" /> {cur}</label>
+          ) : (
+            <>
+              <label className="flex items-center gap-1">{T('Edad', 'Age')} <input type="number" min={13} max={65} value={v.age_min} onChange={(e) => setV({ ...v, age_min: Number(e.target.value) })} className="h-7 w-14 rounded-md border border-line bg-paper px-1.5 outline-none focus:border-accent" /> – <input type="number" min={13} max={65} value={v.age_max} onChange={(e) => setV({ ...v, age_max: Number(e.target.value) })} className="h-7 w-14 rounded-md border border-line bg-paper px-1.5 outline-none focus:border-accent" /></label>
+              <select value={v.genders} onChange={(e) => setV({ ...v, genders: e.target.value as 'all' | 'women' | 'men' })} className="h-7 rounded-md border border-line bg-paper px-1.5 outline-none focus:border-accent"><option value="all">{T('todos', 'everyone')}</option><option value="women">{T('mujeres', 'women')}</option><option value="men">{T('hombres', 'men')}</option></select>
+              {!!a.publisher_platforms?.length && <span className="text-ink-3">{T('Ubicaciones', 'Placements')}: {[...(a.facebook_positions ?? []).map((x) => `fb ${x}`), ...(a.instagram_positions ?? []).map((x) => `ig ${x}`)].join(', ') || a.publisher_platforms.join(', ')}</span>}
+            </>
+          )}
+          <button onClick={() => go()} disabled={busy} className={main}>{busy ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} {T('Aplicar', 'Apply')}</button>
+          <button onClick={() => setEdit(false)} className={`${btn} text-ink-3 hover:text-ink`}>{T('Cancelar', 'Cancel')}</button>
+        </span>
+      ) : (
+        <>
+          <button onClick={() => go()} disabled={busy} className={main}>{busy ? <Loader2 size={12} className="animate-spin" /> : <Icon size={12} />} {a.label}</button>
+          {a.type !== 'delete' && <button onClick={() => go('delete')} disabled={busy} className={`${btn} border border-line text-ink-3 hover:border-danger hover:text-danger`}><Trash2 size={12} /> {T('Eliminar', 'Delete')}</button>}
+          {a.type === 'delete' && <button onClick={() => go('pause')} disabled={busy} className={`${btn} border border-line text-ink-2 hover:border-accent hover:text-accent`}><Pause size={12} /> {T('Solo pausar', 'Just pause')}</button>}
+        </>
+      )}
+      <span className="text-[11px] text-ink-4">{lvl}</span>
     </div>
   )
 }

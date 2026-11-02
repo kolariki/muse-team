@@ -3681,6 +3681,23 @@ async def meta_brain_run(body: dict, user: User = CurrentUser):
     return meta_brain_get(user)
 
 
+@app.post("/api/meta-ads/brain/action")
+async def meta_brain_action(body: dict, user: User = CurrentUser):
+    """Do one of the analysis' actions on the ad account: body {kind: works|fix, i, j, type?, daily_budget?, age_min?, age_max?, genders?}."""
+    kind = body.get("kind") if body.get("kind") in ("works", "fix") else None
+    try:
+        i, j = int(body.get("i")), int(body.get("j"))
+    except (TypeError, ValueError):
+        kind = None
+    if not kind:
+        raise HTTPException(400, "Acción inválida")
+    try:
+        res = await brainmod.run_action(user.id, kind, i, j, body)
+    except metaads.MetaError as e:
+        raise HTTPException(400, f"Meta no lo aceptó: {e}")
+    return {**res, **meta_brain_get(user)}
+
+
 @app.post("/api/meta-ads/brain/{video}/publish")
 async def meta_brain_publish(video: str, body: dict, user: User = CurrentUser):
     """A proposed ad to Meta, PAUSED: body {page_id, headline?, primary_text?, description?, link?, cta_type?, daily_budget?, countries?, days?}."""

@@ -339,6 +339,7 @@ export const api = {
   metaAdsDisconnect: () => j<{ ok: boolean }>(authed('/api/meta-ads', { method: 'DELETE' })),
   metaBrain: () => j<MetaBrain>(authed('/api/meta-ads/brain')),
   metaBrainRun: (account_id: string, lang: string) => j<MetaBrain>(post('/api/meta-ads/brain', { account_id, lang })),
+  metaBrainAction: (body: { kind: 'works' | 'fix'; i: number; j: number; type?: string; daily_budget?: number; age_min?: number; age_max?: number; genders?: string }) => j<MetaBrain & { ok: boolean; msg: string }>(post('/api/meta-ads/brain/action', body)),
   metaBrainPublish: (video: string, body: Partial<MetaBrainAd> & { page_id: string; days?: number | null }) => j<MetaBrain>(post(`/api/meta-ads/brain/${video}/publish`, body)),
   studioList: () => j<StudioList>(authed('/api/studio')),
   studioCreate: (body: { title: string; instructions: string; link: string; goal: string; lang: string }) => j<StudioProject>(post('/api/studio', body)),
@@ -628,13 +629,18 @@ export interface MetaBrainAd {
   countries: string[]; age_min: number; age_max: number; genders: 'all' | 'women' | 'men'; daily_budget: number; link: string; why: string
   meta?: { status: 'publishing' | 'done' | 'error'; step?: string; error?: string; manager_url?: string }
 }
+export interface MetaAction {
+  type: 'pause' | 'activate' | 'delete' | 'budget' | 'targeting'; level: 'ad' | 'adset' | 'campaign'; id: string; name: string; label: string
+  daily_budget?: number; age_min?: number; age_max?: number; genders?: 'all' | 'women' | 'men'; publisher_platforms?: string[]; facebook_positions?: string[]; instagram_positions?: string[]
+  done?: { ok: boolean; msg: string; ts: number }
+}
 export interface MetaBrain {
   status: 'idle' | 'working' | 'done' | 'error'; step: string; error: string | null; account_id: string | null; by: string | null; ts: number | null; videos: number
   account?: { id: string; name: string; currency: string; active: boolean } | null; period?: string | null; result?: string | null
   totals?: { spend: number; results: number; cost_per_result: number | null; impressions: number; link_clicks: number; ads: number } | null
   top: { ad: string; spend: number; results: number; cost_per_result: number | null; ctr: number; thumb?: string; status?: string }[]
   analysis?: {
-    summary: string; history: boolean; works: { title: string; detail: string }[]; fix: { title: string; detail: string }[]
+    summary: string; history: boolean; works: { title: string; detail: string; actions?: MetaAction[] }[]; fix: { title: string; detail: string; actions?: MetaAction[] }[]
     audience: { countries: string[]; age_min: number; age_max: number; genders: string; why: string }; placements: string
     budget: { daily: number; currency: string; why: string }; ads: MetaBrainAd[]; missing: { id: string; title: string }[]
   } | null
