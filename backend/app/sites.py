@@ -141,10 +141,21 @@ GENERATED_DIRS = {"reports", "reportes", "informes", "report", "reporte", "carta
 SHELL_RX = re.compile(r"^_?(index|base|layout|_layout|app|main|default|master|document)\.", re.I)
 
 
+SIDE_DIRS = re.compile(r"^(docs?|examples?|demos?|samples?|playground|[\w.-]+-examples?)$", re.I)
+NOT_PAGE = re.compile(r"e-?mail|newsletter|correo|pdf|report|invoice|factura|carta", re.I)
+
+
 def _generated(p: str) -> bool:
-    """Files a program wrote (reports, e-mails, exports…): a date or a long number in the name, or a reports/exports folder."""
+    """Files a program wrote or that are not the site (reports, e-mails, PDFs, exports…): a date or a long number in the name,
+    a name like that, or a reports/exports folder."""
     name = p.rsplit("/", 1)[-1]
-    return bool(re.search(r"\d{4}-\d{2}-\d{2}|\d{8,}", name)) or any(x.lower() in GENERATED_DIRS for x in p.split("/")[:-1])
+    return (bool(re.search(r"\d{4}-\d{2}-\d{2}|\d{8,}", name)) or bool(NOT_PAGE.search(name))
+            or any(x.lower() in GENERATED_DIRS for x in p.split("/")[:-1]))
+
+
+def _side(p: str) -> bool:
+    """Docs, examples and demos next to the app: only used when the repo has nothing else."""
+    return any(SIDE_DIRS.match(x) for x in p.split("/")[:-1])
 
 
 def candidates(paths: list[str]) -> list[str]:
@@ -161,6 +172,7 @@ def candidates(paths: list[str]) -> list[str]:
     def shell(p: str) -> bool:
         return bool(LAYOUT_RX.match(p) or DOCUMENT_RX.match(p) or SHELL_RX.match(p.rsplit("/", 1)[-1]))
 
+    out = [p for p in out if not _side(p)] or out
     shells = [p for p in out if shell(p)]
     return sorted(shells or out, key=lambda p: (p.count("/"), p))
 
@@ -173,7 +185,7 @@ def code_candidates(paths: list[str]) -> list[str]:
     """Backends that write their pages from code (an HTML string with </head> in a .js/.py…): the files most likely to hold it."""
     out = [p for p in paths if p.lower().endswith(CODE_EXT) and not _generated(p)
            and not any(x in SKIP_DIRS or x.lower() in ("scripts", "migrations", "seeders", "seeds") for x in p.split("/")[:-1])
-           and not re.search(r"(\.test|\.spec|\.d)\.", p) and not re.search(r"(^|/)(e-?mails?|mail)", p, re.I)]
+           and not _side(p) and not re.search(r"(\.test|\.spec|\.d)\.", p) and not re.search(r"(^|/)(e-?mails?|mail)", p, re.I)]
     return sorted(out, key=lambda p: (0 if CODE_HINT.search(p.rsplit("/", 1)[-1]) else 1, p.count("/"), p))
 
 
@@ -230,6 +242,28 @@ def _gh(method: str, path: str, token: str, body: dict | None = None) -> tuple[i
         return 0, {"message": str(e)[:200]}
 
 
+def _paths(own: str, name: str, sha: str, token: str) -> list[str] | None:
+    """Every file of the repo (under 400 KB). GitHub cuts the recursive list of big repos (node_modules or .yarn committed):
+    then it walks the folders one by one, skipping those."""
+    code, tree = _gh("GET", f"/repos/{own}/{name}/git/trees/{sha}?recursive=1", token)
+    if code != 200 or not isinstance(tree, dict):
+        return None
+    files = lambda t, pre="": [pre + x["path"] for x in t.get("tree", []) if x.get("type") == "blob" and x.get("size", 0) < 400_000]
+    if not tree.get("truncated"):
+        return files(tree)
+    out, todo, calls = [], [("", sha)], 0
+    while todo and calls < 200:
+        pre, s = todo.pop(0)
+        code, t = _gh("GET", f"/repos/{own}/{name}/git/trees/{s}", token)
+        calls += 1
+        if code != 200 or not isinstance(t, dict):
+            continue
+        out += files(t, pre)
+        todo += [(pre + x["path"] + "/", x["sha"]) for x in t.get("tree", []) if x.get("type") == "tree"
+                 and x["path"] not in SKIP_DIRS and not x["path"].startswith(".") and pre.count("/") < 6]
+    return out
+
+
 BRANCH = "tably-analytics"
 BAD_TOKEN = "GitHub no acepta tu token: venció, lo borraste o lo que se guardó no es un token. Cargá uno nuevo con permiso «repo»."
 
@@ -275,10 +309,9 @@ def open_pr(site: dict, token: str, collector: str) -> dict:
     if code != 200:
         return {"ok": False, "error": f"No pude leer la rama {base} del repo"}
     head_sha = ref["object"]["sha"]
-    code, tree = _gh("GET", f"/repos/{own}/{name}/git/trees/{head_sha}?recursive=1", token)
-    if code != 200:
+    paths = _paths(own, name, head_sha, token)
+    if paths is None:
         return {"ok": False, "error": "No pude leer los archivos del repo"}
-    paths = [t["path"] for t in tree.get("tree", []) if t.get("type") == "blob" and t.get("size", 0) < 400_000]
     snippet, changes, already = tag(collector, site["slug"]), {}, []
     for p in candidates(paths)[:120]:
         code, f = _gh("GET", f"/repos/{own}/{name}/contents/{p}?ref={base}", token)
@@ -314,6 +347,16 @@ def open_pr(site: dict, token: str, collector: str) -> dict:
                 changes[p] = new
             if len(changes) >= MAX_FILES:
                 break
+    # an earlier PR may have put it in e-mails, PDFs' HTML, docs or demos: take it out of those
+    if changes or already:
+        stray = [p for p in paths if p.lower().endswith(PAGE_EXT) and (_generated(p) or _side(p)) and p not in changes]
+        for p in stray[:40]:
+            code, f = _gh("GET", f"/repos/{own}/{name}/contents/{p}?ref={base}", token)
+            if code != 200 or not isinstance(f, dict) or f.get("encoding") != "base64":
+                continue
+            text = base64.b64decode(f["content"]).decode("utf-8", "ignore")
+            if snippet in text:
+                changes[p] = re.sub(r"[ \t]*" + re.escape(snippet) + r"[ \t]*\r?\n?", "", text)
     if not changes and already:
         return {"ok": True, "url": site.get("pr_url"), "files": [], "already": already}
     if not changes:
@@ -325,7 +368,10 @@ def open_pr(site: dict, token: str, collector: str) -> dict:
         if code != 201:
             return {"ok": False, "error": f"GitHub no aceptó el cambio en {p}"}
         items.append({"path": p, "mode": "100644", "type": "blob", "sha": blob["sha"]})
-    code, new_tree = _gh("POST", f"/repos/{own}/{name}/git/trees", token, {"base_tree": tree["sha"], "tree": items})
+    code, head = _gh("GET", f"/repos/{own}/{name}/git/commits/{head_sha}", token)
+    if code != 200 or not isinstance(head, dict):
+        return {"ok": False, "error": "No pude leer el último commit del repo"}
+    code, new_tree = _gh("POST", f"/repos/{own}/{name}/git/trees", token, {"base_tree": head["tree"]["sha"], "tree": items})
     if code != 201:
         return {"ok": False, "error": "GitHub no aceptó los cambios"}
     code, commit = _gh("POST", f"/repos/{own}/{name}/git/commits", token, {"message": "Tably Analytics: visitas, clics y errores (sin cookies)", "tree": new_tree["sha"], "parents": [head_sha]})
@@ -417,7 +463,9 @@ var EXT = __EXT__;
 var LAYOUT = /^(?:src\/)?app\/layout\.(?:tsx|jsx|ts|js)$/, DOC = /^(?:src\/)?pages\/_document\.(?:tsx|jsx|ts|js)$/;
 var OLD = /<script[^>]*src=["'][^"']*\/a\.js["'][^>]*data-site=["'][^"']*["'][^>]*>\s*<\/script>/i;
 var GENDIRS = __GENDIRS__, SHELL = /^_?(index|base|layout|_layout|app|main|default|master|document)\./i;
-function GEN(r) { var parts = r.split('/'), name = parts.pop(); return /\d{4}-\d{2}-\d{2}|\d{8,}/.test(name) || parts.some(function (x) { return GENDIRS.indexOf(x.toLowerCase()) >= 0; }); }
+var SIDE = /^(docs?|examples?|demos?|samples?|playground|[\w.-]+-examples?)$/i;
+function side(r) { return r.split('/').slice(0, -1).some(function (x) { return SIDE.test(x); }); }
+function GEN(r) { var parts = r.split('/'), name = parts.pop(); return /\d{4}-\d{2}-\d{2}|\d{8,}|e-?mail|newsletter|correo|pdf|report|invoice|factura|carta/i.test(name) || parts.some(function (x) { return GENDIRS.indexOf(x.toLowerCase()) >= 0; }); }
 var root = process.cwd(), files = [], code = [], CODE = /\.(m?js|cjs|ts|jsx|tsx|py|rb|go|php|java|cs|vue|svelte)$/i;
 (function walk(dir, rel) {
   var list; try { list = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
@@ -429,6 +477,8 @@ var root = process.cwd(), files = [], code = [], CODE = /\.(m?js|cjs|ts|jsx|tsx|
   });
 })(root, '');
 // every screen loads the shell (index.html, a base template, the Next.js layout): when there is one, only the shells get the tag
+var main = files.filter(function (r) { return !side(r); }); if (main.length) files = main;
+code = code.filter(function (r) { return !side(r); });
 var shells = files.filter(function (r) { return LAYOUT.test(r) || DOC.test(r) || SHELL.test(r.split('/').pop()); });
 if (shells.length) files = shells;
 var changed = [], already = [];
@@ -578,10 +628,7 @@ def repo_for_url(token: str, url: str, skip: str = "") -> str | None:
         base = info.get("default_branch") if code == 200 and isinstance(info, dict) else None
         if not base:
             continue
-        code, tree = _gh("GET", f"/repos/{own}/{name}/git/trees/{base}?recursive=1", token)
-        if code != 200 or not isinstance(tree, dict):
-            continue
-        for p in candidates([t["path"] for t in tree.get("tree", []) if t.get("type") == "blob"])[:4]:
+        for p in candidates(_paths(own, name, base, token) or [])[:4]:
             code, f = _gh("GET", f"/repos/{own}/{name}/contents/{p}?ref={base}", token)
             if code == 200 and isinstance(f, dict) and f.get("content"):
                 if _title(base64.b64decode(f["content"]).decode("utf-8", "ignore")) == want:
