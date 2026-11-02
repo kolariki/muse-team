@@ -579,7 +579,7 @@ export interface AnalyticsApp {
   stats: AnalyticsStats
   visits_7d: number
   // a site outside Tably (its own GitHub + host), connected only to Analytics
-  external?: { repo: string | null; pr_url: string | null; pr_error: string | null; snippet: string; package: string; github: boolean }
+  external?: { repo: string | null; pr_url: string | null; pr_error: string | null; snippet: string; package: string; github: boolean; github_last4?: string | null }
 }
 export interface AnalyticsRow { key: string; n: number }
 export interface AnalyticsPerson { id: string; email: string | null; name: string | null; first_seen: number; last_seen: number; pageviews: number; actions: number; sessions: number; country: string | null; device: string | null; os: string | null; browser: string | null }

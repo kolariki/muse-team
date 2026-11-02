@@ -126,6 +126,7 @@ export function ExternalSetup({ a, onChange }: { a: AnalyticsApp; onChange: () =
     } catch (e) { toast.error(tr('No se pudo abrir el PR', 'Could not open the PR'), (e as Error).message); onChange() } finally { setBusy(null) }
   }
   const [tok, setTok] = useState('')
+  const badToken = !!x.pr_error && /token|credentials|401/i.test(x.pr_error)
   const newToken = async () => {
     setBusy('pr')
     try { await api.saveGithubToken(tok.trim()); setTok('') } catch (e) { toast.error(tr('Ese token no sirve', 'That token does not work'), (e as Error).message); setBusy(null); return }
@@ -158,7 +159,7 @@ export function ExternalSetup({ a, onChange }: { a: AnalyticsApp; onChange: () =
         <div className="flex flex-wrap items-center gap-2">
           <span className="min-w-[min(100%,260px)] flex-1"><b>{T('Que Tably abra un pull request', 'Let Tably open a pull request')}</b> {T('en tu GitHub con el script en tus páginas. Lo mergeás y Railway (o tu hosting) lo despliega solo.', 'on your GitHub with the script in your pages. You merge it and Railway (or your host) deploys it.')}</span>
           {x.pr_url ? <a href={x.pr_url} target="_blank" rel="noreferrer" className={PILL}><GitPullRequest size={13} /> {T('Ver el PR', 'See the PR')} <ExternalLink size={11} /></a> : null}
-          {!x.repo ? null : !x.github
+          {!x.repo || badToken ? null : !x.github
             ? <button onClick={() => useArena.getState().set({ view: 'settings' })} className={PRIMARY}><KeyRound size={13} /> {T('Cargar token de GitHub', 'Add GitHub token')}</button>
             : <button onClick={pr} disabled={busy === 'pr'} className={PRIMARY}>{busy === 'pr' ? <Loader2 size={13} className="animate-spin" /> : <GitPullRequest size={13} />} {x.pr_url ? T('Rehacer el PR', 'Redo the PR') : T('Abrir el PR', 'Open the PR')}</button>}
         </div>
@@ -168,8 +169,11 @@ export function ExternalSetup({ a, onChange }: { a: AnalyticsApp; onChange: () =
             <button onClick={saveRepo} disabled={!repo.trim() || busy === 'repo'} className={PRIMARY}>{busy === 'repo' ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} {T('Guardar repositorio', 'Save repository')}</button>
           </div>
         )}
-        {x.pr_error && <div className="rounded-lg border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-danger">{x.pr_error}</div>}
-        {x.pr_error && /token|credentials|401/i.test(x.pr_error) && (
+        {x.pr_error && !badToken && <div className="rounded-lg border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-danger">{x.pr_error}</div>}
+        {badToken && <div className="rounded-lg border border-danger/30 bg-danger/5 px-2.5 py-2 text-danger">
+          <b>{T(`GitHub rechaza el token guardado${x.github_last4 ? ` (termina en «${x.github_last4}»)` : ''}.`, `GitHub rejects the saved token${x.github_last4 ? ` (ends in "${x.github_last4}")` : ''}.`)}</b> {T('Volver a tocar «Abrir el PR» no sirve: hay que reemplazarlo. Tocá «Crear token», en GitHub tocá «Generate token», copiá lo que empieza con ghp_ y pegalo acá.', 'Tapping «Open the PR» again will not help: replace it. Tap «Create token», on GitHub tap «Generate token», copy what starts with ghp_ and paste it here.')}
+        </div>}
+        {badToken && (
           <div className="flex flex-wrap items-center gap-2">
             <input type="password" value={tok} onChange={(e) => setTok(e.target.value)} placeholder="ghp_… / github_pat_…" autoComplete="off" className={`${INPUT} h-9 min-w-[min(100%,240px)] flex-1`} />
             <a href="https://github.com/settings/tokens/new?scopes=repo&description=Tably%20Team" target="_blank" rel="noreferrer" className={PILL}><KeyRound size={13} /> {T('Crear token (permiso «repo»)', 'Create token (scope "repo")')} <ExternalLink size={11} /></a>

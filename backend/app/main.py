@@ -3099,7 +3099,7 @@ async def analytics_overview(user: User = CurrentUser):
                     "installed": st["pageviews"] > 0 or st["live"] > 0 or st["events"] > 0, "needs_republish": False, "stats": st,
                     "visits_7d": levelsmod.hits_for(site["slug"], time.time() - 7 * 86400),
                     "external": {"repo": site.get("repo"), "pr_url": site.get("pr_url"), "pr_error": site.get("pr_error"), "snippet": sitesmod.tag(cloudmod.public_url(), site["slug"]),
-                                 "package": f"{cloudmod.public_url()}/pkg/tably-analytics-{site['slug']}.tgz", "github": bool(keystore.get_key(user.id, "github"))}})
+                                 "package": f"{cloudmod.public_url()}/pkg/tably-analytics-{site['slug']}.tgz", "github": bool(keystore.get_key(user.id, "github")), "github_last4": keystore.key_status(user.id, "github").get("last4")}})
     return {"apps": out, "collector": cloudmod.public_url(), "collector_public": not re.match(r"https?://(localhost|127\.0\.0\.1)", cloudmod.public_url())}
 
 
@@ -4248,6 +4248,8 @@ def settings_github(body: dict, user: User = CurrentUser):
         if err:
             raise HTTPException(400, err)
     keystore.save(user.id, "github", api_key=token or None, clear_key=bool(body.get("clear")))
+    if token and not body.get("clear"):
+        sitesmod.clear_token_errors(user.id)
     return keystore.key_status(user.id, "github")
 
 

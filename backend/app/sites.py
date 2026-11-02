@@ -195,6 +195,12 @@ BRANCH = "tably-analytics"
 BAD_TOKEN = "GitHub no acepta tu token: venció, lo borraste o lo que se guardó no es un token. Cargá uno nuevo con permiso «repo»."
 
 
+def clear_token_errors(user_id: str) -> None:
+    """A new token was saved: the «token rejected» notices of the user's sites no longer apply."""
+    with _db() as c:
+        c.execute("UPDATE analytics_sites SET pr_error = NULL WHERE user_id = ? AND pr_error = ?", (user_id, BAD_TOKEN))
+
+
 def check_token(token: str) -> str | None:
     """None when GitHub accepts the token; otherwise what to tell the user."""
     token = (token or "").strip()
