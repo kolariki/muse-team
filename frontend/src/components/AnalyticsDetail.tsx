@@ -24,7 +24,17 @@ export default function AnalyticsDetail({ app, onBack }: { app: AnalyticsApp; on
     return () => { alive = false; window.clearInterval(t) }
   }, [app.slug, days])
 
+  const [idPr, setIdPr] = useState<string | null>(null)
   const identify = async () => {
+    if (app.provider === 'external') {  // a site outside Tably: a PR on its repo, where the app knows who signed in
+      setAsking(true)
+      try {
+        const r = await api.siteIdentifyPr(app.slug)
+        setIdPr(r.url)
+        toast.ok(tr('PR abierto', 'PR opened'), tr('Revisalo y mergealo: cuando se despliegue, acá ves el email y el nombre de quienes inician sesión.', 'Review and merge it: once deployed, you see the email and name of those who sign in here.'))
+      } catch (e) { toast.error(tr('No se pudo abrir el PR', 'Could not open the PR'), (e as Error).message) } finally { setAsking(false) }
+      return
+    }
     if (!app.session_id) return
     setAsking(true)
     try {
@@ -62,11 +72,14 @@ export default function AnalyticsDetail({ app, onBack }: { app: AnalyticsApp; on
       </div>
       {tab === 'errors' ? <ErrorsTab app={app} days={days} /> : tab === 'ai' ? <AiTab app={app} days={days} /> : tab === 'ab' ? <ExperimentsTab app={app} days={days} /> : !d ? <div className="mt-10 min-h-[420px]"><PanelLoader caption={T('Leyendo las visitas…', 'Reading the visits…')} /></div> : (
         <>
-          {k && k.identified === 0 && d.people.length > 0 && app.session_id && (
+          {k && k.identified === 0 && d.people.length > 0 && (app.session_id || app.provider === 'external') && (
             <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent-soft/40 px-4 py-3 text-[13px] text-ink-2">
               <UserRound size={16} className="shrink-0 text-accent" />
-              <span className="min-w-0 flex-1">{T('Todavía no sabés quiénes son tus usuarios. Si tu app tiene registro o inicio de sesión, el constructor la conecta para ver su email y nombre acá.', 'You do not know who your users are yet. If your app has sign up or log in, the builder connects it so you see their email and name here.')}</span>
-              <button onClick={identify} disabled={asking} className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50">{asking ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />} {T('Identificar usuarios', 'Identify users')}</button>
+              <span className="min-w-0 flex-1">{app.provider === 'external'
+                ? (idPr ? T('Listo el PR: mergealo y, cuando se despliegue, acá aparecen el email y el nombre de quienes inician sesión.', 'The PR is ready: merge it and, once deployed, the email and name of those who sign in show up here.')
+                  : T('Todavía no sabés quiénes son tus usuarios. Si tu sitio tiene inicio de sesión, Tably busca tu login en GitHub y abre un PR que manda el email y el nombre de quien entra (nunca contraseñas). Tarda alrededor de un minuto.', 'You do not know who your users are yet. If your site has a log in, Tably finds it on GitHub and opens a PR that sends the email and name of who signs in (never passwords). It takes about a minute.'))
+                : T('Todavía no sabés quiénes son tus usuarios. Si tu app tiene registro o inicio de sesión, el constructor la conecta para ver su email y nombre acá.', 'You do not know who your users are yet. If your app has sign up or log in, the builder connects it so you see their email and name here.')}</span>
+              {idPr ? <a href={idPr} target="_blank" rel="noreferrer" className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110"><ExternalLink size={13} /> {T('Ver el PR', 'See the PR')}</a> : <button onClick={identify} disabled={asking} className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50">{asking ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />} {asking && app.provider === 'external' ? T('Buscando tu login…', 'Finding your log in…') : app.provider === 'external' ? T('Abrir el PR', 'Open the PR') : T('Identificar usuarios', 'Identify users')}</button>}
             </div>
           )}
           <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">

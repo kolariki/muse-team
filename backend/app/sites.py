@@ -289,6 +289,37 @@ def check_token(token: str) -> str | None:
     return None
 
 
+def _push(own: str, name: str, base: str, head_sha: str, changes: dict[str, str], token: str, branch: str, message: str, title: str, body: str) -> dict:
+    """One commit with every file (blobs → tree → commit → branch) and the PR for it (the open one when there is one)."""
+    items = []
+    for p, text in changes.items():
+        code, blob = _gh("POST", f"/repos/{own}/{name}/git/blobs", token, {"content": text, "encoding": "utf-8"})
+        if code != 201:
+            return {"ok": False, "error": f"GitHub no aceptó el cambio en {p}"}
+        items.append({"path": p, "mode": "100644", "type": "blob", "sha": blob["sha"]})
+    code, head = _gh("GET", f"/repos/{own}/{name}/git/commits/{head_sha}", token)
+    if code != 200 or not isinstance(head, dict):
+        return {"ok": False, "error": "No pude leer el último commit del repo"}
+    code, new_tree = _gh("POST", f"/repos/{own}/{name}/git/trees", token, {"base_tree": head["tree"]["sha"], "tree": items})
+    if code != 201:
+        return {"ok": False, "error": "GitHub no aceptó los cambios"}
+    code, commit = _gh("POST", f"/repos/{own}/{name}/git/commits", token, {"message": message, "tree": new_tree["sha"], "parents": [head_sha]})
+    if code != 201:
+        return {"ok": False, "error": "GitHub no aceptó el commit"}
+    code, _ = _gh("POST", f"/repos/{own}/{name}/git/refs", token, {"ref": f"refs/heads/{branch}", "sha": commit["sha"]})
+    if code == 422:  # the branch is there from a previous try: move it
+        code, _ = _gh("PATCH", f"/repos/{own}/{name}/git/refs/heads/{branch}", token, {"sha": commit["sha"], "force": True})
+    if code not in (200, 201):
+        return {"ok": False, "error": "No pude crear la rama en GitHub"}
+    code, prs = _gh("GET", f"/repos/{own}/{name}/pulls?head={own}:{branch}&state=open", token)
+    if code == 200 and isinstance(prs, list) and prs:
+        return {"ok": True, "url": prs[0].get("html_url"), "files": list(changes)}
+    code, pr = _gh("POST", f"/repos/{own}/{name}/pulls", token, {"title": title, "head": branch, "base": base, "body": body})
+    if code not in (200, 201) or not isinstance(pr, dict):
+        return {"ok": False, "error": f"GitHub no dejó abrir el PR: {pr.get('message') if isinstance(pr, dict) else code}"}
+    return {"ok": True, "url": pr.get("html_url"), "files": list(changes)}
+
+
 def open_pr(site: dict, token: str, collector: str) -> dict:
     """Read the repo through the API (no clone), add the snippet where it goes, push it as a branch and open a PR."""
     m = REPO_RX.match(site.get("repo") or "")
@@ -361,39 +392,121 @@ def open_pr(site: dict, token: str, collector: str) -> dict:
         return {"ok": True, "url": site.get("pr_url"), "files": [], "already": already}
     if not changes:
         return {"ok": False, "code": "no_pages", "error": f"En {own}/{name} no hay ninguna página donde poner el script (ni un index.html ni un layout de Next.js)."}
-    # one commit with every file: blobs → tree → commit → branch
-    items = []
-    for p, text in changes.items():
-        code, blob = _gh("POST", f"/repos/{own}/{name}/git/blobs", token, {"content": text, "encoding": "utf-8"})
-        if code != 201:
-            return {"ok": False, "error": f"GitHub no aceptó el cambio en {p}"}
-        items.append({"path": p, "mode": "100644", "type": "blob", "sha": blob["sha"]})
-    code, head = _gh("GET", f"/repos/{own}/{name}/git/commits/{head_sha}", token)
-    if code != 200 or not isinstance(head, dict):
-        return {"ok": False, "error": "No pude leer el último commit del repo"}
-    code, new_tree = _gh("POST", f"/repos/{own}/{name}/git/trees", token, {"base_tree": head["tree"]["sha"], "tree": items})
-    if code != 201:
-        return {"ok": False, "error": "GitHub no aceptó los cambios"}
-    code, commit = _gh("POST", f"/repos/{own}/{name}/git/commits", token, {"message": "Tably Analytics: visitas, clics y errores (sin cookies)", "tree": new_tree["sha"], "parents": [head_sha]})
-    if code != 201:
-        return {"ok": False, "error": "GitHub no aceptó el commit"}
-    code, _ = _gh("POST", f"/repos/{own}/{name}/git/refs", token, {"ref": f"refs/heads/{BRANCH}", "sha": commit["sha"]})
-    if code == 422:  # the branch is there from a previous try: move it
-        code, _ = _gh("PATCH", f"/repos/{own}/{name}/git/refs/heads/{BRANCH}", token, {"sha": commit["sha"], "force": True})
-    if code not in (200, 201):
-        return {"ok": False, "error": "No pude crear la rama en GitHub"}
     files = "\n".join(f"- `{p}`" for p in changes)
     body = (f"Agrega **Tably Analytics** a {site['title']}: visitas, de dónde llegan, qué tocan, gente en vivo y errores. Sin cookies ni datos personales.\n\n"
             f"Es una sola línea en cada página:\n\n```html\n{snippet}\n```\n\nArchivos:\n{files}\n\n"
             "Cuando se mergee y se despliegue, las visitas aparecen en Tably → Analíticas.\n\n"
             "Si la app tiene usuarios, donde ya sabe quién inició sesión se puede agregar `window.tably && window.tably.identify({ email, name, id })` para ver quién es cada visitante.")
-    code, prs = _gh("GET", f"/repos/{own}/{name}/pulls?head={own}:{BRANCH}&state=open", token)
-    if code == 200 and isinstance(prs, list) and prs:
-        return {"ok": True, "url": prs[0].get("html_url"), "files": list(changes)}
-    code, pr = _gh("POST", f"/repos/{own}/{name}/pulls", token, {"title": "Tably Analytics", "head": BRANCH, "base": base, "body": body})
-    if code not in (200, 201) or not isinstance(pr, dict):
-        return {"ok": False, "error": f"GitHub no dejó abrir el PR: {pr.get('message') if isinstance(pr, dict) else code}"}
-    return {"ok": True, "url": pr.get("html_url"), "files": list(changes)}
+    return _push(own, name, base, head_sha, changes, token, BRANCH, "Tably Analytics: visitas, clics y errores (sin cookies)", "Tably Analytics", body)
+
+
+# ------------------------------------------------------------------------------------------------ who signed in
+
+ID_BRANCH = "tably-identify"
+AUTH_PATH = re.compile(r"auth|login|log-in|signin|sign-in|session|account|user|profile|guard|interceptor|store|context|provider|app\.(component|tsx|jsx|vue)", re.I)
+AUTH_CODE = re.compile(r"\b(login|logIn|signIn|signin|signInWith\w*|setUser|currentUser|onAuthStateChanged|getSession|getUser|useSession|useUser|"
+                       r"me\(\)|/auth/|/login|/me\b|localStorage\.setItem\(\s*['\"](?:token|user|auth|access_token|jwt))", re.I)
+ID_SYSTEM = """Sos un ingeniero que agrega la identificación de usuarios de Tably Analytics a una app, tocando lo mínimo.
+Te paso los archivos de la app donde se maneja el inicio de sesión. Buscá los lugares donde la app YA SABE quién es el usuario:
+justo después de un login o registro exitoso, y cuando la app carga con la sesión ya abierta (al leer el usuario guardado o al pedir /me).
+Ahí agregá una sola llamada con los datos que la app ya tiene a mano en ese punto:
+- JavaScript: window.tably && window.tably.identify({ email: <email>, name: <nombre o "">, id: <id o ""> })
+- TypeScript: (window as any).tably?.identify?.({ email: <email>, name: <nombre o "">, id: <id o ""> })
+Reglas: nunca contraseñas, tokens ni otros datos; no cambies nada más; no inventes variables (usá las que existen en ese punto); si un
+dato no está, pasá "". Si la app no tiene usuarios o no encontrás dónde, devolvé edits vacío y explicalo en summary.
+Cada edit reemplaza un fragmento EXACTO del archivo (copiado tal cual, con su indentación, que aparezca una sola vez) por el mismo fragmento con la llamada agregada.
+Respondé SOLO JSON: {"summary": "qué hiciste, en una o dos frases", "edits": [{"path": "", "find": "fragmento exacto", "replace": "fragmento con la llamada", "why": ""}]}"""
+
+
+def _auth_files(own: str, name: str, base: str, head_sha: str, token: str) -> list[tuple[str, str]]:
+    """The few files where the app handles signing in, best first."""
+    paths = _paths(own, name, head_sha, token) or []
+    code = [p for p in paths if p.lower().endswith(CODE_EXT) and not _side(p) and not _generated(p) and not any(x in SKIP_DIRS for x in p.split("/")[:-1])
+            and not re.search(r"(\.test|\.spec|\.d|\.min)\.", p)]
+    named = sorted([p for p in code if AUTH_PATH.search(p)], key=lambda p: (0 if re.search(r"auth|login|signin|sign-in|session", p, re.I) else 1, p.count("/")))[:40]
+    scored = []
+    for p in named:
+        c, f = _gh("GET", f"/repos/{own}/{name}/contents/{p}?ref={base}", token)
+        if c != 200 or not isinstance(f, dict) or f.get("encoding") != "base64":
+            continue
+        text = base64.b64decode(f["content"]).decode("utf-8", "ignore")
+        n = len(AUTH_CODE.findall(text))
+        if n and "tably" not in text.lower():
+            scored.append((n + (3 if re.search(r"auth|login", p, re.I) else 0), p, text))
+    scored.sort(key=lambda x: -x[0])
+    return [(p, t) for _, p, t in scored[:6]]
+
+
+def apply_edits(files: dict[str, str], edits: list) -> dict[str, str]:
+    """The model's edits that are safe to apply: an exact fragment found once, a replacement that keeps it and only adds the call."""
+    out: dict[str, str] = {}
+    for e in (edits or [])[:6]:
+        if not isinstance(e, dict):
+            continue
+        p, find, rep = e.get("path"), e.get("find") or "", e.get("replace") or ""
+        text = out.get(p, files.get(p))
+        if text is None or not find or text.count(find) != 1 or "identify" not in rep or "tably" not in rep:
+            continue
+        added = rep.replace(find, "") if find in rep else rep
+        if re.search(r"password|passwd|contrase|token|secret", added, re.I):
+            continue
+        out[p] = text.replace(find, rep, 1)
+    return out
+
+
+def _excerpt(text: str, limit: int = 14000) -> str:
+    """A big file as the pieces around its sign-in code (the model copies its edits from these, so they stay exact)."""
+    if len(text) <= limit:
+        return text
+    spans: list[list[int]] = []
+    for m in AUTH_CODE.finditer(text):
+        a, b = max(0, m.start() - 1200), min(len(text), m.end() + 1200)
+        if spans and a <= spans[-1][1]:
+            spans[-1][1] = b
+        else:
+            spans.append([a, b])
+    out, n = [], 0
+    for a, b in spans:
+        if n + (b - a) > limit:
+            break
+        out.append(text[a:b])
+        n += b - a
+    return "\n/* … */\n".join(out) or text[:limit]
+
+
+async def identify_pr(site: dict, token: str, user_id: str) -> dict:
+    """A PR that tells Tably Analytics who signed in: the model finds the app's login and adds tably.identify({ email, name, id })."""
+    import asyncio
+
+    from . import studio as studiomod
+
+    m = REPO_RX.match(site.get("repo") or "")
+    if not m:
+        return {"ok": False, "error": "Falta el link del repositorio de GitHub"}
+    own, name = m.group(1), m.group(2)
+    code, repo = await asyncio.to_thread(_gh, "GET", f"/repos/{own}/{name}", token)
+    if code == 401:
+        return {"ok": False, "error": BAD_TOKEN}
+    if code != 200 or not isinstance(repo, dict):
+        return {"ok": False, "error": f"No pude leer {own}/{name} en GitHub"}
+    base = repo.get("default_branch") or "main"
+    code, ref = await asyncio.to_thread(_gh, "GET", f"/repos/{own}/{name}/git/ref/heads/{base}", token)
+    if code != 200:
+        return {"ok": False, "error": f"No pude leer la rama {base} del repo"}
+    head_sha = ref["object"]["sha"]
+    found = await asyncio.to_thread(_auth_files, own, name, base, head_sha, token)
+    if not found:
+        return {"ok": False, "error": f"No encontré un inicio de sesión en {own}/{name}. Si tu app tiene usuarios en otro repo, conectá ese repo al sitio."}
+    msg = "\n\n".join(f"=== {p} ===\n{_excerpt(t)}" for p, t in found)
+    raw, by = await studiomod.ask(user_id, ID_SYSTEM, f"App: {site['title']} ({own}/{name})\n\n{msg}", max_tokens=6000)
+    changes = apply_edits(dict(found), raw.get("edits"))
+    if not changes:
+        return {"ok": False, "error": "No pude agregarlo solo: " + (str(raw.get("summary") or "no encontré dónde la app sabe quién inició sesión."))[:300]}
+    files = "\n".join(f"- `{p}`" for p in changes)
+    body = (f"Para que **Tably Analytics** muestre el email y el nombre de quienes inician sesión en {site['title']}.\n\n"
+            f"{raw.get('summary') or ''}\n\nAgrega `tably.identify({{ email, name, id }})` donde la app ya sabe quién es el usuario. No manda contraseñas ni tokens.\n\n"
+            f"Archivos:\n{files}\n\nRecordá mencionar en tu política de privacidad que, para usuarios registrados, se registran su email y nombre junto a sus visitas.\n\n_Escrito por {by}._")
+    return await asyncio.to_thread(_push, own, name, base, head_sha, changes, token, ID_BRANCH, "Tably Analytics: identificar a quien inicia sesión", "Tably Analytics: quién inició sesión", body)
 
 
 # ------------------------------------------------------------------------------------------------ is it connected?

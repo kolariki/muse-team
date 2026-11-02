@@ -189,6 +189,7 @@ export const api = {
   siteUpdate: (slug: string, body: { title?: string; url?: string; repo?: string }) => j<{ slug: string }>(authed(`/api/analytics/sites/${slug}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
   siteDelete: (slug: string) => j<{ ok: boolean }>(authed(`/api/analytics/sites/${slug}`, { method: 'DELETE' })),
   sitePr: (slug: string) => j<{ ok: boolean; url: string; files: string[] }>(post(`/api/analytics/sites/${slug}/pr`, {})),
+  siteIdentifyPr: (slug: string) => j<{ ok: boolean; url: string; files: string[] }>(post(`/api/analytics/sites/${slug}/identify-pr`, {})),
   siteCheck: (slug: string) => j<{ hits: number; online: boolean | null; connected: boolean }>(post(`/api/analytics/sites/${slug}/check`, {})),
   teamScores: () => j<{ roles: RoleScore[] }>(authed('/api/team/scores')),
   teamMemoryDecide: (id: string, action: 'accept' | 'dismiss' | 'edit' | 'forget', text?: string) => j<TeamMemory>(post(`/api/team/memory/${id}`, { action, text })),

@@ -3191,6 +3191,24 @@ async def analytics_site_pr(slug: str, user: User = CurrentUser):
     return res
 
 
+@app.post("/api/analytics/sites/{slug}/identify-pr")
+async def analytics_site_identify_pr(slug: str, user: User = CurrentUser):
+    """Tably opens a PR on the site's repo that calls tably.identify where the app knows who signed in (email and name in «Quiénes te visitan»)."""
+    site = sitesmod.get(user.id, slug)
+    if not site:
+        raise HTTPException(404)
+    token = keystore.get_key(user.id, "github")
+    if not token:
+        raise HTTPException(400, "Falta tu token de GitHub (Modelos y claves → GitHub)")
+    try:
+        res = await sitesmod.identify_pr(site, token, user.id)
+    except RuntimeError as e:  # no model could do it
+        raise HTTPException(400, str(e))
+    if not res.get("ok"):
+        raise HTTPException(400, res.get("error") or "No se pudo abrir el PR")
+    return res
+
+
 @app.post("/api/analytics/sites/{slug}/check")
 async def analytics_site_check(slug: str, user: User = CurrentUser):
     site = sitesmod.get(user.id, slug)
