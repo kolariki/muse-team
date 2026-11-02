@@ -1,7 +1,7 @@
-import { AlertTriangle, Brain, CheckCircle2, Clapperboard, ExternalLink, KeyRound, Link2, Loader2, Megaphone, Pause, Pencil, Play, RefreshCw, SlidersHorizontal, ThumbsDown, ThumbsUp, Trash2, Users, Wallet } from 'lucide-react'
+import { AlertTriangle, Brain, CheckCircle2, Clapperboard, ExternalLink, KeyRound, LayoutGrid, Link2, Loader2, Megaphone, Pause, Pencil, Play, RefreshCw, SlidersHorizontal, Sparkles, Target, ThumbsUp, Trash2, TrendingDown, Users, Wallet } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api, type MetaAction, type MetaBrain, type MetaBrainAd } from '../lib/api'
-import { tr, useT } from '../lib/i18n'
+import { getLang, tr, useT } from '../lib/i18n'
 import { useArena } from '../store'
 import MetaSetup from './MetaSetup'
 import PageHeader from './PageHeader'
@@ -14,7 +14,7 @@ const INPUT = 'w-full rounded-lg border border-line bg-surface px-3 py-2 text-[1
 const LABEL = 'block text-[11.5px] font-semibold uppercase tracking-wide text-ink-3'
 type Assets = Awaited<ReturnType<typeof api.metaAdsAssets>>
 
-const money = (n: number | null | undefined, cur = 'USD') => (n == null ? '—' : new Intl.NumberFormat(undefined, { style: 'currency', currency: cur, maximumFractionDigits: n < 100 ? 2 : 0 }).format(n))
+const money = (n: number | null | undefined, cur = 'USD') => (n == null ? '—' : new Intl.NumberFormat(getLang() === 'en' ? 'en-US' : 'es-AR', { style: 'currency', currency: cur, maximumFractionDigits: n < 100 ? 2 : 0 }).format(n))
 
 /** Meta Ads: the user connects their ad account, Tably's model reads its numbers (what sells, to whom, where) and turns every
  *  finished «Crear anuncio» video into a ready ad, published paused with one tap. */
@@ -111,26 +111,64 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
 
             {/* 2. what the account says */}
             {b.totals && an && (
-              <section className={CARD}>
-                <div className="flex flex-wrap items-baseline gap-x-2">
-                  <h3 className="text-[15px] font-bold text-ink">{T('Lo que dice tu cuenta', 'What your account says')}</h3>
-                  <span className="text-[12px] text-ink-3">{b.account?.name} · {b.period}{b.by ? ` · ${b.by}` : ''}</span>
+              <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(30,38,34,.04),0_12px_32px_-18px_rgba(30,38,34,.25)]">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-gradient-to-r from-accent-soft/70 via-surface to-surface px-5 py-4">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-white shadow-sm"><Sparkles size={17} /></span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-[16px] font-bold tracking-tight text-ink">{T('Diagnóstico de tu cuenta', 'Your account diagnosis')}</h3>
+                    <p className="text-[12px] text-ink-3">{b.account?.name} · {b.period}</p>
+                  </div>
+                  {b.by && <span className="rounded-full border border-line bg-surface px-2.5 py-1 font-mono text-[11px] text-ink-3">{b.by}</span>}
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 min-[640px]:grid-cols-4">
-                  {[[T('Gastado', 'Spent'), money(b.totals.spend, cur)], [T(`Resultados (${b.result})`, `Results (${b.result})`), String(b.totals.results)], [T('Costo por resultado', 'Cost per result'), money(b.totals.cost_per_result, cur)], [T('Anuncios', 'Ads'), String(b.totals.ads)]].map(([k, v]) => (
-                    <div key={k} className="rounded-xl border border-line bg-paper px-3 py-2.5"><div className="text-[11.5px] text-ink-3">{k}</div><div className="mt-0.5 font-mono text-[18px] font-semibold text-ink">{v}</div></div>
-                  ))}
-                </div>
-                {an.summary && <p className="mt-3 text-[14px] leading-relaxed text-ink">{an.summary}</p>}
-                {![...an.works, ...an.fix].some((x) => x.actions?.length) && <p className="mt-2 text-[12.5px] text-ink-3">{T('Tocá «Volver a analizar» para que cada punto traiga sus botones (pausar, eliminar, cambiar presupuesto o público).', 'Tap «Analyse again» so each point comes with its buttons (pause, delete, change budget or audience).')}</p>}
-                <div className="mt-4 grid grid-cols-1 gap-4 min-[760px]:grid-cols-2">
-                  <Findings icon={<ThumbsUp size={14} />} tone="good" kind="works" title={T('Lo que funciona', 'What works')} items={an.works} cur={cur} onB={setB} />
-                  <Findings icon={<ThumbsDown size={14} />} tone="bad" kind="fix" title={T('Lo que hay que cambiar', 'What to change')} items={an.fix} cur={cur} onB={setB} />
-                </div>
-                <div className="mt-4 grid grid-cols-1 gap-2 text-[13px] text-ink-2 min-[760px]:grid-cols-3">
-                  <p className="rounded-xl bg-surface-2 px-3 py-2.5"><span className="mb-0.5 flex items-center gap-1 font-semibold text-ink"><Users size={13} /> {T('Público', 'Audience')}</span>{an.audience.countries.join(', ')} · {an.audience.age_min}–{an.audience.age_max}{an.audience.age_max >= 65 ? '+' : ''} · {an.audience.genders === 'women' ? T('mujeres', 'women') : an.audience.genders === 'men' ? T('hombres', 'men') : T('todos', 'everyone')}{an.audience.why ? <span className="mt-1 block text-ink-3">{an.audience.why}</span> : null}</p>
-                  <p className="rounded-xl bg-surface-2 px-3 py-2.5"><span className="mb-0.5 block font-semibold text-ink">{T('Ubicaciones', 'Placements')}</span>{an.placements || '—'}</p>
-                  <p className="rounded-xl bg-surface-2 px-3 py-2.5"><span className="mb-0.5 block font-semibold text-ink">{T('Presupuesto', 'Budget')}</span>{money(an.budget.daily, cur)} {T('por día', 'a day')}{an.budget.why ? <span className="mt-1 block text-ink-3">{an.budget.why}</span> : null}</p>
+                <div className="p-5">
+                  <div className="grid grid-cols-2 gap-2.5 min-[760px]:grid-cols-4">
+                    {([[Wallet, T('Invertido', 'Spent'), money(b.totals.spend, cur), ''], [Target, T('Resultados', 'Results'), String(b.totals.results), b.result ?? ''], [TrendingDown, T('Costo por resultado', 'Cost per result'), money(b.totals.cost_per_result, cur), ''], [Megaphone, T('Anuncios analizados', 'Ads analysed'), String(b.totals.ads), '']] as const).map(([Icon, k, v, sub], i) => (
+                      <div key={k} className={`rounded-xl border px-3.5 py-3 ${i === 2 ? 'border-accent/40 bg-accent-soft/50' : 'border-line bg-paper'}`}>
+                        <div className="flex items-center gap-1.5 text-[11.5px] font-medium text-ink-3"><Icon size={13} className={i === 2 ? 'text-accent' : ''} /> {k}</div>
+                        <div className="mt-1 font-mono text-[21px] font-semibold tracking-tight text-ink">{v}</div>
+                        {sub && <div className="text-[11px] text-ink-4">{sub}</div>}
+                      </div>
+                    ))}
+                  </div>
+                  {an.summary && (
+                    <div className="mt-4 flex gap-3 rounded-xl border-l-4 border-accent bg-accent-soft/40 px-4 py-3">
+                      <Brain size={18} className="mt-0.5 shrink-0 text-accent" />
+                      <p className="text-[14.5px] leading-relaxed text-ink">{an.summary}</p>
+                    </div>
+                  )}
+                  {![...an.works, ...an.fix].some((x) => x.actions?.length) && <p className="mt-2 text-[12.5px] text-ink-3">{T('Tocá «Volver a analizar» para que cada punto traiga sus botones (pausar, eliminar, cambiar presupuesto o público).', 'Tap «Analyse again» so each point comes with its buttons (pause, delete, change budget or audience).')}</p>}
+                  {!!b.top?.length && (
+                    <div className="mt-5">
+                      <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-3">{T('Tus anuncios, por inversión', 'Your ads, by spend')}</div>
+                      <div className="flex gap-2.5 overflow-x-auto pb-1">
+                        {b.top.map((t, i) => (
+                          <div key={i} className="flex w-[220px] shrink-0 gap-2.5 rounded-xl border border-line bg-paper p-2">
+                            <span className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-surface-2">{t.thumb ? <img src={t.thumb} alt="" className="h-full w-full object-cover" /> : <Megaphone size={16} className="m-auto mt-5 text-ink-4" />}</span>
+                            <span className="min-w-0 text-[11.5px] leading-tight">
+                              <span className="block truncate text-[12.5px] font-semibold text-ink" title={t.ad}>{t.ad}</span>
+                              <span className="block text-ink-3">{money(t.spend, cur)} · {t.results} {T('res.', 'res.')}</span>
+                              <span className={`mt-1 inline-block rounded-full px-1.5 py-px text-[10.5px] font-semibold ${t.results ? 'bg-[#2E9E6A]/12 text-[#2E9E6A]' : 'bg-danger/10 text-danger'}`}>{t.cost_per_result != null ? `${money(t.cost_per_result, cur)} c/u` : T('sin resultados', 'no results')}</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="mt-5 grid grid-cols-1 gap-5 min-[860px]:grid-cols-2">
+                    <Findings icon={<ThumbsUp size={14} />} tone="good" kind="works" title={T('Lo que funciona', 'What works')} items={an.works} cur={cur} onB={setB} />
+                    <Findings icon={<AlertTriangle size={14} />} tone="bad" kind="fix" title={T('Lo que hay que cambiar', 'What to change')} items={an.fix} cur={cur} onB={setB} />
+                  </div>
+                  <div className="mt-5 grid grid-cols-1 gap-2.5 min-[860px]:grid-cols-3">
+                    {([[Users, T('Público recomendado', 'Recommended audience'), `${an.audience.countries.join(', ')} · ${an.audience.age_min}–${an.audience.age_max}${an.audience.age_max >= 65 ? '+' : ''} · ${an.audience.genders === 'women' ? T('mujeres', 'women') : an.audience.genders === 'men' ? T('hombres', 'men') : T('todos', 'everyone')}`, an.audience.why],
+                       [LayoutGrid, T('Ubicaciones', 'Placements'), '', an.placements],
+                       [Wallet, T('Presupuesto sugerido', 'Suggested budget'), `${money(an.budget.daily, cur)} ${T('por día', 'a day')}`, an.budget.why]] as const).map(([Icon, k, head, why]) => (
+                      <div key={k} className="rounded-xl border border-line bg-paper px-3.5 py-3">
+                        <div className="flex items-center gap-1.5 text-[12px] font-semibold text-ink-2"><span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent-soft text-accent"><Icon size={13} /></span> {k}</div>
+                        {head && <div className="mt-1.5 text-[14px] font-semibold text-ink">{head}</div>}
+                        {why && <p className="mt-1 text-[12.5px] leading-snug text-ink-3">{why}</p>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </section>
             )}
@@ -157,18 +195,26 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
   )
 }
 
-function Findings({ icon, tone, kind, title, items, cur, onB }: { icon: React.ReactNode; tone: 'good' | 'bad'; kind: 'works' | 'fix'; title: string; items: { title: string; detail: string; actions?: MetaAction[] }[]; cur: string; onB: (b: MetaBrain) => void }) {
-  const color = tone === 'good' ? 'text-[#2E9E6A]' : 'text-[#C28A12]'
+function Findings({ icon, tone, kind, title, items, cur, onB }: { icon: React.ReactNode; tone: 'good' | 'bad'; kind: 'works' | 'fix'; title: string; items: { title: string; detail: string; impact?: string; actions?: MetaAction[] }[]; cur: string; onB: (b: MetaBrain) => void }) {
+  const good = tone === 'good'
   return (
     <div>
-      <div className={`mb-2 flex items-center gap-1.5 text-[13px] font-bold ${color}`}>{icon} {title}</div>
+      <div className="mb-2.5 flex items-center gap-2">
+        <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${good ? 'bg-[#2E9E6A]/12 text-[#2E9E6A]' : 'bg-[#C28A12]/12 text-[#C28A12]'}`}>{icon}</span>
+        <span className="text-[14px] font-bold text-ink">{title}</span>
+        <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-ink-3">{items.length}</span>
+      </div>
       {!items.length ? <p className="text-[13px] text-ink-3">—</p> : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2.5">
           {items.map((it, i) => (
-            <li key={i} className="rounded-xl border border-line bg-paper px-3 py-2">
-              <span className="block text-[13.5px] font-semibold text-ink">{it.title}</span>
-              <span className="block text-[12.5px] leading-snug text-ink-2">{it.detail}</span>
-              {!!it.actions?.length && <div className="mt-2 flex flex-col gap-1.5">{it.actions.map((a, j) => <Action key={j} a={a} kind={kind} i={i} j={j} cur={cur} onB={onB} />)}</div>}
+            <li key={i} className={`relative overflow-hidden rounded-xl border border-line bg-paper py-3 pl-4 pr-3.5 shadow-[0_1px_2px_rgba(30,38,34,.04)]`}>
+              <span className={`absolute inset-y-0 left-0 w-1 ${good ? 'bg-[#2E9E6A]' : 'bg-[#C28A12]'}`} />
+              <div className="flex items-start gap-2">
+                <span className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-ink">{it.title}</span>
+                {it.impact && <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold ${good ? 'bg-[#2E9E6A]/12 text-[#2E9E6A]' : 'bg-[#C28A12]/12 text-[#9A6B0A]'}`}>{it.impact}</span>}
+              </div>
+              <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">{it.detail}</p>
+              {!!it.actions?.length && <div className="mt-2.5 flex flex-col gap-1.5 border-t border-line pt-2.5">{it.actions.map((a, j) => <Action key={j} a={a} kind={kind} i={i} j={j} cur={cur} onB={onB} />)}</div>}
             </li>
           ))}
         </ul>

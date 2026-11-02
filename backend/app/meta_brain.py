@@ -8,6 +8,7 @@ by placement and by country. The analysis and the proposed ads are kept in <user
 from __future__ import annotations
 
 import json
+import re
 import logging
 import time
 from pathlib import Path
@@ -212,9 +213,13 @@ API) y los videos que el equipo ya le hizo. Tu trabajo:
      "publisher_platforms": ["facebook","instagram"], "facebook_positions": ["feed","story","facebook_reels"], "instagram_positions": ["stream","story","reels"], "label": "…"}}
      (solo los campos que cambian; las ubicaciones solo si hay que sacar alguna)
    Un «label» corto con el verbo y el nombre, por ejemplo «Pausar Lote Maipú 1».
-Escribí en {lang}, claro y concreto, sin jerga innecesaria.
-Respondé SOLO JSON: {{"summary": "2-3 frases con lo más importante", "history": true, "works": [{{"title": "", "detail": "con el dato", "actions": []}}],
-"fix": [{{"title": "", "detail": "con el dato y qué hacer", "actions": [{{"type": "pause", "level": "ad", "id": "", "name": "", "label": ""}}]}}], "audience": {{"countries": ["AR"], "age_min": 18, "age_max": 65, "genders": "all", "why": ""}},
+Cómo escribir (lo lee el dueño del negocio, no un técnico): en {lang}, claro y concreto. Nunca escribas los id numéricos ni los nombres
+técnicos de la API (OUTCOME_SALES, link_click, platform_position…): nombrá cada anuncio o campaña por su nombre entre comillas y decí
+«objetivo Ventas», «objetivo Clientes potenciales», «Reels de Instagram», etc. Montos redondeados, con separador de miles y la moneda
+(«ARS 91.854»). Cada «title» de hasta 8 palabras; cada «detail» de 1 o 2 frases cortas con el dato clave y qué hacer. A cada punto ponele
+un «impact»: la cifra que lo resume en menos de 28 caracteres («ARS 2.373 por lead», «ARS 99.847 sin leads», «CTR 9,3 %»).
+Respondé SOLO JSON: {{"summary": "2-3 frases con lo más importante", "history": true, "works": [{{"title": "", "detail": "con el dato", "impact": "", "actions": []}}],
+"fix": [{{"title": "", "detail": "con el dato y qué hacer", "impact": "", "actions": [{{"type": "pause", "level": "ad", "id": "", "name": "", "label": ""}}]}}], "audience": {{"countries": ["AR"], "age_min": 18, "age_max": 65, "genders": "all", "why": ""}},
 "placements": "qué ubicaciones priorizar y por qué", "budget": {{"daily": 10, "why": ""}},
 "ads": [{{"video": "id del video", "name": "", "angle": "", "headline": "", "primary_text": "", "description": "", "cta_type": "LEARN_MORE",
 "countries": ["AR"], "age_min": 18, "age_max": 65, "genders": "all", "daily_budget": 10, "why": "por qué este anuncio así, según la cuenta"}}]}}"""
@@ -269,9 +274,31 @@ def clean_actions(xs, data: dict) -> list[dict]:
     return out
 
 
+API_WORDS = {"OUTCOME_SALES": "objetivo Ventas", "OUTCOME_LEADS": "objetivo Clientes potenciales", "OUTCOME_TRAFFIC": "objetivo Tráfico",
+             "OUTCOME_ENGAGEMENT": "objetivo Interacción", "OUTCOME_AWARENESS": "objetivo Reconocimiento", "OUTCOME_APP_PROMOTION": "objetivo Promoción de app"}
+
+
+def _names(data: dict) -> dict[str, str]:
+    out = {str(a.get("id")): a.get("ad") for a in data.get("ads") or []}
+    out.update({str(x.get("id")): x.get("name") for x in [*(data.get("adsets") or []), *(data.get("campaigns") or [])]})
+    return out
+
+
+def _plain(t, names: dict[str, str]) -> str:
+    """No raw ids or API names in what the owner reads, even when the model slips them in."""
+    t = re.sub(r"\b(?:[Aa]d|[Aa]nuncio|[Cc]ampa(?:ign|ña)|[Aa]d ?set|[Cc]onjunto)?\s*(\d{10,})\b", lambda m: f"«{names[m.group(1)]}»" if names.get(m.group(1)) else "", str(t or ""))
+    for k, v in API_WORDS.items():
+        t = t.replace(k, v)
+    return re.sub(r"\s{2,}", " ", t).strip()
+
+
 def _clean(raw: dict, vids: list[dict], currency: str, data: dict | None = None) -> dict:
+    names = _names(data or {})
+    plain = lambda t: _plain(t, names)  # noqa: E731
+
     def items(xs) -> list[dict]:
-        return [{"title": adsmod._cut(x.get("title"), 90), "detail": adsmod._cut(x.get("detail"), 400), "actions": clean_actions(x.get("actions"), data or {})}
+        return [{"title": adsmod._cut(plain(x.get("title")), 90), "detail": adsmod._cut(plain(x.get("detail")), 400), "impact": adsmod._cut(plain(x.get("impact")), 32),
+                 "actions": clean_actions(x.get("actions"), data or {})}
                 for x in (xs or []) if isinstance(x, dict) and x.get("title")][:6]
 
     def countries(xs, fallback: list[str]) -> list[str]:
@@ -302,10 +329,10 @@ def _clean(raw: dict, vids: list[dict], currency: str, data: dict | None = None)
                     "cta_type": a.get("cta_type") if a.get("cta_type") in adsmod.CTA_TYPES else "LEARN_MORE", "countries": countries(a.get("countries"), base_c),
                     "age_min": lo, "age_max": max(lo, age(a.get("age_max"), 13, 65, 65)), "genders": g, "daily_budget": round(max(1.0, _f(a.get("daily_budget")) or daily), 2),
                     "link": v["link"], "why": adsmod._cut(a.get("why"), 400)})
-    return {"summary": adsmod._cut(raw.get("summary"), 600), "history": bool(raw.get("history")), "works": items(raw.get("works")), "fix": items(raw.get("fix")),
+    return {"summary": adsmod._cut(plain(raw.get("summary")), 600), "history": bool(raw.get("history")), "works": items(raw.get("works")), "fix": items(raw.get("fix")),
             "audience": {"countries": base_c, "age_min": age(aud.get("age_min"), 13, 65, 18), "age_max": age(aud.get("age_max"), 13, 65, 65),
                          "genders": aud.get("genders") if aud.get("genders") in ("all", "women", "men") else "all", "why": adsmod._cut(aud.get("why"), 300)},
-            "placements": adsmod._cut(raw.get("placements"), 400), "budget": {"daily": round(daily, 2), "currency": currency, "why": adsmod._cut(bud.get("why"), 300)}, "ads": ads}
+            "placements": adsmod._cut(plain(raw.get("placements")), 400), "budget": {"daily": round(daily, 2), "currency": currency, "why": adsmod._cut(bud.get("why"), 300)}, "ads": ads}
 
 
 async def analyze(user_id: str, account_id: str, english: bool = False) -> None:
@@ -336,7 +363,10 @@ def public(user_id: str) -> dict:
     d = load(user_id)
     vids = {v["id"]: v for v in videos(user_id)}
     an = d.get("analysis")
-    if an:
+    if an:  # analyses kept before the wording rules: same scrub on the way out
+        names = _names(d.get("data") or {})
+        an = {**an, "summary": _plain(an.get("summary"), names), "placements": _plain(an.get("placements"), names),
+              **{k: [{**x, "title": _plain(x.get("title"), names), "detail": _plain(x.get("detail"), names)} for x in an.get(k) or []] for k in ("works", "fix")}}
         an = {**an, "ads": [{**a, "title": vids[a["video"]]["title"], "ts": vids[a["video"]]["ts"]} for a in an.get("ads") or [] if a["video"] in vids]}
         an["missing"] = [{"id": v["id"], "title": v["title"]} for v in vids.values() if v["id"] not in {a["video"] for a in an["ads"]}]
     data = d.get("data") or {}

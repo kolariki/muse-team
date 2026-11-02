@@ -640,7 +640,7 @@ export interface MetaBrain {
   totals?: { spend: number; results: number; cost_per_result: number | null; impressions: number; link_clicks: number; ads: number } | null
   top: { ad: string; spend: number; results: number; cost_per_result: number | null; ctr: number; thumb?: string; status?: string }[]
   analysis?: {
-    summary: string; history: boolean; works: { title: string; detail: string; actions?: MetaAction[] }[]; fix: { title: string; detail: string; actions?: MetaAction[] }[]
+    summary: string; history: boolean; works: { title: string; detail: string; impact?: string; actions?: MetaAction[] }[]; fix: { title: string; detail: string; impact?: string; actions?: MetaAction[] }[]
     audience: { countries: string[]; age_min: number; age_max: number; genders: string; why: string }; placements: string
     budget: { daily: number; currency: string; why: string }; ads: MetaBrainAd[]; missing: { id: string; title: string }[]
   } | null
