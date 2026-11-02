@@ -137,21 +137,60 @@ def as_app(site: dict) -> dict:
 
 # ------------------------------------------------------------------------------------------------ putting the snippet in the code
 
+GENERATED_DIRS = {"reports", "reportes", "informes", "report", "reporte", "cartas_ofertas", "cartas", "outputs", "output", "exports", "uploads", "storage", "logs", "tmp", "temp"}
+SHELL_RX = re.compile(r"^_?(index|base|layout|_layout|app|main|default|master|document)\.", re.I)
+
+
+def _generated(p: str) -> bool:
+    """Files a program wrote (reports, e-mails, exports…): a date or a long number in the name, or a reports/exports folder."""
+    name = p.rsplit("/", 1)[-1]
+    return bool(re.search(r"\d{4}-\d{2}-\d{2}|\d{8,}", name)) or any(x.lower() in GENERATED_DIRS for x in p.split("/")[:-1])
+
+
 def candidates(paths: list[str]) -> list[str]:
-    """The files that can carry the snippet: pages and templates with a <head>, and Next.js's root layout / _document."""
+    """The files that can carry the snippet: pages and templates with a <head>, and Next.js's root layout / _document.
+    When the app has a shell (index.html, a base template, the Next.js layout) only the shells get it: every screen loads them."""
     out = []
     for p in paths:
         parts = p.split("/")
-        if any(x in SKIP_DIRS for x in parts[:-1]) or re.search(r"(^|/)(e-?mails?|mail)(/|$)", p, re.I):
+        if any(x in SKIP_DIRS for x in parts[:-1]) or re.search(r"(^|/)(e-?mails?|mail)(/|$)", p, re.I) or _generated(p):
             continue
         if LAYOUT_RX.match(p) or DOCUMENT_RX.match(p) or p.lower().endswith(PAGE_EXT):
             out.append(p)
-    # the likely shells first (a big app has hundreds of component templates without a <head>)
-    def rank(p: str) -> tuple:
-        name = p.rsplit("/", 1)[-1].lower()
-        shell = LAYOUT_RX.match(p) or DOCUMENT_RX.match(p) or re.match(r"^_?(index|base|layout|_layout|app|main|default|master|head|header|document)\b", name)
-        return (0 if shell else 1, p.count("/"), p)
-    return sorted(out, key=rank)
+
+    def shell(p: str) -> bool:
+        return bool(LAYOUT_RX.match(p) or DOCUMENT_RX.match(p) or SHELL_RX.match(p.rsplit("/", 1)[-1]))
+
+    shells = [p for p in out if shell(p)]
+    return sorted(shells or out, key=lambda p: (p.count("/"), p))
+
+
+CODE_EXT = (".js", ".mjs", ".cjs", ".ts", ".jsx", ".tsx", ".py", ".rb", ".go", ".php", ".java", ".cs", ".vue", ".svelte")
+CODE_HINT = re.compile(r"seo|page|template|view|render|layout|html|landing|home|header|head|ssr|site|web|server|app|index|main", re.I)
+
+
+def code_candidates(paths: list[str]) -> list[str]:
+    """Backends that write their pages from code (an HTML string with </head> in a .js/.py…): the files most likely to hold it."""
+    out = [p for p in paths if p.lower().endswith(CODE_EXT) and not _generated(p)
+           and not any(x in SKIP_DIRS or x.lower() in ("scripts", "migrations", "seeders", "seeds") for x in p.split("/")[:-1])
+           and not re.search(r"(\.test|\.spec|\.d)\.", p) and not re.search(r"(^|/)(e-?mails?|mail)", p, re.I)]
+    return sorted(out, key=lambda p: (0 if CODE_HINT.search(p.rsplit("/", 1)[-1]) else 1, p.count("/"), p))
+
+
+def patch_code(text: str, snippet: str) -> str | None:
+    """Put the tag before each literal </head> in source code, with the quotes that do not break the string around it."""
+    if snippet in text or snippet.replace('"', "'") in text:
+        return None
+    out, last, n = [], 0, 0
+    for m in re.finditer(r"</head\s*>", text, re.I):
+        # only a </head> that closes a real <head> in the same HTML; never a bare '</head>' used as a search string
+        if m.start() and text[m.start() - 1] in "'\"`" or "<head" not in text[max(0, m.start() - 4000): m.start()].lower():
+            continue
+        line = text[text.rfind("\n", 0, m.start()) + 1: m.start()]
+        tag_ = snippet.replace('"', "'") if line.count('"') % 2 == 1 else snippet
+        out += [text[last:m.start()], tag_]
+        last, n = m.start(), n + 1
+    return "".join(out) + text[last:] if n else None
 
 
 _OLD_TAG = re.compile(r"""<script[^>]*src=["'][^"']*/a\.js["'][^>]*data-site=["'][^"']*["'][^>]*>\s*</script>|<script[^>]*data-site=["'][^"']*["'][^>]*src=["'][^"']*/a\.js["'][^>]*>\s*</script>""", re.I)
@@ -240,7 +279,7 @@ def open_pr(site: dict, token: str, collector: str) -> dict:
     if code != 200:
         return {"ok": False, "error": "No pude leer los archivos del repo"}
     paths = [t["path"] for t in tree.get("tree", []) if t.get("type") == "blob" and t.get("size", 0) < 400_000]
-    snippet, changes = tag(collector, site["slug"]), {}
+    snippet, changes, already = tag(collector, site["slug"]), {}, []
     for p in candidates(paths)[:120]:
         code, f = _gh("GET", f"/repos/{own}/{name}/contents/{p}?ref={base}", token)
         if code != 200 or not isinstance(f, dict) or f.get("encoding") != "base64":
@@ -249,13 +288,36 @@ def open_pr(site: dict, token: str, collector: str) -> dict:
             text = base64.b64decode(f["content"]).decode("utf-8")
         except (UnicodeDecodeError, ValueError):
             continue
+        if snippet in text:
+            already.append(p)
+            continue
         new = patch(p, text, snippet)
         if new and new != text:
             changes[p] = new
         if len(changes) >= MAX_FILES:
             break
+    # backends that write their pages from code (an HTML string with </head>, e.g. server-rendered SEO pages): those too
+    if len(changes) < MAX_FILES:
+        for p in code_candidates(paths)[:120]:
+            code, f = _gh("GET", f"/repos/{own}/{name}/contents/{p}?ref={base}", token)
+            if code != 200 or not isinstance(f, dict) or f.get("encoding") != "base64":
+                continue
+            try:
+                text = base64.b64decode(f["content"]).decode("utf-8")
+            except (UnicodeDecodeError, ValueError):
+                continue
+            if snippet in text or snippet.replace('"', "'") in text:
+                already.append(p)
+                continue
+            new = patch_code(text, snippet) if re.search(r"<html|<!doctype", text, re.I) else None
+            if new:
+                changes[p] = new
+            if len(changes) >= MAX_FILES:
+                break
+    if not changes and already:
+        return {"ok": True, "url": site.get("pr_url"), "files": [], "already": already}
     if not changes:
-        return {"ok": False, "error": "No encontré dónde poner el script (ni un index.html ni un layout de Next.js), o ya está puesto. Usá el comando o el paquete de abajo."}
+        return {"ok": False, "code": "no_pages", "error": f"En {own}/{name} no hay ninguna página donde poner el script (ni un index.html ni un layout de Next.js)."}
     # one commit with every file: blobs → tree → commit → branch
     items = []
     for p, text in changes.items():
@@ -354,15 +416,21 @@ var SKIP = __SKIP__;
 var EXT = __EXT__;
 var LAYOUT = /^(?:src\/)?app\/layout\.(?:tsx|jsx|ts|js)$/, DOC = /^(?:src\/)?pages\/_document\.(?:tsx|jsx|ts|js)$/;
 var OLD = /<script[^>]*src=["'][^"']*\/a\.js["'][^>]*data-site=["'][^"']*["'][^>]*>\s*<\/script>/i;
-var root = process.cwd(), files = [];
+var GENDIRS = __GENDIRS__, SHELL = /^_?(index|base|layout|_layout|app|main|default|master|document)\./i;
+function GEN(r) { var parts = r.split('/'), name = parts.pop(); return /\d{4}-\d{2}-\d{2}|\d{8,}/.test(name) || parts.some(function (x) { return GENDIRS.indexOf(x.toLowerCase()) >= 0; }); }
+var root = process.cwd(), files = [], code = [], CODE = /\.(m?js|cjs|ts|jsx|tsx|py|rb|go|php|java|cs|vue|svelte)$/i;
 (function walk(dir, rel) {
   var list; try { list = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
   list.forEach(function (d) {
     var r = rel ? rel + '/' + d.name : d.name;
     if (d.isDirectory()) { if (SKIP.indexOf(d.name) < 0 && !/^e-?mails?$|^mail$/i.test(d.name)) walk(path.join(dir, d.name), r); }
-    else if (LAYOUT.test(r) || DOC.test(r) || EXT.some(function (e) { return d.name.toLowerCase().endsWith(e); })) files.push(r);
+    else if (!GEN(r) && (LAYOUT.test(r) || DOC.test(r) || EXT.some(function (e) { return d.name.toLowerCase().endsWith(e); }))) files.push(r);
+    else if (!GEN(r) && CODE.test(d.name) && !/(\.test|\.spec|\.d)\./.test(d.name) && !/(^|\/)(scripts|migrations|seeders|seeds)\//.test(r)) code.push(r);
   });
 })(root, '');
+// every screen loads the shell (index.html, a base template, the Next.js layout): when there is one, only the shells get the tag
+var shells = files.filter(function (r) { return LAYOUT.test(r) || DOC.test(r) || SHELL.test(r.split('/').pop()); });
+if (shells.length) files = shells;
 var changed = [], already = [];
 files.forEach(function (r) {
   var f = path.join(root, r), t = fs.readFileSync(f, 'utf8'), n = null;
@@ -372,6 +440,20 @@ files.forEach(function (r) {
   else if (LAYOUT.test(r)) n = t.indexOf('</head>') >= 0 ? t.replace('</head>', '  ' + TAG + '\n      </head>') : t.replace(/<html\b[^>]*>/, function (m) { return m + '\n      <head>' + TAG + '</head>'; });
   else if (/<\/head\s*>/i.test(t)) n = t.replace(/[ \t]*<\/head\s*>/i, function (m) { var pad = m.match(/^[ \t]*/)[0]; return pad + '  ' + TAG + '\n' + m; });
   if (n && n !== t) { fs.writeFileSync(f, n); changed.push(r); }
+});
+// backends that write their pages from code: a </head> that closes a real <head> inside an HTML string
+code.forEach(function (r) {
+  var f = path.join(root, r), t;
+  try { t = fs.readFileSync(f, 'utf8'); } catch (e) { return; }
+  if (!/<html|<!doctype/i.test(t) || !/<\/head\s*>/i.test(t)) return;
+  if (t.indexOf(TAG) >= 0 || t.indexOf(TAG.replace(/"/g, "'")) >= 0) { already.push(r); return; }
+  var out = '', last = 0, n = 0, re = /<\/head\s*>/gi, m;
+  while ((m = re.exec(t))) {
+    if ("'\"`".indexOf(t[m.index - 1]) >= 0 || t.slice(Math.max(0, m.index - 4000), m.index).toLowerCase().indexOf('<head') < 0) continue;
+    var line = t.slice(t.lastIndexOf('\n', m.index) + 1, m.index);
+    out += t.slice(last, m.index) + ((line.split('"').length - 1) % 2 ? TAG.replace(/"/g, "'") : TAG); last = m.index; n++;
+  }
+  if (n) { fs.writeFileSync(f, out + t.slice(last)); changed.push(r); }
 });
 if (!changed.length && already.length) {
   console.log('\nTably Analytics ya estaba en:\n' + already.map(function (c) { return '  - ' + c; }).join('\n') + '\n');
@@ -385,7 +467,7 @@ if (!changed.length) {
 console.log('\nTably Analytics quedó en:\n' + changed.map(function (c) { return '  - ' + c; }).join('\n'));
 console.log('\nHacé commit y push; cuando se despliegue, las visitas aparecen en Tably → Analíticas.\n');
 """
-    bin_js = bin_js.replace("__CFG__", cfg).replace("__SKIP__", json.dumps(sorted(SKIP_DIRS))).replace("__EXT__", json.dumps(list(PAGE_EXT)))
+    bin_js = bin_js.replace("__CFG__", cfg).replace("__SKIP__", json.dumps(sorted(SKIP_DIRS))).replace("__EXT__", json.dumps(list(PAGE_EXT))).replace("__GENDIRS__", json.dumps(sorted(GENERATED_DIRS)))
     readme = f"""# tably-analytics
 
 Tably Analytics for **{slug}**: visits, where they come from, what people tap, who is live and errors. No cookies.
@@ -469,3 +551,53 @@ def live_url(token: str, repo: str) -> str | None:
             if u.startswith("http") and not re.search(r"railway\.(app|com)/project|vercel\.com/|app\.netlify\.com|github\.com", u):
                 return u.rstrip("/")
     return None
+
+
+
+# ------------------------------------------------------------------------------------------------ finding the repo that serves the site
+
+def _title(html: str) -> str:
+    m = re.search(r"<title[^>]*>([^<]{3,})</title", html or "", re.I)
+    return re.sub(r"\s+", " ", m.group(1)).strip() if m else ""
+
+
+def repo_for_url(token: str, url: str, skip: str = "") -> str | None:
+    """Which of the user's repos serves `url`: the one whose page (index.html, a base template…) has the same <title> as the live site."""
+    try:
+        live = httpx.get(url, timeout=20, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0 tablyteam"}).text
+    except httpx.HTTPError:
+        return None
+    want = _title(live)
+    if not want:
+        return None
+    for r in (repos(token).get("repos") or [])[:60]:
+        if r["url"].lower() == (skip or "").lower():
+            continue
+        own, name = r["full_name"].split("/", 1)
+        code, info = _gh("GET", f"/repos/{own}/{name}", token)
+        base = info.get("default_branch") if code == 200 and isinstance(info, dict) else None
+        if not base:
+            continue
+        code, tree = _gh("GET", f"/repos/{own}/{name}/git/trees/{base}?recursive=1", token)
+        if code != 200 or not isinstance(tree, dict):
+            continue
+        for p in candidates([t["path"] for t in tree.get("tree", []) if t.get("type") == "blob"])[:4]:
+            code, f = _gh("GET", f"/repos/{own}/{name}/contents/{p}?ref={base}", token)
+            if code == 200 and isinstance(f, dict) and f.get("content"):
+                if _title(base64.b64decode(f["content"]).decode("utf-8", "ignore")) == want:
+                    return r["url"]
+    return None
+
+
+def connect_pr(site: dict, token: str, collector: str) -> dict:
+    """The PR on the site's repo; when that repo has no page (a backend, say), Tably finds the repo that serves the site and uses it."""
+    res = open_pr(site, token, collector)
+    if res.get("code") != "no_pages" or not site.get("url"):
+        return res
+    other = repo_for_url(token, site["url"], skip=site.get("repo") or "")
+    if not other:
+        return {**res, "error": res["error"] + " Tampoco encontré entre tus repos el que sirve " + site["url"] + ": usá el comando o el paquete de abajo."}
+    res = open_pr({**site, "repo": other}, token, collector)
+    if res.get("ok"):
+        res["repo"] = other
+    return res

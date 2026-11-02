@@ -52,3 +52,17 @@ def test_package_has_site_inside():
     assert pkg["name"] == "tably-analytics" and pkg["bin"]["tably-analytics"] == "bin/connect.cjs"
     assert '"site": "elevum"' in mjs and "export { init, track, identify, variant }" in mjs
     assert "__CFG__" not in bin_js and '"site": "elevum"' in bin_js
+
+
+def test_code_templates():
+    from app.sites import candidates, code_candidates, patch_code
+    sn = '<script defer src="https://t.com/a.js" data-site="x"></script>'
+    # server-rendered HTML in strings gets the tag, with quotes that keep the string valid
+    assert "src='https://t.com/a.js'" in patch_code('res.send("<html><head><title>x</title></head>")', sn)
+    assert sn in patch_code("const h = `<html>\n<head>\n<title>t</title>\n</head>`", sn)
+    # a bare '</head>' used as a search string is never touched
+    assert patch_code("html = html.replace('</head>', css + '</head>')", sn) is None
+    assert code_candidates(["scripts/x.js", "tests/a.test.js", "node_modules/a/index.js", "services/SeoPagesService.js"]) == ["services/SeoPagesService.js"]
+    # generated reports are not pages; with a shell only the shell gets it
+    assert candidates(["informes/informe_2025-09-16.html", "reportes/r.html"]) == []
+    assert candidates(["index.html", "about.html"]) == ["index.html"]

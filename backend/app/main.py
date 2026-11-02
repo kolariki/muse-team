@@ -3131,8 +3131,9 @@ async def analytics_site_create(body: dict, user: User = CurrentUser):
         raise HTTPException(400, str(e))
     token = keystore.get_key(user.id, "github")
     if body.get("pr") and site.get("repo") and token:
-        res = await asyncio.to_thread(sitesmod.open_pr, site, token, cloudmod.public_url())
-        site = sitesmod.update(user.id, site["slug"], pr_url=res.get("url") if res.get("ok") else None, pr_error=None if res.get("ok") else res.get("error"))
+        res = await asyncio.to_thread(sitesmod.connect_pr, site, token, cloudmod.public_url())
+        site = sitesmod.update(user.id, site["slug"], pr_url=res.get("url") if res.get("ok") else None, pr_error=None if res.get("ok") else res.get("error"),
+                               **({"repo": res["repo"]} if res.get("repo") else {}))
         site["pr"] = res
     return site
 
@@ -3181,8 +3182,9 @@ async def analytics_site_pr(slug: str, user: User = CurrentUser):
     token = keystore.get_key(user.id, "github")
     if not token:
         raise HTTPException(400, "Falta tu token de GitHub (Modelos y claves → GitHub)")
-    res = await asyncio.to_thread(sitesmod.open_pr, site, token, cloudmod.public_url())
-    sitesmod.update(user.id, slug, pr_url=res.get("url") if res.get("ok") else site.get("pr_url"), pr_error=None if res.get("ok") else res.get("error"))
+    res = await asyncio.to_thread(sitesmod.connect_pr, site, token, cloudmod.public_url())
+    sitesmod.update(user.id, slug, pr_url=res.get("url") if res.get("ok") else site.get("pr_url"), pr_error=None if res.get("ok") else res.get("error"),
+                    **({"repo": res["repo"]} if res.get("repo") else {}))
     if not res.get("ok"):
         raise HTTPException(400, res.get("error") or "No se pudo abrir el PR")
     return res
