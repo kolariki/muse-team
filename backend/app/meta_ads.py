@@ -228,6 +228,11 @@ async def publish(user_id: str, ad: dict, base: Path, opts: dict, step) -> dict:
         camp = await post(f"{act}/campaigns", {"name": name, "objective": "OUTCOME_TRAFFIC", "status": "PAUSED", "special_ad_categories": [],
                                                "is_adset_budget_sharing_enabled": "false"})
         targeting = {"geo_locations": {"countries": opts["countries"]}, "age_min": int(opts.get("age_min") or 18), "targeting_automation": {"advantage_audience": 1}}
+        # a top age or a single gender are hard limits: Meta's Advantage+ audience only takes them at 65 / everyone, so it goes off
+        if opts.get("age_max") and int(opts["age_max"]) < 65:
+            targeting.update(age_max=int(opts["age_max"]), targeting_automation={"advantage_audience": 0})
+        if opts.get("genders") in ("men", "women"):  # Meta: 1 men, 2 women
+            targeting.update(genders=[1 if opts["genders"] == "men" else 2], targeting_automation={"advantage_audience": 0})
         adset_body = {"name": name, "campaign_id": camp["id"], "daily_budget": budget_units(float(opts["daily_budget"]), opts.get("currency") or "USD"),
                       "billing_event": "IMPRESSIONS", "optimization_goal": "LINK_CLICKS", "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
                       "destination_type": "WEBSITE", "targeting": targeting, "status": "PAUSED"}

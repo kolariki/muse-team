@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { BarChart3, Clapperboard, FolderOpen, Gavel, Home, LayoutGrid, LogOut, Medal, MessagesSquare, Settings2, Store, Ticket, Users, X } from 'lucide-react'
+import { BarChart3, Clapperboard, FolderOpen, Gavel, Home, LayoutGrid, LogOut, Medal, Megaphone, MessagesSquare, Settings2, Store, Ticket, Users, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { User } from '../lib/api'
 import { TICKETS_ENABLED } from '../lib/flags'
@@ -37,6 +37,7 @@ function groups(): { es: string; en: string; items: Item[] }[] {
     { es: 'Crecer', en: 'Grow', items: [
       { id: 'analytics', icon: <BarChart3 size={18} />, es: 'Analíticas', en: 'Analytics', view: 'analytics', go: go('analytics'), hint_es: 'Visitas, eventos y errores reales de tus apps publicadas', hint_en: 'Real visits, events and errors of your published apps' },
       { id: 'studio', icon: <Clapperboard size={18} />, es: 'Crear anuncio', en: 'Create ad', view: 'studio', go: go('studio'), hint_es: 'Subí videos e imágenes y el equipo arma un anuncio listo para Meta', hint_en: 'Upload videos and images and the team makes an ad ready for Meta' },
+      { id: 'metaads', icon: <Megaphone size={18} />, es: 'Meta Ads', en: 'Meta Ads', view: 'metaads', go: go('metaads'), hint_es: 'Conectá tu cuenta: la IA la lee y arma tus anuncios con tus videos', hint_en: 'Connect your account: the AI reads it and builds your ads with your videos' },
       { id: 'adtier', icon: <Medal size={18} />, es: 'AdTier', en: 'AdTier', view: 'adtier', go: go('adtier'), hint_es: 'Reels y anuncios que te sirven, rankeados, con su plantilla', hint_en: 'Reels and ads that fit you, ranked, with their template' },
       { id: 'market', icon: <Store size={18} />, es: 'Marketplace', en: 'Marketplace', view: 'market', go: go('market'), hint_es: 'Apps hechas con Tably en venta', hint_en: 'Apps built with Tably for sale' },
     ] },

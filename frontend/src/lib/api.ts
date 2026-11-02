@@ -336,6 +336,9 @@ export const api = {
   metaAdsStart: (forWhat?: 'instagram') => j<{ url: string }>(post('/api/meta-ads/start', forWhat ? { for: forWhat } : {})),
   metaAdsAssets: () => j<{ accounts: { id: string; name: string; currency: string; active: boolean }[]; pages: { id: string; name: string }[] }>(authed('/api/meta-ads/assets')),
   metaAdsDisconnect: () => j<{ ok: boolean }>(authed('/api/meta-ads', { method: 'DELETE' })),
+  metaBrain: () => j<MetaBrain>(authed('/api/meta-ads/brain')),
+  metaBrainRun: (account_id: string, lang: string) => j<MetaBrain>(post('/api/meta-ads/brain', { account_id, lang })),
+  metaBrainPublish: (video: string, body: Partial<MetaBrainAd> & { page_id: string; days?: number | null }) => j<MetaBrain>(post(`/api/meta-ads/brain/${video}/publish`, body)),
   studioList: () => j<StudioList>(authed('/api/studio')),
   studioCreate: (body: { title: string; instructions: string; link: string; goal: string; lang: string }) => j<StudioProject>(post('/api/studio', body)),
   studio: (id: string) => j<StudioProject>(authed(`/api/studio/${id}`)),
@@ -619,6 +622,23 @@ export interface AdsPayload {
 export interface MetaPublish { account_id: string; page_id: string; currency: string; daily_budget: number; countries: string[]; age_min: number; days: number | null; link: string }
 
 /** The Ad Studio: the user's own videos and images, turned into an ad by five agents (backend/app/studio.py). */
+export interface MetaBrainAd {
+  video: string; title: string; ts?: number; name: string; angle: string; headline: string; primary_text: string; description: string; cta_type: string
+  countries: string[]; age_min: number; age_max: number; genders: 'all' | 'women' | 'men'; daily_budget: number; link: string; why: string
+  meta?: { status: 'publishing' | 'done' | 'error'; step?: string; error?: string; manager_url?: string }
+}
+export interface MetaBrain {
+  status: 'idle' | 'working' | 'done' | 'error'; step: string; error: string | null; account_id: string | null; by: string | null; ts: number | null; videos: number
+  account?: { id: string; name: string; currency: string; active: boolean } | null; period?: string | null; result?: string | null
+  totals?: { spend: number; results: number; cost_per_result: number | null; impressions: number; link_clicks: number; ads: number } | null
+  top: { ad: string; spend: number; results: number; cost_per_result: number | null; ctr: number; thumb?: string; status?: string }[]
+  analysis?: {
+    summary: string; history: boolean; works: { title: string; detail: string }[]; fix: { title: string; detail: string }[]
+    audience: { countries: string[]; age_min: number; age_max: number; genders: string; why: string }; placements: string
+    budget: { daily: number; currency: string; why: string }; ads: MetaBrainAd[]; missing: { id: string; title: string }[]
+  } | null
+  meta: { ready: boolean; connected: boolean; account?: string; expired?: boolean; admin: boolean }
+}
 export interface StudioMedia { id: string; name: string; kind: 'video' | 'image'; duration?: number; width?: number; height?: number; audio?: boolean; thumb?: string }
 export interface StudioEvent { agent: 'listen' | 'plan' | 'edit' | 'improve' | 'review'; text: string; kind: 'note' | 'step' | 'result' | 'verdict' | 'warn' | 'done'; round: number; ts: number
   data: { highlights?: { video: string; start: number; end: number; quote: string; why: string }[]; plan?: { angle?: string; sequence: { type: string; media?: string; from?: number; to?: number; d?: number; title?: string; text?: string }[] }

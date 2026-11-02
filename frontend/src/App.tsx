@@ -37,6 +37,7 @@ import { useArena } from './store'
 import type { ArenaEvent, SessionConfig } from './types'
 // the Ad Studio (uploads, the five agents, the renders) loads only when it opens
 const AdStudio = lazy(() => import('./components/AdStudio'))
+const MetaAdsPage = lazy(() => import('./components/MetaAdsPage'))
 const AdTier = lazy(() => import('./components/AdTier'))
 
 function onEvent(ev: ArenaEvent) {
@@ -570,6 +571,7 @@ function AppInner() {
   if (view === 'analytics') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><AnalyticsPage onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
   if (view === 'team') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><TeamPage onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
   if (view === 'adtier') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={null}><AdTier onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
+  if (view === 'metaads') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={null}><MetaAdsPage onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
   if (view === 'studio') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={null}><AdStudio onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
   if (view === 'market') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Marketplace onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
   if (view === 'setup') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Setup key={user.id} user={user} onLogout={logout} onSettings={() => useArena.getState().set({ view: 'settings' })} onAudit={() => useArena.getState().set({ view: 'audit' })} onStart={start} onDirect={direct} onReplay={startReplay} onOpen={(id, mode) => (mode === 'run' ? runApp(id) : openSaved(id, mode !== 'arena', mode === 'builder')).catch((e) => toast.error(tr('No se pudo abrir', 'Could not open'), (e as Error).message))} />{runOverlayLayer}</AppShell></>

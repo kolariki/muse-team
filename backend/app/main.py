@@ -70,6 +70,7 @@ from . import lessons as lessonsmod
 from . import levels as levelsmod
 from . import ads as adsmod
 from . import meta_ads as metaads
+from . import meta_brain as brainmod
 from . import studio as studiomod
 from . import twin as twinmod
 from . import adtier as adtiermod
@@ -3631,6 +3632,48 @@ async def meta_ads_assets(user: User = CurrentUser):
         return await metaads.assets(user.id)
     except metaads.MetaError as e:
         raise HTTPException(400, str(e))
+
+
+@app.get("/api/meta-ads/brain")
+def meta_brain_get(user: User = CurrentUser):
+    """What Tably learned from the connected ad account and the ads it proposes with the studio videos."""
+    conn = metaads.connection(user.id)
+    return {**brainmod.public(user.id), "meta": {"ready": metaads.ready(), "connected": bool(conn), **(conn or {}), "admin": _is_admin(user)}}
+
+
+@app.post("/api/meta-ads/brain")
+async def meta_brain_run(body: dict, user: User = CurrentUser):
+    """Read the account and let the model analyse it and write an ad for every finished studio video: body {account_id, lang}."""
+    acc = str(body.get("account_id") or "").removeprefix("act_")
+    if not acc.isdigit():
+        raise HTTPException(400, "Elegí la cuenta publicitaria")
+    if brainmod.load(user.id).get("status") == "working":
+        raise HTTPException(409, "Ya se está analizando tu cuenta")
+    try:
+        metaads._token(user.id)
+    except metaads.MetaError as e:
+        raise HTTPException(400, str(e))
+    brainmod.update(user.id, status="working", step="Leyendo tu cuenta de Meta Ads", error=None)
+    spawn(brainmod.analyze(user.id, acc, str(body.get("lang") or "") == "en"))
+    return meta_brain_get(user)
+
+
+@app.post("/api/meta-ads/brain/{video}/publish")
+async def meta_brain_publish(video: str, body: dict, user: User = CurrentUser):
+    """A proposed ad to Meta, PAUSED: body {page_id, headline?, primary_text?, description?, link?, cta_type?, daily_budget?, countries?, days?}."""
+    ad = next((a for a in (brainmod.load(user.id).get("analysis") or {}).get("ads") or [] if a["video"] == video), None)
+    if not ad:
+        raise HTTPException(404, "Ese anuncio no está en la propuesta")
+    if (ad.get("meta") or {}).get("status") == "publishing":
+        raise HTTPException(409, "Ya se está publicando")
+    link = str(body.get("link") or ad.get("link") or "")
+    if not link.startswith(("http://", "https://")):
+        raise HTTPException(400, "El anuncio necesita un link de destino (https://…)")
+    if not body.get("page_id"):
+        raise HTTPException(400, "Elegí la página de Facebook")
+    brainmod.mark(user.id, video, {"status": "publishing", "step": "Conectando con Meta"})
+    spawn(brainmod.publish(user.id, video, str(body["page_id"]), body))
+    return meta_brain_get(user)
 
 
 @app.post("/api/sessions/{session_id}/builds/{build_id}/ads/{ad_id}/meta")
