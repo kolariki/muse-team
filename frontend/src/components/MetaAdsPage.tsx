@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { api, type MetaBrain, type MetaBrainAd } from '../lib/api'
 import { tr, useT } from '../lib/i18n'
 import { useArena } from '../store'
+import MetaSetup from './MetaSetup'
 import PageHeader from './PageHeader'
 import { toast } from './Toast'
 
@@ -25,6 +26,7 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
   const [assetsErr, setAssetsErr] = useState<string | null>(null)
   const [account, setAccount] = useState('')
   const [page, setPage] = useState('')
+  const [setup, setSetup] = useState(false)
 
   const load = () => api.metaBrain().then(setB).catch((e) => toast.error(tr('No pude leer Meta Ads', 'Could not read Meta Ads'), (e as Error).message))
   useEffect(() => { load() }, [])
@@ -83,11 +85,12 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
                   <span className="block text-[15px] font-bold text-ink">{connected ? T('Meta Ads conectado', 'Meta Ads connected') : T('Conectá tu cuenta de Meta Ads', 'Connect your Meta Ads account')}{connected && b.meta.account ? <span className="font-normal text-ink-3"> · {b.meta.account}</span> : null}</span>
                   <span className="block text-[12.5px] text-ink-3">{!b.meta.ready ? T('La conexión con Meta todavía no está habilitada en esta instalación.', 'The Meta connection is not enabled on this install yet.') : connected ? T('Tably solo lee tus números y crea anuncios en pausa: nada se gasta hasta que vos los actives.', 'Tably only reads your numbers and creates paused ads: nothing is spent until you turn them on.') : b.meta.expired ? T('La conexión venció (dura unos 60 días).', 'The connection expired (it lasts about 60 days).') : T('Una sola vez. Se abre Meta para que elijas la cuenta y das permiso.', 'Just once. Meta opens so you pick the account and allow it.')}</span>
                 </span>
-                {!b.meta.ready ? (b.meta.admin ? <button onClick={() => useArena.getState().set({ view: 'settings' })} className={PILL}><KeyRound size={14} /> {T('Cargar la app de Meta', 'Add the Meta app')}</button> : null)
+                {!b.meta.ready ? (b.meta.admin ? <button onClick={() => setSetup(true)} className={PILL}><KeyRound size={14} /> {T('Cargar la app de Meta', 'Add the Meta app')}</button> : null)
                   : !connected ? <button onClick={connect} className={PRIMARY}><Link2 size={14} /> {b.meta.expired ? T('Volver a conectar', 'Reconnect') : T('Conectar Meta Ads', 'Connect Meta Ads')}</button>
                   : <button onClick={() => api.metaAdsDisconnect().then(() => { setAssets(null); load() })} className={PILL}>{T('Desconectar', 'Disconnect')}</button>}
               </div>
 
+              {!b.meta.ready && setup && <div className="mt-4"><MetaSetup onDone={() => { setSetup(false); load() }} onCancel={() => setSetup(false)} /></div>}
               {connected && (assetsErr ? <p className="mt-3 text-[13px] text-danger">{assetsErr} <button onClick={connect} className="font-semibold underline">{T('Volver a conectar', 'Reconnect')}</button></p>
                 : !assets ? <p className="mt-3 flex items-center gap-2 text-[13px] text-ink-3"><Loader2 size={14} className="animate-spin" /> {T('Leyendo tus cuentas publicitarias…', 'Reading your ad accounts…')}</p>
                 : !assets.accounts.length ? <p className="mt-3 text-[13px] text-ink-2">{T('Tu cuenta de Meta no tiene cuentas publicitarias. Creá una en el Administrador de anuncios y volvé.', 'Your Meta account has no ad accounts. Create one in Ads Manager and come back.')} <a href="https://adsmanager.facebook.com/" target="_blank" rel="noreferrer" className="font-semibold text-accent">{T('Abrir', 'Open')}</a></p>
