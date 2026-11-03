@@ -61,7 +61,7 @@ def test_start_and_stop_real_server(tmp_path):
 
 
 def test_embed_proxy_strips_frame_blocking_headers(tmp_path):
-    """A product that ships `frame-ancestors 'none'` is still visible inside Tably Team, through the embed proxy."""
+    """A product that ships `frame-ancestors 'none'` is still visible inside Muse Team, through the embed proxy."""
     (tmp_path / "web").mkdir(parents=True)
     (tmp_path / "web" / "node_modules").mkdir()
     (tmp_path / "web" / "package.json").write_text(json.dumps({"name": "csp-web", "scripts": {"dev": "node server.js"}, "dependencies": {"express": "^4"}}))

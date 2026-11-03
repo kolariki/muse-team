@@ -1,4 +1,4 @@
-"""Meta Ads brain: Tably reads the connected ad account (Marketing API insights), the team's model works out what sells and
+"""Meta Ads brain: Muse Team reads the connected ad account (Marketing API insights), the team's model works out what sells and
 what does not, and turns every finished Ad Studio video into a ready ad (copy, audience, budget) to publish PAUSED.
 
 What it reads, for the last 90 days (or the account's whole life when that is empty): every ad's spend, reach, clicks, CTR,
@@ -202,7 +202,7 @@ API) y los videos que el equipo ya le hizo. Tu trabajo:
    (máx. 300, que abra con el gancho que mejor le funcionó a la cuenta o con el más fuerte del video), descripción corta, el botón
    (uno de: {ctas}), países, edades y presupuesto diario en la moneda de la cuenta. Usá lo que aprendiste de la cuenta: el público y
    las ubicaciones que mejor rinden, el tipo de mensaje que funcionó. El link es el del video (no inventes links).
-3. A cada punto de «works» y «fix» agregale las acciones concretas que Tably puede hacer en la cuenta con un toque (si no hay ninguna,
+3. A cada punto de «works» y «fix» agregale las acciones concretas que Muse Team puede hacer en la cuenta con un toque (si no hay ninguna,
    dejá actions vacío). Usá SOLO los id de anuncios (ads), conjuntos (adsets) y campañas (campaigns) que te paso. Tipos:
    - {{"type": "pause", "level": "ad|adset|campaign", "id": "", "name": "", "label": "Pausar …"}}  (frenarlo; se puede reactivar)
    - {{"type": "activate", "level": "ad|adset|campaign", "id": "", "name": "", "label": "Activar …"}}
@@ -419,7 +419,7 @@ async def publish(user_id: str, video: str, page_id: str, edits: dict) -> None:
 
     try:
         step("Conectando con Meta")
-        script = {"name": ad["name"], "angle": ad.get("angle") or "Tably", "headline": ad["headline"], "primary_text": ad["primary_text"],
+        script = {"name": ad["name"], "angle": ad.get("angle") or "Muse Team", "headline": ad["headline"], "primary_text": ad["primary_text"],
                   "description": ad.get("description") or "", "cta_type": ad["cta_type"], "link": ad.get("link") or ""}
         opts = {"account_id": d.get("account_id"), "page_id": page_id, "currency": (d.get("data") or {}).get("account", {}).get("currency") or "USD",
                 "daily_budget": ad["daily_budget"], "countries": ad["countries"], "age_min": ad["age_min"], "age_max": ad["age_max"], "genders": ad["genders"],

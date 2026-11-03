@@ -205,7 +205,7 @@ export default function ServiceGuide({ group, sessionId, buildId, onClose, onSav
 
         {/* footer */}
         <div className="flex flex-wrap items-center gap-2 border-t border-line bg-paper px-4 py-3 sm:px-6 sm:py-4">
-          <button onClick={() => { onClose(); useBuild.getState().set({ fdeOrder: { pkg: 'service_setup', notes: `${T('Configurar', 'Set up')} ${group.service} (${group.vars.map((v) => v.var).join(', ')})` } }) }} className="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-full border border-gold/50 bg-gold/10 px-4 text-[12.5px] font-semibold text-ink shadow-sm transition hover:bg-gold/20" title={T('Un experto de Tably lo configura por vos', 'A Tably expert sets it up for you')}>
+          <button onClick={() => { onClose(); useBuild.getState().set({ fdeOrder: { pkg: 'service_setup', notes: `${T('Configurar', 'Set up')} ${group.service} (${group.vars.map((v) => v.var).join(', ')})` } }) }} className="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-full border border-gold/50 bg-gold/10 px-4 text-[12.5px] font-semibold text-ink shadow-sm transition hover:bg-gold/20" title={T('Un experto de Muse Team lo configura por vos', 'A Muse Team expert sets it up for you')}>
             <HardHat size={14} className="text-gold" /> {T('Que lo haga un experto · USD 49', 'Have an expert do it · USD 49')}
           </button>
           {data && !data.curated && (

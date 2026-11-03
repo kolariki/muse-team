@@ -93,7 +93,7 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
       return p
     } catch (e) { toast.error(T('No se pudo guardar el anuncio', 'Could not save the ad'), (e as Error).message); return null }
   }
-  // «Grabar mi app»: Tably opens the app like a phone, scrolls it and adds the recording to the material
+  // «Grabar mi app»: Muse Team opens the app like a phone, scrolls it and adds the recording to the material
   const [tourUrl, setTourUrl] = useState<string | null>(null)
   const recordApp = async () => {
     const url = (tourUrl ?? (draft.link || cur?.tour?.url || '')).trim()
@@ -123,7 +123,7 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
         {list && list.model && !list.transcriber && (
           <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[#C28A12]/40 bg-[#C28A12]/10 px-3 py-2 text-[13px] text-ink-2">
             <AlertTriangle size={15} className="text-[#C28A12]" />
-            <span className="min-w-[min(100%,260px)] flex-1">{T('Para escuchar tus videos y subtitularlos, el equipo usa Meta Muse Voice Transcribe: agregá tu clave de Meta (o de Groq u OpenAI). Sin eso, arma el anuncio con lo que se ve.', 'To listen to your videos and subtitle them the team uses Meta Muse Voice Transcribe: add your Meta key (or Groq or OpenAI). Without it, the ad is built from what is on screen.')}</span>
+            <span className="min-w-[min(100%,260px)] flex-1">{T('Para escuchar tus videos y subtitularlos, el equipo usa Meta Muse Voice Transcribe: agregá tu clave de Meta. Sin eso, arma el anuncio con lo que se ve.', 'To listen to your videos and subtitle them the team uses Meta Muse Voice Transcribe: add your Meta key. Without it, the ad is built from what is on screen.')}</span>
             <button onClick={() => useArena.getState().set({ view: 'settings' })} className={PILL}><KeyRound size={14} /> {T('Agregar clave', 'Add key')}</button>
           </div>
         )}
@@ -195,7 +195,7 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
               {!busy && (
                 <div data-tour="studio-record" className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 text-[12.5px] text-ink-2">
                   <MonitorSmartphone size={15} className="shrink-0 text-accent" />
-                  <span className="min-w-[min(100%,220px)] flex-1">{touring ? (cur?.tour?.step || T('Grabando tu app…', 'Recording your app…')) : T('¿Es una app o una web? Tably la abre como un celular, la recorre y suma la grabación.', 'Is it an app or a website? Tably opens it like a phone, walks through it and adds the recording.')}</span>
+                  <span className="min-w-[min(100%,220px)] flex-1">{touring ? (cur?.tour?.step || T('Grabando tu app…', 'Recording your app…')) : T('¿Es una app o una web? Muse Team la abre como un celular, la recorre y suma la grabación.', 'Is it an app or a website? Muse Team opens it like a phone, walks through it and adds the recording.')}</span>
                   {touring ? <Loader2 size={15} className="animate-spin text-accent" /> : <>
                     <input value={tourUrl ?? (draft.link || cur?.tour?.url || '')} onChange={(e) => setTourUrl(e.target.value)} placeholder="https://" type="url" autoComplete="off" className="h-8 w-full rounded-lg border border-line bg-paper px-2.5 text-[12.5px] outline-none focus:border-accent min-[640px]:w-56" />
                     <button onClick={recordApp} className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110"><Film size={13} /> {T('Grabar mi app', 'Record my app')}</button>

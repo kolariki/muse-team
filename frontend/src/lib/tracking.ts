@@ -1,4 +1,4 @@
-// Advertising measurement. Nothing of Meta's loads until the person accepts, and only on Tably's own site.
+// Advertising measurement. Nothing of Meta's loads until the person accepts, and only on Muse Team's own site.
 const CONSENT = 'arena.adCookies'
 const META_PIXEL = '1706292027687059'
 

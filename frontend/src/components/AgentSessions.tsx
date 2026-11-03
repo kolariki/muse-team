@@ -333,7 +333,7 @@ export default function AgentSessions({ onBack }: { onBack: () => void }) {
             <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-full border border-line bg-surface shadow-sm"><Terminal size={22} className="text-accent" /></span>
               <div className="mt-4 text-[17px]">{T('Elegí una conversación', 'Pick a conversation')}</div>
-              <p className="mt-1 max-w-md text-[13px] leading-relaxed text-ink-3">{T('Son las sesiones que Claude Code y Codex guardan en esta máquina, agrupadas por proyecto. Se leen tal cual están en el disco; nada se envía a ningún lado.', 'These are the sessions Claude Code and Codex keep on this machine, grouped by project. They are read as they are on disk; nothing is sent anywhere.')}</p>
+              <p className="mt-1 max-w-md text-[13px] leading-relaxed text-ink-3">{T('Son las sesiones que Muse Code guarda en esta máquina, agrupadas por proyecto. Se leen tal cual están en el disco; nada se envía a ningún lado.', 'These are the sessions Muse Code keep on this machine, grouped by project. They are read as they are on disk; nothing is sent anywhere.')}</p>
             </div>
           )}
         </main>

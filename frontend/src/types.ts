@@ -39,7 +39,7 @@ export interface SessionConfig {
   auto_skills?: boolean
   platform?: 'web' | 'mobile' | 'both'  // what gets built: web app, mobile app (iOS + Android) or both
   references?: string[]  // reference apps / URLs the team studies before designing
-  references_auto?: boolean  // the references are Tably's (the preset's): used, never shown; the user's replace them
+  references_auto?: boolean  // the references are Muse Team's (the preset's): used, never shown; the user's replace them
   deep_analysis?: boolean  // REA reverse engineering of those apps during the build (on the user's own key / subscription)
   builder?: { provider: string; model: string }  // direct lane: who builds (a local engine or an API provider + model)
   starter?: string | null

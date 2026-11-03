@@ -246,7 +246,7 @@ function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
   }
   return (
     <div className="lg:col-span-2">
-      <Section title={T('Eliminar mi cuenta', 'Delete my account')} sub={T('Borra para siempre tus proyectos, tus claves, tus cuentas conectadas y tus datos, y baja las apps que publicaste con Tably. No se puede deshacer. Si querés guardar algo, exportalo antes.', 'Permanently deletes your projects, keys, connected accounts and data, and takes down the apps you published with Tably. It cannot be undone. If you want to keep anything, export it first.')}>
+      <Section title={T('Eliminar mi cuenta', 'Delete my account')} sub={T('Borra para siempre tus proyectos, tus claves, tus cuentas conectadas y tus datos, y baja las apps que publicaste con Muse Team. No se puede deshacer. Si querés guardar algo, exportalo antes.', 'Permanently deletes your projects, keys, connected accounts and data, and takes down the apps you published with Muse Team. It cannot be undone. If you want to keep anything, export it first.')}>
         {!open ? <button type="button" onClick={() => setOpen(true)} className={`${plain} hover:!border-danger hover:!text-danger`}>{T('Eliminar mi cuenta', 'Delete my account')}</button> : (
           <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
             <label className={`${label} min-w-[260px]`}>{T('Tu contraseña, para confirmar', 'Your password, to confirm')}<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" autoComplete="current-password" className={input} /></label>

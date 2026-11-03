@@ -5,7 +5,7 @@ import ProviderLogo from './ProviderLogo'
 
 /** Every company the app can seat at the table, with a line on what each one brings. */
 const PROVIDERS: { id: string; name: string; company: string; models: string; es: string; en: string }[] = [
-  { id: 'meta', name: 'Muse', company: 'Meta', models: 'Muse Wonder · Muse Spark 1.3 · Muse Code · Muse Image · SAM 3.1', es: 'El motor de Tably: ocupa todos los roles, construye con Muse Code, diseña con Muse Image y lee referencias con SAM 3.1.', en: 'Tably\'s engine: takes every role, builds with Muse Code, designs with Muse Image and reads references with SAM 3.1.' },
+  { id: 'meta', name: 'Muse', company: 'Meta', models: 'Muse Wonder · Muse Spark 1.3 · Muse Code · Muse Image · SAM 3.1', es: 'El motor de Muse Team: ocupa todos los roles, construye con Muse Code, diseña con Muse Image y lee referencias con SAM 3.1.', en: 'Muse Team\'s engine: takes every role, builds with Muse Code, designs with Muse Image and reads references with SAM 3.1.' },
   { id: 'anthropic', name: 'Claude', company: 'Anthropic', models: 'Opus 5.5 · Sonnet 5.5 · Haiku 5.5', es: 'Razonamiento largo y código de calidad; el constructor por defecto vía Claude Code.', en: 'Long reasoning and quality code; the default builder through Claude Code.' },
   { id: 'openai', name: 'GPT', company: 'OpenAI', models: 'GPT-5.6 · o-series', es: 'Producto y arquitectura pragmáticos; también construye vía Codex.', en: 'Pragmatic product and architecture; also builds through Codex.' },
   { id: 'deepseek', name: 'DeepSeek', company: 'DeepSeek', models: 'V4 · R1', es: 'Muy barato y bueno en código; ideal para roles que escriben mucho.', en: 'Very cheap and strong at code; ideal for roles that write a lot.' },

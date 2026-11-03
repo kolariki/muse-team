@@ -75,7 +75,7 @@ Formato EXACTO (Markdown, con estos encabezados):
 (checklist "- [ ] US-NN · como … quiero … para …" con criterios de aceptación verificables)
 ## 6. Stack y servicios externos
 (tabla: Componente | Tecnología/servicio | Versión | Por qué)
-Si el debate no fijó un stack concreto, usá el stack por defecto de Tably Cloud, que se publica con un clic: frontend Vite + React + TypeScript (`npm run build` → `dist/` estático), backend solo si hace falta (FastAPI o Node con Dockerfile), Postgres por `DATABASE_URL`, auth y storage con Supabase, todo configurado por variables de entorno. Nunca dependas de un servidor para servir el frontend si la app puede ser estática.
+Si el debate no fijó un stack concreto, usá el stack por defecto de Muse Cloud, que se publica con un clic: frontend Vite + React + TypeScript (`npm run build` → `dist/` estático), backend solo si hace falta (FastAPI o Node con Dockerfile), Postgres por `DATABASE_URL`, auth y storage con Supabase, todo configurado por variables de entorno. Nunca dependas de un servidor para servir el frontend si la app puede ser estática.
 ### 6.1 Cuentas y API keys necesarias
 (tabla: Servicio | Para qué | Dónde se obtiene (URL) | Variable de entorno | Plan/costo estimado · si no hace falta ninguna, decilo)
 ### 6.2 Variables de entorno
@@ -362,7 +362,7 @@ async def stream_brief(user: User, session_id: str, req: BriefRequest) -> AsyncI
     if notes:
         user_msg = f"DECISIONES FINALES EDITADAS POR EL USUARIO (tienen prioridad absoluta sobre lo dicho en el debate; si contradicen algo del debate, mandan estas):\n\n{notes}\n\n" + user_msg
     header = (
-        f"<!-- Tably Team · brief de construcción · sesión {session_id} · escrito por {req.model} · "
+        f"<!-- Muse Team · brief de construcción · sesión {session_id} · escrito por {req.model} · "
         f"para {TARGETS[req.target]['label']} · {time.strftime('%Y-%m-%d %H:%M')} -->\n\n"
     )
     yield header

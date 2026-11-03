@@ -5,7 +5,7 @@ import { tr, useT } from '../lib/i18n'
 import { toast } from './Toast'
 
 /**
- * Move this account to another Tably (e.g. from a local install to tablyteam.com): projects, versions, team, memory, published
+ * Move this account to another Muse Team (e.g. from a local install to the online version): projects, versions, team, memory, published
  * apps and keys, as one encrypted file plus a code shown once. Importing never overwrites what the other account already has.
  */
 export default function AccountTransfer() {
@@ -56,8 +56,8 @@ export default function AccountTransfer() {
   return (
     <section className="mt-10">
       <div className="text-xs uppercase tracking-[0.3em] text-ink-3">{T('Tu cuenta', 'Your account')}</div>
-      <h2 className="mt-1 text-3xl">{T('Mover tu cuenta a otro Tably', 'Move your account to another Tably')}</h2>
-      <p className="mt-1 text-[13px] text-ink-2">{T('Por ejemplo, de tu Tably local a tablyteam.com: tus proyectos con todas sus versiones, tu equipo y su memoria, las apps publicadas y tus keys, en un archivo cifrado. En el otro Tably lo importás con el código y seguís trabajando donde quedaste.', 'For example, from your local Tably to tablyteam.com: your projects with all their versions, your team and its memory, published apps and your keys, in one encrypted file. In the other Tably you import it with the code and keep working where you left off.')}</p>
+      <h2 className="mt-1 text-3xl">{T('Mover tu cuenta a otro Muse Team', 'Move your account to another Muse Team')}</h2>
+      <p className="mt-1 text-[13px] text-ink-2">{T('Por ejemplo, de tu Muse Team local a la versión online: tus proyectos con todas sus versiones, tu equipo y su memoria, las apps publicadas y tus keys, en un archivo cifrado. En el otro Muse Team lo importás con el código y seguís trabajando donde quedaste.', 'For example, from your local Muse Team to the online version: your projects with all their versions, your team and its memory, published apps and your keys, in one encrypted file. In the other Muse Team you import it with the code and keep working where you left off.')}</p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="panel rounded-2xl p-5">
           <div className="flex items-center gap-2 font-semibold"><ArrowDownToLine size={16} className="text-accent" /> {T('1. Exportar desde acá', '1. Export from here')}</div>
@@ -78,7 +78,7 @@ export default function AccountTransfer() {
           )}
         </div>
         <div className="panel rounded-2xl p-5">
-          <div className="flex items-center gap-2 font-semibold"><ArrowUpFromLine size={16} className="text-accent" /> {T('2. Importar en este Tably', '2. Import into this Tably')}</div>
+          <div className="flex items-center gap-2 font-semibold"><ArrowUpFromLine size={16} className="text-accent" /> {T('2. Importar en este Muse Team', '2. Import into this Muse Team')}</div>
           <p className="mt-1 text-[12.5px] text-ink-3">{T('Elegí el archivo .tably, pegá su código y listo. No pisa nada de lo que ya tengas en esta cuenta.', 'Pick the .tably file, paste its code and that is it. It overwrites nothing you already have in this account.')}</p>
           <input ref={fileRef} type="file" accept=".tably" className="hidden" onChange={(e) => { setFile(e.target.files?.[0] ?? null); e.target.value = '' }} />
           <div className="mt-3 flex flex-wrap gap-2">

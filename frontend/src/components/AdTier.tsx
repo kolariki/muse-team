@@ -433,7 +433,7 @@ function ApiInfo({ base }: { base: string }) {
       </section>
       <section className="rounded-2xl border border-line bg-surface p-4">
         <h3 className="text-[15px] font-bold text-ink">{T('Servidor MCP', 'MCP server')}</h3>
-        <p className="mt-1 text-ink-3">{T('Herramientas: search_videos, get_template, list_tiers. Conectalo en Claude, Cursor o tu agente y pedí «3 videos tier S formato UGC, industria fintech».', 'Tools: search_videos, get_template, list_tiers. Connect it in Claude, Cursor or your agent and ask for «3 tier S UGC videos in fintech».')}</p>
+        <p className="mt-1 text-ink-3">{T('Herramientas: search_videos, get_template, list_tiers. Conectalo en tu agente y pedí «3 videos tier S formato UGC, industria fintech».', 'Tools: search_videos, get_template, list_tiers. Connect it in your agent and ask for «3 tier S UGC videos in fintech».')}</p>
         <div className="mt-2 flex items-center gap-2"><code className="flex-1 break-all rounded-lg bg-surface-2 px-3 py-2 text-[12px] text-ink">{mcp}</code><button onClick={() => copy(mcp)} className={PILL}><Copy size={13} /></button></div>
         <pre className="mt-2 overflow-x-auto rounded-lg bg-surface-2 p-3 text-[11.5px] text-ink-2">{cfg}</pre>
         <button onClick={() => copy(cfg)} className={`${PILL} mt-2`}><Copy size={13} /> {T('Copiar configuración', 'Copy configuration')}</button>
@@ -514,12 +514,12 @@ function ProfileWizard({ home, onCancel, onCreated }: { home: ForYouHome; onCanc
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <button onClick={() => setMode('tably')} className="flex flex-col items-start gap-1 rounded-xl border border-line bg-paper p-4 text-left transition hover:border-accent">
             <Layers size={20} className="text-accent" />
-            <span className="text-[15px] font-semibold text-ink">{T('Un proyecto que hice en Tably', 'A project I built in Tably')}</span>
+            <span className="text-[15px] font-semibold text-ink">{T('Un proyecto que hice en Muse Team', 'A project I built in Muse Team')}</span>
             <span className="text-[12.5px] text-ink-3">{T('Lo leemos solos (brief, README y pantallas) y armamos el perfil. No tenés que contestar nada.', 'We read it ourselves (brief, README and screens) and build the profile. Nothing to answer.')}</span>
           </button>
           <button onClick={() => setMode('form')} className="flex flex-col items-start gap-1 rounded-xl border border-line bg-paper p-4 text-left transition hover:border-accent">
             <Building2 size={20} className="text-accent" />
-            <span className="text-[15px] font-semibold text-ink">{T('Mi empresa o un proyecto fuera de Tably', 'My company or a project outside Tably')}</span>
+            <span className="text-[15px] font-semibold text-ink">{T('Mi empresa o un proyecto fuera de Muse Team', 'My company or a project outside Muse Team')}</span>
             <span className="text-[12.5px] text-ink-3">{T('Contestás unas preguntas: a qué se dedica, el sector, el país. Podés sumar tu web o un documento.', 'You answer a few questions: what it does, the sector, the country. You can add your website or a document.')}</span>
           </button>
         </div>
@@ -602,7 +602,7 @@ function ProfileView({ id, home, onOpen, onDeleted }: { id: string; home: ForYou
       <div className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <div data-tour="profile" className="text-[11px] uppercase tracking-widest text-accent">{m.profile.source === 'tably' ? T('Perfil armado desde tu proyecto en Tably', 'Profile built from your Tably project') : T('Perfil de tu negocio', 'Your business profile')}</div>
+            <div data-tour="profile" className="text-[11px] uppercase tracking-widest text-accent">{m.profile.source === 'tably' ? T('Perfil armado desde tu proyecto en Muse Team', 'Profile built from your Muse Team project') : T('Perfil de tu negocio', 'Your business profile')}</div>
             <h3 className="mt-0.5 text-[20px] font-bold leading-tight text-ink">{p.name}</h3>
             {p.summary && <p className="mt-1 max-w-[760px] text-[13.5px] text-ink-2">{p.summary}</p>}
           </div>
@@ -915,7 +915,7 @@ function IdeaCard({ n, it, sources, goal }: { n: number; it: ReelIdea; sources: 
 }
 
 /** «Grabar pantalla», like Loom: a small panel in the corner that walks the person through recording a reel from another tab
- *  (Instagram, TikTok…). Tably then finds the reel in the recording, cuts it out and loads it. */
+ *  (Instagram, TikTok…). Muse Team then finds the reel in the recording, cuts it out and loads it. */
 function ScreenRecorder({ onFile, onClose }: { onFile: (f: File, source: 'upload' | 'recording') => void; onClose: () => void }) {
   const T = useT()
   const supported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && typeof MediaRecorder !== 'undefined'

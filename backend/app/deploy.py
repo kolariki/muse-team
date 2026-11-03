@@ -138,8 +138,8 @@ def parse_brief_services(brief: str) -> dict[str, dict]:
     return out
 
 
-# ------------------------------------------------------------------ what the app really needs (and what Tably solves by itself)
-# Tably provides these itself: the database when publishing, the app's own URL, the hosting, the data folder, its own secrets
+# ------------------------------------------------------------------ what the app really needs (and what Muse Team solves by itself)
+# Muse Team provides these itself: the database when publishing, the app's own URL, the hosting, the data folder, its own secrets
 AUTO_VAR = re.compile(r"^(DATABASE_URL|POSTGRES\w*|PG(HOST|PORT|USER|PASSWORD|DATABASE)|PGLITE_\w+|DATA_DIR|SQLITE_\w+|DB_PATH|DATABASE_PATH|"
                       r"PORT|HOST|NODE_ENV|TZ|LOG_LEVEL|VITE_PORT|(NEXT_PUBLIC_|VITE_|PUBLIC_|EXPO_PUBLIC_|REACT_APP_)?(APP|API|SITE|BASE|PUBLIC|WEB|FRONTEND|BACKEND|SERVER)(_BASE)?_URL|"
                       r"NEXTAUTH_URL|VERCEL_\w+|RAILWAY_\w+|NETLIFY_\w+|FLY_\w+|CLOUDFLARE_(API_TOKEN|ACCOUNT_ID))$")
@@ -160,17 +160,17 @@ IMPACT: list[tuple[str, str, str]] = [  # (pattern over the service, its purpose
 
 
 def _tier(item: dict) -> tuple[str, str]:
-    """needed (the app does not work fully without it) · auto (Tably provides it) · optional (an improvement). With the reason."""
+    """needed (the app does not work fully without it) · auto (Muse Team provides it) · optional (an improvement). With the reason."""
     var, svc = item["var"], item["service"]
     text = f"{svc} {item.get('purpose') or ''} {item.get('note') or ''}"
     if svc in _AUTO_SERVICES or AUTO_VAR.search(var):
-        why = ("La base de datos la crea Tably al publicar." if re.search(r"DATABASE|POSTGRES|^PG", var) else
-               "La guarda Tably en su disco." if re.search(r"DIR$|PATH$|SQLITE|PGLITE", var) else
-               "La completa Tably con la dirección de tu app al publicarla." if re.search(r"URL$", var) else
-               "La hospeda Tably: no hace falta." if re.search(r"^(VERCEL|RAILWAY|NETLIFY|FLY|CLOUDFLARE)_", var) else "No requiere nada.")
+        why = ("La base de datos la crea Muse Team al publicar." if re.search(r"DATABASE|POSTGRES|^PG", var) else
+               "La guarda Muse Team en su disco." if re.search(r"DIR$|PATH$|SQLITE|PGLITE", var) else
+               "La completa Muse Team con la dirección de tu app al publicarla." if re.search(r"URL$", var) else
+               "La hospeda Muse Team: no hace falta." if re.search(r"^(VERCEL|RAILWAY|NETLIFY|FLY|CLOUDFLARE)_", var) else "No requiere nada.")
         return "auto", why
     if INTERNAL_SECRET.search(var) and classify(var)["service"] in ("Secreto propio",) or (INTERNAL_SECRET.search(var) and not classify(var)["url"] and not any(re.search(rx, var, re.I) for rx, *_ in KNOWN)):
-        return "auto", "Un secreto propio de la app: Tably lo genera solo."
+        return "auto", "Un secreto propio de la app: Muse Team lo genera solo."
     if OPTIONAL_HINT.search(text) or OPTIONAL_HINT.search(var):
         return "optional", ""
     return "needed", ""

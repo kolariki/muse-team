@@ -212,7 +212,7 @@ def reply_to_client(rid: str, text: str) -> dict | None:
     to = _client_address(row["contact"], row["email"])
     pkg = package(row["package"]) or {}
     support = mailer.support_address()
-    if not mailer.send(to, *mailer.fde_reply_email(rid, row["name"], pkg.get("name", row["package"]), text), from_addr=f"Tably Team <{support}>", reply_to=support):
+    if not mailer.send(to, *mailer.fde_reply_email(rid, row["name"], pkg.get("name", row["package"]), text), from_addr=f"Muse Team <{support}>", reply_to=support):
         return None
     msg = {"ts": time.time(), "to_addr": to, "text": text}
     with _db() as c:

@@ -267,7 +267,7 @@ def confirm_email_change(user: User, code: str, keep_token: str | None) -> dict:
         c.execute("DELETE FROM email_changes WHERE user_id = ?", (user.id,))
     _other_sessions_out(user.id, keep_token)
     if mailer.configured():
-        mailer.send(user.email, "Cambiaste el email de tu cuenta de Tably Team", f"Hola {user.name},\n\nEl email de tu cuenta ahora es {row['new_email']}. Si no fuiste vos, respondé a soporte@tablyteam.com.", reply_to="soporte@tablyteam.com")
+        mailer.send(user.email, "Cambiaste el email de tu cuenta de Muse Team", f"Hola {user.name},\n\nEl email de tu cuenta ahora es {row['new_email']}. Si no fuiste vos, respondé a soporte@tablyteam.com.", reply_to="soporte@tablyteam.com")
     return profile(user.id)
 
 

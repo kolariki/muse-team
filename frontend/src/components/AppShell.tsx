@@ -40,11 +40,11 @@ function groups(admin: boolean): { es: string; en: string; items: Item[] }[] {
       { id: 'studio', icon: <Clapperboard size={18} />, es: 'Crear anuncio', en: 'Create ad', view: 'studio', go: go('studio'), hint_es: 'Subí videos e imágenes y el equipo arma un anuncio listo para Meta', hint_en: 'Upload videos and images and the team makes an ad ready for Meta' },
       { id: 'metaads', icon: <Megaphone size={18} />, es: 'Meta Ads', en: 'Meta Ads', view: 'metaads', go: go('metaads'), hint_es: 'Conectá tu cuenta: la IA la lee y arma tus anuncios', hint_en: 'Connect your account: the AI reads it and builds your ads' },
       { id: 'adtier', icon: <Medal size={18} />, es: 'AdTier', en: 'AdTier', view: 'adtier', go: go('adtier'), hint_es: 'Reels y anuncios que te sirven, rankeados, con su plantilla', hint_en: 'Reels and ads that fit you, ranked, with their template' },
-      { id: 'market', icon: <Store size={18} />, es: 'Marketplace', en: 'Marketplace', view: 'market', go: go('market'), hint_es: 'Apps hechas con Tably en venta', hint_en: 'Apps built with Tably for sale' },
+      { id: 'market', icon: <Store size={18} />, es: 'Marketplace', en: 'Marketplace', view: 'market', go: go('market'), hint_es: 'Apps hechas con Muse Team en venta', hint_en: 'Apps built with Muse Team for sale' },
     ] },
     { es: 'Equipo', en: 'Team', items: [
       { id: 'team', icon: <Users size={18} />, es: 'Mi equipo', en: 'My team', view: 'team', go: () => openTeam(), hint_es: 'Tus roles: su conocimiento, lo que aprendieron y su puntaje', hint_en: 'Your roles: their knowledge, what they learned and their score' },
-      { id: 'settings', icon: <Settings2 size={18} />, es: 'Modelos y claves', en: 'Models and keys', view: 'settings', go: go('settings'), hint_es: 'Conectá tus IAs, modelos por defecto, deploy y trazas', hint_en: 'Connect your AIs, default models, deploy and tracing' },
+      { id: 'settings', icon: <Settings2 size={18} />, es: 'Modelos y claves', en: 'Models and keys', view: 'settings', go: go('settings'), hint_es: 'Conectá Muse, modelos por defecto, deploy y trazas', hint_en: 'Connect Muse, default models, deploy and tracing' },
     ] },
     ...(admin ? [{ es: 'Operación', en: 'Operations', items: [
       { id: 'backoffice', icon: <ShieldCheck size={18} />, es: 'Backoffice', en: 'Backoffice', view: 'backoffice' as View, go: go('backoffice'), hint_es: 'Usuarios, cuentas, tickets, emails, pagos y apps de toda la plataforma', hint_en: 'Users, accounts, tickets, emails, payments and apps across the platform' },
@@ -73,8 +73,8 @@ export default function AppShell({ user, onLogout, children }: { user: User; onL
     <div className="flex h-[100dvh] w-full overflow-hidden">
       <aside className="hidden h-full shrink-0 flex-col border-r border-line bg-surface/80 backdrop-blur md:flex md:w-[68px] lg:w-[232px]">
         <button onClick={go('setup')} className="flex h-16 shrink-0 items-center gap-2.5 px-4 lg:px-5" aria-label={T('Inicio', 'Home')}>
-          <img src="/icon.svg?v=2" alt="" aria-hidden className="h-9 w-9 shrink-0 rounded-xl shadow-sm" draggable={false} />
-          <span className="serif hidden text-xl lg:inline">Tably <em className="text-accent">Team</em></span>
+          <img src="/icon.svg?v=3" alt="" aria-hidden className="h-9 w-9 shrink-0 rounded-xl shadow-sm" draggable={false} />
+          <span className="serif hidden text-xl lg:inline">Muse <em className="text-accent">Team</em></span>
         </button>
         <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2.5 pb-3 scroll-thin lg:px-3">
           {gs.map((g) => (

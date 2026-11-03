@@ -214,7 +214,7 @@ export default function SkillPicker({ value, onChange, compact = false, busy = f
                     }
                   }}
                   className="ml-auto mr-3 text-[11px] text-ink-3 hover:text-accent"
-                  title={T('Traducir nombres y descripciones del catálogo al español con una de tus IAs', 'Translate the catalog names and descriptions to Spanish with one of your AIs')}
+                  title={T('Traducir nombres y descripciones del catálogo al español con Muse', 'Translate the catalog names and descriptions to Spanish with Muse')}
                 >{T('traducir catálogo', 'translate catalog')}</button>
                 <button type="button" onClick={() => api.catalogSync().then((r) => toast.ok(r.started ? tr('Actualizando el catálogo', 'Updating the catalog') : tr('Ya se está actualizando', 'Already updating'), tr('Se descargan las fuentes públicas en segundo plano.', 'The public sources download in the background.'))).catch((e) => toast.error(tr('No se pudo actualizar', 'Could not update'), (e as Error).message))} className="text-[11px] text-ink-3 hover:text-accent" title={T('Volver a descargar las fuentes públicas del catálogo', 'Download the catalog sources again')}>{T('actualizar catálogo', 'refresh catalog')}</button>
               </div>

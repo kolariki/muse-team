@@ -45,7 +45,7 @@ function RunWait({ since, fixing }: { since?: number; fixing: boolean }) {
   return <PanelLoader caption={caption} sub={sub} />
 }
 
-/** Tably needs the user: a big fix to approve, an error that keeps coming back, or a fix that could not start by itself. */
+/** Muse Team needs the user: a big fix to approve, an error that keeps coming back, or a fix that could not start by itself. */
 function RunFixCard({ fix, onDone }: { fix: RunFix; onDone: () => void }) {
   const T = useT()
   const b = useBuild()
@@ -122,8 +122,8 @@ function DeviceView({ target, sessionId, buildId }: { target: 'ios' | 'android';
   )
 }
 
-/** What the user is looking at inside the app (same origin when it runs through Tably): the visible text, the error messages
- *  on screen, the page's last failed requests and errors (kept by Tably's reporter) and a screenshot of the visible part. */
+/** What the user is looking at inside the app (same origin when it runs through Muse Team): the visible text, the error messages
+ *  on screen, the page's last failed requests and errors (kept by Muse Team's reporter) and a screenshot of the visible part. */
 async function captureFrame(f: HTMLIFrameElement | null) {
   const out = { page: '', text: '', alerts: [] as string[], log: [] as unknown[], screenshot: '' }
   type FrameWin = Window & { __tably?: { log: unknown[] } }
@@ -254,7 +254,7 @@ export default function AppRunner({ autoStart = false }: { autoStart?: boolean }
   )
 
   const active = run.status === 'installing' || run.status === 'starting' || run.status === 'running'
-  // Tably fixing the app by itself: a loader, never the dead app; a card only when it needs the user
+  // Muse Team fixing the app by itself: a loader, never the dead app; a card only when it needs the user
   const fixWait = !!run.fix && (run.fix.state === 'fixing' || run.fix.state === 'restarting')
   const fixCard = !!run.fix && !fixWait
   useEffect(() => {  // a finished build may have no live socket: follow the fix until the app is back
@@ -332,7 +332,7 @@ export default function AppRunner({ autoStart = false }: { autoStart?: boolean }
               <div className="flex h-8 shrink-0 items-center gap-1.5 border-b border-line bg-surface-2/70 px-3">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#E6A19A]" /><span className="h-2.5 w-2.5 rounded-full bg-[#E9C97A]" /><span className="h-2.5 w-2.5 rounded-full bg-[#9FCDA8]" />
                 <span className="ml-3 flex h-5 items-center rounded-md border border-line bg-surface px-2 font-mono text-[10.5px] text-ink-2">{run.url}</span>
-                <span className="ml-2 text-[10.5px] text-ink-3">{/\/r\//.test(run.url) ? T('la app real, corriendo en Tably', 'the real app, running on Tably') : T('la app real, corriendo en esta máquina', 'the real app, running on this machine')}</span>
+                <span className="ml-2 text-[10.5px] text-ink-3">{/\/r\//.test(run.url) ? T('la app real, corriendo en Muse Team', 'the real app, running on Muse Team') : T('la app real, corriendo en esta máquina', 'the real app, running on this machine')}</span>
                 <button onClick={() => setFull(true)} className="ml-auto flex h-6 w-6 items-center justify-center rounded-md text-ink-3 transition hover:bg-surface hover:text-accent" title={T('Pantalla completa', 'Full screen')}><Maximize2 size={13} /></button>
               </div>
               {!full && <iframe ref={frameRef} key={frameKey} title={T('App corriendo', 'App running')} src={run.embedUrl ?? run.url} className="min-h-0 w-full flex-1 bg-white" />}

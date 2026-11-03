@@ -288,7 +288,7 @@ export function CostChart() {
     <ChartCard
       title={T('Costo', 'Cost')}
       hint={T('acumulado en USD, por agente', 'accumulated in USD, per agent')}
-      help={T('Lo que gastó cada agente según el precio de lista de su modelo (entrada + salida). Un modelo caro que habla poco puede costar menos que uno barato que escribe de más. Los agentes con Claude Code por suscripción no suman.', 'What each agent spent at its model list price (input + output). An expensive model that speaks little can cost less than a cheap one that over-writes. Agents on a Claude Code subscription do not count.')}
+      help={T('Lo que gastó cada agente según el precio de lista de su modelo (entrada + salida). Un modelo caro que habla poco puede costar menos que uno barato que escribe de más.', 'What each agent spent at its model list price (input + output). An expensive model that speaks little can cost less than a cheap one that over-writes.')}
       footer={total > 0 ? `${T('Total', 'Total')} ${fmtUsd(total)}${top ? ` · ${top.name} ${Math.round((100 * top.cost) / total)}%` : ''}` : undefined}
     >
       {turns === 0 ? <Empty text={T('Todavía nadie habló.', 'Nobody has spoken yet.')} /> : total === 0 ? <Empty text={T('Sin costo por API en este debate.', 'No API cost in this debate.')} /> : (

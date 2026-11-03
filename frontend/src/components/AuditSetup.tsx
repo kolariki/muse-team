@@ -200,7 +200,7 @@ export default function AuditSetup({ onBack, onStart }: Props) {
                 <>
                   <UploadCloud className="mx-auto text-ink-3" size={30} />
                   <div className="mt-2 font-medium">{T('Arrastrá la carpeta del proyecto o hacé clic para elegirla', 'Drop the project folder here or click to pick it')}</div>
-                  <div className="mt-1 text-xs text-ink-3">{T('Tably descarta node_modules, .git, builds y binarios acá mismo y sube solo el código: no hace falta preparar nada.', 'Tably drops node_modules, .git, builds and binaries right here and uploads only the code: nothing to prepare.')}</div>
+                  <div className="mt-1 text-xs text-ink-3">{T('Muse Team descarta node_modules, .git, builds y binarios acá mismo y sube solo el código: no hace falta preparar nada.', 'Muse Team drops node_modules, .git, builds and binaries right here and uploads only the code: nothing to prepare.')}</div>
                   <button type="button" onClick={(e) => { e.stopPropagation(); inputRef.current?.click() }} className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-[12px] text-ink-2 transition hover:border-accent hover:text-accent"><FolderOpen size={12} /> {T('…o subir un .zip', '…or upload a .zip')}</button>
                 </>
               )}

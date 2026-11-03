@@ -167,7 +167,7 @@ export default function Builder({ onBack, onHome }: { onBack: () => void; onHome
       const blob = await rec.current.stop()
       rec.current = null
       useBuild.getState().set({ recording: false })
-      downloadBlob(blob, `tablyteam-construccion-${b.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'proyecto'}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`)
+      downloadBlob(blob, `museteam-construccion-${b.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'proyecto'}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`)
       return
     }
     try {
@@ -239,8 +239,8 @@ export default function Builder({ onBack, onHome }: { onBack: () => void; onHome
     <div className="h-full flex flex-col bg-paper">
       {/* top bar */}
       <div className="relative z-[60] flex h-14 shrink-0 items-center gap-2 border-b border-line bg-surface/90 px-2 backdrop-blur sm:h-16 sm:gap-3 sm:px-4">
-        <button onClick={onHome ?? onBack} className="flex shrink-0 items-center rounded-lg transition hover:opacity-80" title={T('Tably Team · ir al inicio', 'Tably Team · go home')}>
-          <img src="/icon.svg?v=2" alt="Tably Team" className="h-8 w-8 rounded-xl shadow-sm sm:h-9 sm:w-9" draggable={false} />
+        <button onClick={onHome ?? onBack} className="flex shrink-0 items-center rounded-lg transition hover:opacity-80" title={T('Muse Team · ir al inicio', 'Muse Team · go home')}>
+          <img src="/icon.svg?v=3" alt="Muse Team" className="h-8 w-8 rounded-xl shadow-sm sm:h-9 sm:w-9" draggable={false} />
         </button>
         <button onClick={onHome ?? onBack} className={`${HBTN} hidden px-3 sm:flex`} title={T('Ir al inicio: tus proyectos y experimentos', 'Go home: your projects and experiments')}><Home size={14} /> {T('Inicio', 'Home')}</button>
         <button onClick={onBack} className={`${HBTN} px-2.5 sm:px-3`} title={T('Volver al consejo de este proyecto', 'Back to this project\u2019s council')} aria-label={T('Consejo', 'Council')}><ArrowLeft size={14} /> <span className="hidden sm:inline">{T('Consejo', 'Council')}</span></button>
@@ -704,8 +704,8 @@ function BuilderMenu({ onDownload, onRecord }: { onDownload: () => void; onRecor
           <button className={item} onClick={act(onDownload)} disabled={!Object.keys(b.files).length}><Download size={15} /> {T('Descargar .zip', 'Download .zip')}</button>
           <button className={`${item} ${b.recording ? 'text-danger hover:text-danger' : ''}`} onClick={act(onRecord)}><Circle size={15} className={b.recording ? 'fill-danger' : ''} /> {b.recording ? T('Guardar el video', 'Save the video') : T('Grabar la pantalla en video', 'Record the screen as video')}</button>
           {b.engineSession && b.workdir && (
-            <button className={item} onClick={act(() => { navigator.clipboard?.writeText(`cd "${b.workdir}" && claude --resume ${b.engineSession}`); toast.ok(tr('Comando copiado', 'Command copied'), tr('Pegalo en tu terminal para abrir esta misma sesión en tu Claude Code.', 'Paste it in your terminal to open this same session in your Claude Code.')) })}>
-              <TerminalSquare size={15} /> {T('Abrir en mi Claude Code', 'Open in my Claude Code')} <Copy size={11} className="ml-auto opacity-60" />
+            <button className={item} onClick={act(() => { navigator.clipboard?.writeText(`cd "${b.workdir}" && muse --resume ${b.engineSession}`); toast.ok(tr('Comando copiado', 'Command copied'), tr('Pegalo en tu terminal para abrir esta misma sesión en tu Muse Code.', 'Paste it in your terminal to open this same session in your Muse Code.')) })}>
+              <TerminalSquare size={15} /> {T('Abrir en mi Muse Code', 'Open in my Muse Code')} <Copy size={11} className="ml-auto opacity-60" />
             </button>
           )}
           {(b.versions.length > 0 || b.buildSeconds > 0 || b.reviews.length > 0) && (
@@ -784,7 +784,7 @@ function SavingsCard() {
     <div className="rounded-2xl border border-accent/25 bg-accent-soft/40 px-4 py-3 text-sm">
       <div className="flex items-center gap-2">
         <Sparkles size={16} className="shrink-0 text-accent" />
-        <div className="font-semibold">{saved > 0 ? T('Lo que te ahorró Tably en esta construcción', 'What Tably saved you on this build') : T('Lo que usó esta construcción', 'What this build used')}</div>
+        <div className="font-semibold">{saved > 0 ? T('Lo que te ahorró Muse Team en esta construcción', 'What Muse Team saved you on this build') : T('Lo que usó esta construcción', 'What this build used')}</div>
         {saved > 0 && <span className="ml-auto rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-white">{usd(saved)} {T('ahorrados', 'saved')}</span>}
       </div>
       <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -796,7 +796,7 @@ function SavingsCard() {
         <Cell l={T('Tiempo', 'Time')} v={fmtDur(Math.round(b.buildSeconds))} sub={`${b.turns} ${T('turnos del constructor', 'builder turns')}`} />
         <Cell l={T('Pagaste', 'You paid')} v={usd(engine ? paid : b.cost + (b.fees || 0))} sub={engine ? T('llamadas a tus API keys y cargos por uso', 'calls on your API keys and usage fees') : T('cobrado a tus API keys', 'charged to your API keys')} />
       </div>
-      {!u.measured && <p className="mt-2 text-[11.5px] text-gold">{T('No están los registros de Claude Code de esta carpeta: los tokens del constructor no se pudieron contar, solo los de las llamadas a la API.', "Claude Code's logs for this folder are missing: the builder's tokens could not be counted, only the API calls'.")}</p>}
+      {!u.measured && <p className="mt-2 text-[11.5px] text-gold">{T('No están los registros de Muse Code de esta carpeta: los tokens del constructor no se pudieron contar, solo los de las llamadas a la API.', "Muse Code's logs for this folder are missing: the builder's tokens could not be counted, only the API calls'.")}</p>}
       <button onClick={() => setOpen((v) => !v)} className="mt-2 flex items-center gap-1 text-[11.5px] text-ink-3 hover:text-ink"><ChevronDown size={12} className={`transition ${open ? 'rotate-180' : ''}`} /> {T('De dónde salen', 'Where they come from')}</button>
       {open && (
         <p className="mt-1 text-[11.5px] leading-snug text-ink-3">
@@ -861,7 +861,7 @@ function LiveStatusBar() {
 
 const NOTICE_BTN = 'flex h-9 items-center justify-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110'
 
-/** What Tably is doing with the app (an error found, being fixed, fixed, needs you): a card the user can't miss, with «Ver la app». */
+/** What Muse Team is doing with the app (an error found, being fixed, fixed, needs you): a card the user can't miss, with «Ver la app». */
 function AppNotice({ c }: { c: ChatItem }) {
   const T = useT()
   const [more, setMore] = useState(false)
@@ -887,7 +887,7 @@ function AppNotice({ c }: { c: ChatItem }) {
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`mx-auto flex w-full max-w-3xl flex-wrap gap-3 rounded-2xl border-2 px-4 py-3 ${tone.box}`}>
       <span className="mt-0.5 shrink-0">{tone.icon}</span>
       <div className="min-w-[min(100%,220px)] flex-1 basis-[220px]">
-        <div className="text-[10.5px] font-bold uppercase tracking-[0.2em] text-ink-3">Tably · {tone.label}</div>
+        <div className="text-[10.5px] font-bold uppercase tracking-[0.2em] text-ink-3">Muse Team · {tone.label}</div>
         <div className="mt-0.5 text-[14.5px] font-medium text-ink">{c.text}</div>
         {c.checks && c.checks.length > 0 && (
           <ul className="mt-2 grid gap-1 sm:grid-cols-2">

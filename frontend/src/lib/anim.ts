@@ -45,7 +45,7 @@ export function heroIntro(root: HTMLElement) {
     // the demo frame rises into place (no rotation, no blur: transform + opacity only, so it never stutters)
     .from(root.querySelectorAll('[data-hero-demo]'), { opacity: 0, y: 36, scale: 0.97, duration: 1.0, ease: 'power3.out', force3D: true, clearProps: 'transform' }, 0.4)
 
-  // the signature: the companies' logos pop up around the title, fly to where "Tably" goes, fuse into one glowing
+  // the signature: the companies' logos pop up around the title, fly to where "Muse Team" goes, fuse into one glowing
   // orb, and the orb bursts into the letters; a spark then flies up to the header and lights the TT icon
   const layer = root.querySelector<HTMLElement>('[data-fuse-layer]')
   const word = root.querySelector<HTMLElement>('[data-hero-word]')

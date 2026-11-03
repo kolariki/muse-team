@@ -157,7 +157,7 @@ def test_uikit_scaffold_offline_and_with_fake_registry():
 
     files, info = uikit.scaffold(":root { --color-bg: #fff; --primary: #123456; }", ["button"], fetcher=lambda url: None)
     assert info["components"] == [] and uikit.GUIDE_PATH in files and "npx shadcn@latest add" in files[uikit.GUIDE_PATH]
-    assert "--background: var(--color-bg" in files[uikit.TOKENS_PATH] and "--primary:" not in files[uikit.TOKENS_PATH].split("sembrado por Tably")[1]
+    assert "--background: var(--color-bg" in files[uikit.TOKENS_PATH] and "--primary:" not in files[uikit.TOKENS_PATH].split("sembrado por Muse Team")[1]
 
     def fake(url):
         name = url.rsplit("/", 1)[1][:-5]

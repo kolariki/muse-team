@@ -1,6 +1,6 @@
 """Tickets from Notion, resolved by the team.
 
-The user connects Notion (integration token), picks the database with their tickets and links it to a Tably project.
+The user connects Notion (integration token), picks the database with their tickets and links it to a Muse Team project.
 «Resolver ticket» turns the ticket's page into a change request for the builder (its Markdown is the spec), the council
 verifies the result against the ticket, and when it approves the branch is pushed to GitHub and a pull request is opened;
 the ticket moves To do → In progress → Code review in Notion with a comment that links the PR. The merge is always human.
@@ -238,8 +238,8 @@ def project_values(fields: dict, prop: str | None) -> list[str]:
 
 
 def project_for_ticket(link: dict, fields: dict, assigned: dict | None = None) -> dict:
-    """Which Tably project resolves this ticket, in this order: a choice made by hand for the ticket, the project mapped to the
-    ticket's Feature value, the project Tably detected from the ticket text (files and repo it names), and, with no project
+    """Which Muse Team project resolves this ticket, in this order: a choice made by hand for the ticket, the project mapped to the
+    ticket's Feature value, the project Muse Team detected from the ticket text (files and repo it names), and, with no project
     property at all, the single default project. A ticket with none of those cannot be resolved (so a Codifier ticket never
     lands on the Preprocessor)."""
     pr = link.get("projects") or {}

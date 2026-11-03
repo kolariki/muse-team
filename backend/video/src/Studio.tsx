@@ -170,7 +170,7 @@ export function Studio(p: StudioProps) {
 }
 
 export const STUDIO_SAMPLE: StudioProps = {
-  format: 'vertical', name: 'Tably', url: 'tablyteam.com', palette: { bg: '#10161F', surface: '#1B2430', ink: '#F1F4F8', muted: '#A9B4C2', accent: '#F5A524', accentInk: '#10161F' },
+  format: 'vertical', name: 'Muse Team', url: 'tablyteam.com', palette: { bg: '#10161F', surface: '#1B2430', ink: '#F1F4F8', muted: '#A9B4C2', accent: '#F5A524', accentInk: '#10161F' },
   font: 'grotesk', fx: 'rise', transition: 'whip', subtitles: { style: 'karaoke', position: 'bottom' },
   clips: [{ kind: 'title', d: 2.5, text: 'Tu idea, hecha app', emphasis: 'hecha app' }], cta: { text: 'Probalo gratis', sub: '' },
 }

@@ -1,10 +1,10 @@
-"""Meta Ads: the user connects their ad account once in Tably and publishes the ads made in the «Anuncios» pane.
+"""Meta Ads: the user connects their ad account once in Muse Team and publishes the ads made in the «Anuncios» pane.
 
 Publishing creates everything PAUSED — a traffic campaign, one ad set (budget, countries, age) and one ad per format
 (vertical for Reels/Stories, square for feed) with the video, its cover and the copy — so no money is spent until the user
 turns it on in Ads Manager (the result links straight there).
 
-Setup (once per Tably install, by the admin): a Meta app (developers.facebook.com) with Facebook Login and the Marketing
+Setup (once per Muse Team install, by the admin): a Meta app (developers.facebook.com) with Facebook Login and the Marketing
 API, the redirect URI <public URL>/api/meta-ads/callback, and META_ADS_APP_ID / META_ADS_APP_SECRET (or the same values in
 Settings). Until Meta approves the app (App Review of ads_management + business verification) it only reaches the ad
 accounts of the app's own admins, developers and testers. Without the keys the pane offers the downloads only.
@@ -107,7 +107,7 @@ async def finish(code: str, state: str, public_url: str) -> str:
     """Code → a long-lived token (about 60 days), kept encrypted. Returns the user id."""
     hit = _STATES.pop(state, None)
     if not hit or hit[1] < time.time():
-        raise MetaError("El pedido de conexión venció: probá de nuevo desde Tably.")
+        raise MetaError("El pedido de conexión venció: probá de nuevo desde Muse Team.")
     user_id = hit[0]
     app_id, secret = app_creds()
     async with httpx.AsyncClient(timeout=20) as cx:
@@ -210,7 +210,7 @@ async def publish(user_id: str, ad: dict, base: Path, opts: dict, step) -> dict:
     link = (opts.get("link") or s.get("link") or "").strip()
     if not link.startswith(("http://", "https://")):
         raise MetaError("El anuncio necesita el link de la app publicada.")
-    name = f"{s['name']} · {s.get('angle') or 'Tably'}"[:120]
+    name = f"{s['name']} · {s.get('angle') or 'Muse Team'}"[:120]
     async with httpx.AsyncClient(timeout=httpx.Timeout(60, read=300)) as cx:
         async def post(path: str, data: dict, files: dict | None = None) -> dict:
             body = {k: (json.dumps(v) if isinstance(v, (dict, list)) else v) for k, v in data.items()} | {"access_token": token}

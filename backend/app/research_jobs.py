@@ -95,7 +95,7 @@ async def _run(job: dict, user: User) -> None:
             _act(job, "plan", "Armando el brief de referentes", "research/REFERENCES.md")
             synth = await _ask(rsch.synth_system(deep), f"NUESTRO BRIEF:\n{job['brief'][:8000]}\n\nREFERENTES (en orden de prioridad): {', '.join(r['name'] or r['url'] for r in refs)}\n\nNOTAS DE BENCHMARK:\n\n" + "\n\n---\n\n".join(notes), who, job, max_tokens=8000,
                               mock_text="# Referentes\n| app | mejor | falta |\n|---|---|---|\n| Windy | mapa | texto |\n# Patrones a emular\n- Mapa protagonista\n# Patrones a evitar\n- Densidad\n# Flujo recomendado\n1. Buscar ciudad\n# Copy y tono\nDirecto.\n# Checklist\n1. Carga < 2 s")
-            md = f"<!-- Benchmark generado por Tably Team el {rsch.stamp()}. Observación de productos públicos; nada copiado. -->\n\n{synth.strip()}\n\n---\n\n# Notas por referente\n\n" + "\n\n".join(notes) + "\n"
+            md = f"<!-- Benchmark generado por Muse Team el {rsch.stamp()}. Observación de productos públicos; nada copiado. -->\n\n{synth.strip()}\n\n---\n\n# Notas por referente\n\n" + "\n\n".join(notes) + "\n"
             (workdir / "REFERENCES.md").write_text(md)
         job.update(status="done", md=md, model=f"{PROVIDERS[who[0]].label} · {who[1]}")
     except Exception as e:  # noqa: BLE001

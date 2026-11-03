@@ -245,7 +245,7 @@ TUTORIALS: list[tuple[str, dict]] = [
         "looks": {r"URL": "https://xxx.upstash.io", r"TOKEN": "letras y números, largo"},
     }),
     (r"^SENTRY_", {
-        "intro": "Sentry te avisa de los errores que les aparecen a tus usuarios. Tably ya vigila los errores de tu app y los arregla; esto es un extra.",
+        "intro": "Sentry te avisa de los errores que les aparecen a tus usuarios. Muse Team ya vigila los errores de tu app y los arregla; esto es un extra.",
         "cost": "Gratis hasta 5.000 errores por mes.",
         "time": "5 minutos",
         "steps": [
@@ -264,7 +264,7 @@ TUTORIALS: list[tuple[str, dict]] = [
         ],
     }),
     (r"^TRIGGER_", {
-        "intro": "Trigger.dev corre tareas programadas fuera de la app. Es opcional: Tably ya corre las tareas de tu app con su propio reloj.",
+        "intro": "Trigger.dev corre tareas programadas fuera de la app. Es opcional: Muse Team ya corre las tareas de tu app con su propio reloj.",
         "cost": "Gratis para empezar.",
         "time": "5 minutos",
         "steps": [
@@ -300,7 +300,7 @@ def render(t: dict, group: dict, app_url: str | None, webhook_url: str | None) -
             looks[v["var"]] = hit
     return {"intro": t["intro"], "cost": t.get("cost"), "time": t.get("time"), "test": fill(t["test"]) if t.get("test") else None,
             "steps": [{"title": s["title"], "detail": fill(s["detail"]), "url": s.get("url")} for s in t["steps"]],
-            "looks": looks, "generated": True, "curated": True, "model": "Guía de Tably"}
+            "looks": looks, "generated": True, "curated": True, "model": "Guía de Muse Team"}
 
 
 def webhook_path(files: dict[str, str], group: dict) -> str | None:

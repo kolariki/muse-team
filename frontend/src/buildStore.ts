@@ -1,5 +1,5 @@
 import type { CloudApp, LevelsInfo } from './lib/api'
-/** Tably fixing «Correr la app» by itself: a loader while it works, a card when it needs the user. */
+/** Muse Team fixing «Correr la app» by itself: a loader while it works, a card when it needs the user. */
 export type RunFix = { state: 'fixing' | 'restarting' | 'needs_approval' | 'stuck' | 'manual'; since: number; id?: string; what?: string | null; fix?: string | null; impact?: string | null; applied?: boolean; reason?: string }
 
 export interface Usage { input: number; output: number; cache_read: number; cache_write: number; unsplit?: number; total: number; engine: number; api: number; measured: boolean; engine_value_usd: number; cache_saved_usd: number; api_cost_usd: number; models: string[] }
@@ -91,8 +91,8 @@ export interface ChatItem {
   turn?: number
   phase?: 'build' | 'preview' | 'design'
   seconds?: number  // wall-clock of that turn
-  tone?: 'working' | 'done' | 'attention'  // a Tably notice about the app: a card, not a faint line
-  checks?: { label: string; ok: boolean }[]  // the delivery check: what Tably verified before handing the first delivery over
+  tone?: 'working' | 'done' | 'attention'  // a Muse Team notice about the app: a card, not a faint line
+  checks?: { label: string; ok: boolean }[]  // the delivery check: what Muse Team verified before handing the first delivery over
   detail?: string  // the technical error under that notice
   run?: boolean  // the notice offers «Ver la app»
   link?: { label: string; url: string } | null  // and/or a page to act on (e.g. change a leaked key)
@@ -141,7 +141,7 @@ interface BuildState {
   servicesMissing: { count: number; impacts: string[] } | null  // services the app needs that are not set up (rail badge, Publish notice)
   fdeOrder: { pkg: string; notes: string } | null  // open "Pedir un developer" on this package with this text (e.g. «un experto configura Mercado Pago»)
   fdePrefill: string | null  // open "Pedir un developer" with this text once the builder is shown
-  runOpen: boolean  // the «Correr la app» window: in the store so nothing but the user closes it while Tably fixes the app
+  runOpen: boolean  // the «Correr la app» window: in the store so nothing but the user closes it while Muse Team fixes the app
   paneOpen: boolean  // right drawer (code/preview/…) closed by default: the agent's work is the show
   deploying: boolean
   deployLogs: string[]

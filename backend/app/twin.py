@@ -119,7 +119,7 @@ def _set(user_id: str, **fields) -> None:
 
 
 def forget(user_id: str) -> None:
-    """Tably stops using it (the twin stays in the person's HeyGen account, where they can delete it)."""
+    """Muse Team stops using it (the twin stays in the person's HeyGen account, where they can delete it)."""
     with _db() as c:
         c.execute("DELETE FROM twins WHERE user_id = ?", (user_id,))
 

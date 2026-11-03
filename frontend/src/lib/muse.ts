@@ -1,7 +1,7 @@
 import type { AgentConfig } from '../types'
 
 /**
- * Which Muse model does each job best in Tably. Muse Wonder for the roles that decide and plan over long horizons
+ * Which Muse model does each job best in Muse Team. Muse Wonder for the roles that decide and plan over long horizons
  * (direction, architecture), Muse Spark for the fast, high-volume roles (product, design, quality) and for prompt engineering.
  * The extras (Muse Image, SAM 3.1, Muse Code) are the tools those roles pick up during the build.
  */

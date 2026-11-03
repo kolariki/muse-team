@@ -49,7 +49,7 @@ def test_package_has_site_inside():
         mjs = t.extractfile("package/index.mjs").read().decode()
         bin_js = t.extractfile("package/bin/connect.cjs").read().decode()
     assert {"package/index.cjs", "package/index.d.ts", "package/README.md"} <= set(names)
-    assert pkg["name"] == "tably-analytics" and pkg["bin"]["tably-analytics"] == "bin/connect.cjs"
+    assert pkg["name"] == "muse-team-analytics" and pkg["bin"]["muse-team-analytics"] == "bin/connect.cjs"
     assert '"site": "elevum"' in mjs and "export { init, track, identify, variant }" in mjs
     assert "__CFG__" not in bin_js and '"site": "elevum"' in bin_js
 

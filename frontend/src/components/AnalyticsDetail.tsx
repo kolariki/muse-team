@@ -27,7 +27,7 @@ export default function AnalyticsDetail({ app, onBack }: { app: AnalyticsApp; on
 
   const [idPr, setIdPr] = useState<string | null>(null)
   const identify = async () => {
-    if (app.provider === 'external') {  // a site outside Tably: a PR on its repo, where the app knows who signed in
+    if (app.provider === 'external') {  // a site outside Muse Team: a PR on its repo, where the app knows who signed in
       setAsking(true)
       try {
         const r = await api.siteIdentifyPr(app.slug)
@@ -78,7 +78,7 @@ export default function AnalyticsDetail({ app, onBack }: { app: AnalyticsApp; on
               <UserRound size={16} className="shrink-0 text-accent" />
               <span className="min-w-[min(100%,220px)] flex-1">{app.provider === 'external'
                 ? (idPr ? T('Listo el PR: mergealo y, cuando se despliegue, acá aparecen el email y el nombre de quienes inician sesión.', 'The PR is ready: merge it and, once deployed, the email and name of those who sign in show up here.')
-                  : T('Todavía no sabés quiénes son tus usuarios. Si tu sitio tiene inicio de sesión, Tably busca tu login en GitHub y abre un PR que manda el email y el nombre de quien entra (nunca contraseñas). Tarda alrededor de un minuto.', 'You do not know who your users are yet. If your site has a log in, Tably finds it on GitHub and opens a PR that sends the email and name of who signs in (never passwords). It takes about a minute.'))
+                  : T('Todavía no sabés quiénes son tus usuarios. Si tu sitio tiene inicio de sesión, Muse Team busca tu login en GitHub y abre un PR que manda el email y el nombre de quien entra (nunca contraseñas). Tarda alrededor de un minuto.', 'You do not know who your users are yet. If your site has a log in, Muse Team finds it on GitHub and opens a PR that sends the email and name of who signs in (never passwords). It takes about a minute.'))
                 : T('Todavía no sabés quiénes son tus usuarios. Si tu app tiene registro o inicio de sesión, el constructor la conecta para ver su email y nombre acá.', 'You do not know who your users are yet. If your app has sign up or log in, the builder connects it so you see their email and name here.')}</span>
               {idPr ? <a href={idPr} target="_blank" rel="noreferrer" className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110"><ExternalLink size={13} /> {T('Ver el PR', 'See the PR')}</a> : <button onClick={identify} disabled={asking} className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50">{asking ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />} {asking && app.provider === 'external' ? T('Buscando tu login…', 'Finding your log in…') : app.provider === 'external' ? T('Abrir el PR', 'Open the PR') : T('Identificar usuarios', 'Identify users')}</button>}
             </div>

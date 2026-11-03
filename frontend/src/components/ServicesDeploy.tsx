@@ -124,7 +124,7 @@ export default function ServicesDeploy({ onOpenSettings }: { onOpenSettings: () 
           <button onClick={() => setGuide(g)} className="flex h-8 items-center gap-1.5 rounded-full bg-accent px-3 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110">
             <BookOpen size={13} /> {T('Cómo conseguirlo, paso a paso', 'How to get it, step by step')}
           </button>
-          <button onClick={() => expert(g)} className="flex h-8 items-center gap-1.5 rounded-full border border-gold/50 bg-gold/10 px-3 text-[12px] font-medium text-ink transition hover:bg-gold/20" title={T('Un experto de Tably lo configura por vos · USD 49', 'A Tably expert sets it up for you · USD 49')}>
+          <button onClick={() => expert(g)} className="flex h-8 items-center gap-1.5 rounded-full border border-gold/50 bg-gold/10 px-3 text-[12px] font-medium text-ink transition hover:bg-gold/20" title={T('Un experto de Muse Team lo configura por vos · USD 49', 'A Muse Team expert sets it up for you · USD 49')}>
             <HardHat size={13} className="text-gold" /> {T('Que lo haga un experto', 'Have an expert do it')}
           </button>
           {g.url && g.url.startsWith('http') && <a href={g.url} target="_blank" rel="noreferrer" className="ml-auto flex items-center gap-1 text-[12px] text-ink-3 transition hover:text-accent">{T('ir al panel', 'open the dashboard')} <ExternalLink size={11} /></a>}
@@ -138,7 +138,7 @@ export default function ServicesDeploy({ onOpenSettings }: { onOpenSettings: () 
 
   return (
     <div className="h-full overflow-y-auto scroll-thin p-3 space-y-6 bg-surface sm:p-5">
-      {/* ---------- services: what the app needs, what Tably solves by itself, what is optional */}
+      {/* ---------- services: what the app needs, what Muse Team solves by itself, what is optional */}
       <section>
         <div className="text-[11px] uppercase tracking-[0.3em] text-accent">{T('Servicios', 'Services')}</div>
         <div className="mt-1 flex items-end gap-3">
@@ -186,7 +186,7 @@ export default function ServicesDeploy({ onOpenSettings }: { onOpenSettings: () 
         {auto.length > 0 && (
           <details className="group mt-6 rounded-2xl border border-line bg-paper px-4 py-3">
             <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 text-[13.5px] font-semibold text-ink">
-              <CheckCircle2 size={15} className="text-ok" /> {T('De esto se encarga Tably', 'Tably takes care of this')} <span className="font-normal text-ink-3">· {auto.length} {T('cosas que no tenés que configurar', 'things you don’t have to set up')}</span>
+              <CheckCircle2 size={15} className="text-ok" /> {T('De esto se encarga Muse Team', 'Muse Team takes care of this')} <span className="font-normal text-ink-3">· {auto.length} {T('cosas que no tenés que configurar', 'things you don’t have to set up')}</span>
               <ChevronDown size={14} className="ml-auto text-ink-3 transition group-open:rotate-180" />
             </summary>
             <ul className="mt-2 space-y-1.5">

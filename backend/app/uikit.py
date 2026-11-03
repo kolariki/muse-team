@@ -16,7 +16,7 @@ like Designeer list under "Resources"):
 Three consumers:
   team_block()      what the roles that decide the stack (CTO, frontend, designer…) are told in the design debate
   designer_block()  what the Product Designer must add to tokens.css so the components pick up the design
-  scaffold()        the files Tably writes into the project before the builder's first turn, plus builder_block() with
+  scaffold()        the files Muse Team writes into the project before the builder's first turn, plus builder_block() with
                     the rules the builder gets (what exists, which deps to declare, how to import)
 
 Everything degrades gracefully: without network and without cache the builder is told to add the components with the
@@ -79,9 +79,9 @@ SHADCN_VARS = [
     ("--radius", "var(--radius-md, 8px)"),
 ]
 
-# Curated sources (what designeer.xyz-style catalogues point to), with the license that decides how Tably may use them.
+# Curated sources (what designeer.xyz-style catalogues point to), with the license that decides how Muse Team may use them.
 SOURCES = [
-    {"name": "shadcn/ui", "url": "https://ui.shadcn.com", "license": "MIT", "use": "componentes accesibles (Radix + Tailwind) que se copian al proyecto; es la base de la UI de todo producto web de Tably"},
+    {"name": "shadcn/ui", "url": "https://ui.shadcn.com", "license": "MIT", "use": "componentes accesibles (Radix + Tailwind) que se copian al proyecto; es la base de la UI de todo producto web de Muse Team"},
     {"name": "Radix UI", "url": "https://www.radix-ui.com/primitives", "license": "MIT", "use": "primitivas sin estilo (menús, diálogos, popovers, tabs) con teclado, foco y ARIA resueltos; debajo de shadcn"},
     {"name": "Base UI", "url": "https://base-ui.com", "license": "MIT", "use": "alternativa de primitivas (MUI/Radix/Floating UI) cuando hace falta algo que Radix no tiene"},
     {"name": "Tailwind CSS v4", "url": "https://tailwindcss.com", "license": "MIT", "use": "utilidades + tokens por @theme; cero CSS ad hoc"},
@@ -112,11 +112,11 @@ def team_block(role_id: str | None, platform: str | None) -> str:
         return ""
     deciders = {"cto", "tech-lead", "head-engineering", "frontend", "product-designer", "brand", "founder"}
     if role_id not in deciders:
-        return ("STACK DE UI (ya decidido por Tably para la web): React + TypeScript con Vite, Tailwind v4, componentes shadcn/ui (Radix) copiados al proyecto, "
+        return ("STACK DE UI (ya decidido por Muse Team para la web): React + TypeScript con Vite, Tailwind v4, componentes shadcn/ui (Radix) copiados al proyecto, "
                 "iconos lucide, tipografía de Google Fonts/Fontshare. No lo rediscutas; si tu área necesita algo de UI, pedilo en esos términos.\n")
     return (
         "STACK DE UI POR DEFECTO EN TABLY (web): React 18 + TypeScript con Vite, Tailwind CSS v4, componentes shadcn/ui (sobre Radix) copiados al proyecto "
-        "(src/components/ui), iconos lucide-react, tipografía libre de Google Fonts o Fontshare, animación con motion. Tably siembra esos componentes y los "
+        "(src/components/ui), iconos lucide-react, tipografía libre de Google Fonts o Fontshare, animación con motion. Muse Team siembra esos componentes y los "
         "tokens del diseño en el repo antes de que el constructor escriba la primera línea, así que el equipo DISEÑA Y DECIDE EN ESOS TÉRMINOS: "
         "qué componentes de la librería usa cada pantalla (Button, Card, Dialog, Sheet, Tabs, Table, Select, DropdownMenu, Tooltip, Skeleton, Badge…), "
         "qué variantes hacen falta, qué bloques se arman componiéndolos. Solo se cambia el stack si el brief lo exige (p. ej. Next.js por SEO, o un framework "
@@ -235,7 +235,7 @@ def _mapping_block(tokens_css: str) -> str:
     if not missing:
         return ""
     body = "\n".join(f"  {v}: {fb};" for v, fb in missing)
-    return f"\n\n/* Mapeo a las variables semánticas de shadcn/ui (sembrado por Tably; faltaban en el diseño) */\n:root {{\n{body}\n}}\n"
+    return f"\n\n/* Mapeo a las variables semánticas de shadcn/ui (sembrado por Muse Team; faltaban en el diseño) */\n:root {{\n{body}\n}}\n"
 
 
 def _index_css(tokens_rel: str) -> str:
@@ -284,7 +284,7 @@ import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 
-// base configurable (`vite build --base=/ruta/`) para publicar desde cualquier ruta (Tably Cloud)
+// base configurable (`vite build --base=/ruta/`) para publicar desde cualquier ruta (Muse Cloud)
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
@@ -381,7 +381,7 @@ def _guide(info: dict, title: str) -> str:
     dev = "\n".join(f'    "{k}": "{v}",' for k, v in sorted(info["dev_deps"].items()))
     return f"""# Kit de UI{(' · ' + title) if title else ''}
 
-Sembrado por Tably Team antes de la construcción. La interfaz se compone con estos componentes y los tokens del diseño; no se reimplementan.
+Sembrado por Muse Team antes de la construcción. La interfaz se compone con estos componentes y los tokens del diseño; no se reimplementan.
 
 ## Stack
 React 18 + TypeScript (Vite) · Tailwind CSS v4 (`@tailwindcss/vite`, sin tailwind.config) · shadcn/ui (estilo new-york, Radix debajo) · lucide-react · tokens en `{TOKENS_PATH}`.

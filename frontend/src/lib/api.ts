@@ -529,7 +529,7 @@ export interface ServiceVar {
   required: boolean
   secret: boolean
   configured: boolean
-  tier?: 'needed' | 'auto' | 'optional'  // needed for the app to work · Tably provides it · an improvement
+  tier?: 'needed' | 'auto' | 'optional'  // needed for the app to work · Muse Team provides it · an improvement
   auto_reason?: string
 }
 
@@ -605,7 +605,7 @@ export interface AnalyticsApp {
   needs_republish: boolean  // the project has the snippet but the version online is older
   stats: AnalyticsStats
   visits_7d: number
-  // a site outside Tably (its own GitHub + host), connected only to Analytics
+  // a site outside Muse Team (its own GitHub + host), connected only to Analytics
   external?: { repo: string | null; pr_url: string | null; pr_error: string | null; snippet: string; package: string; github: boolean; github_last4?: string | null }
 }
 export interface AnalyticsRow { key: string; n: number }
@@ -811,7 +811,7 @@ export interface ServiceGuideData {
   steps: { title: string; detail: string; url: string | null }[]
   generated: boolean
   model?: string
-  curated?: boolean  // hand-written by Tably (not a model)
+  curated?: boolean  // hand-written by Muse Team (not a model)
   time?: string | null
   test?: string | null  // how to try it without risk
   looks?: Record<string, string>  // var → what its value looks like

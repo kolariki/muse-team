@@ -1,5 +1,5 @@
 """The app's own visual identity: a custom logo for the header and an icon for the browser tab, designed by the builder as
-SVG (crisp at any size, editable like the rest of the code, free). Tably checks they exist when a build ends (and asks the
+SVG (crisp at any size, editable like the rest of the code, free). Muse Team checks they exist when a build ends (and asks the
 builder once if not), and at publish time renders the PNG sizes phones and link previews still ask for from that SVG.
 """
 from __future__ import annotations
@@ -24,7 +24,7 @@ PROMPT = """IDENTIDAD VISUAL DE LA APP: {gaps}. Diseñala ahora (y no cambies na
 - `{pub}/logo.svg`: el mismo símbolo + el nombre de la app al lado, horizontal, para el header.
 - Colores y tipografía del diseño de la app (sus tokens / DESIGN.md), no colores al azar.
 - Usá el logo en el header (y en login/registro/onboarding si existen) en lugar del ícono genérico que haya.
-- En el HTML de entrada (o el layout raíz): <link rel="icon" href="/icon.svg" type="image/svg+xml"> y <link rel="apple-touch-icon" href="/apple-touch-icon.png"> (el PNG lo genera Tably al publicar a partir de icon.svg). En Next.js alcanza con `app/icon.svg`.
+- En el HTML de entrada (o el layout raíz): <link rel="icon" href="/icon.svg" type="image/svg+xml"> y <link rel="apple-touch-icon" href="/apple-touch-icon.png"> (el PNG lo genera Muse Team al publicar a partir de icon.svg). En Next.js alcanza con `app/icon.svg`.
 Al terminar emití <done>."""
 
 

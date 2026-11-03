@@ -112,12 +112,12 @@ def test_ticket_goes_to_the_team_and_a_copy_to_the_client(monkeypatch):
     assert done.wait(3)
     team, client = mails
     assert team["to"] == "equipo@example.test" and team["reply_to"] == "cliente@example.test"
-    assert team["from_addr"] == "Tably Team <soporte@tablyteam.com>"
+    assert team["from_addr"] == "Muse Team <soporte@tablyteam.com>"
     assert team["subject"].startswith("Pedido pagado fde-1") and "Puesta en producción" in team["subject"]
     assert "cuenta@example.test" in team["text"] and "Pago: confirmado" in team["text"] and "- <bloqueante>" in team["text"]
     assert "&lt;bloqueante&gt;" in team["html"]
     assert client["to"] == "cliente@example.test" and client["reply_to"] == "soporte@tablyteam.com"
-    assert client["from_addr"] == "Tably Team <soporte@tablyteam.com>"
+    assert client["from_addr"] == "Muse Team <soporte@tablyteam.com>"
     assert "Hola Ana" in client["text"] and "soporte@tablyteam.com" in client["text"] and "- <bloqueante>" in client["text"]
 
 
@@ -143,8 +143,8 @@ def test_resend_gets_the_sender_and_the_reply_address(monkeypatch):
 
     monkeypatch.setenv("RESEND_API_KEY", "re_test")
     monkeypatch.setattr(mailer.httpx, "post", fake_post)
-    assert mailer.send("a@example.test", "s", "t", from_addr="Tably Team <soporte@tablyteam.com>", reply_to="b@example.test")
-    assert seen["from"] == "Tably Team <soporte@tablyteam.com>" and seen["reply_to"] == "b@example.test"
+    assert mailer.send("a@example.test", "s", "t", from_addr="Muse Team <soporte@tablyteam.com>", reply_to="b@example.test")
+    assert seen["from"] == "Muse Team <soporte@tablyteam.com>" and seen["reply_to"] == "b@example.test"
 
 
 def _create(monkeypatch, contact=""):

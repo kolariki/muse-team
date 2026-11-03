@@ -1,10 +1,10 @@
-# Tably Cloud · plan
+# Muse Cloud · plan
 
 Objetivo: que una app construida por el equipo salga **funcionando y publicada de inmediato**, sin que el usuario abra
 cuentas en ningún lado, y que después pueda **llevársela** (código, base de datos y hosting) a donde quiera.
 
 Principio: git propio sí; plataforma de deploy propia **como marca y experiencia**, no como infraestructura. Abajo va
-infraestructura comoditizada (Cloudflare, Fly, Neon, Supabase) operada desde las cuentas de Tably y accedida por API.
+infraestructura comoditizada (Cloudflare, Fly, Neon, Supabase) operada desde las cuentas de Muse Team y accedida por API.
 Todo lo que se provisiona es estándar (git, Postgres, Dockerfile, build estático), así la migración es trivial.
 
 ## Fases

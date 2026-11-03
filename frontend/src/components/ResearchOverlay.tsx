@@ -98,7 +98,7 @@ export default function ResearchOverlay({ demo = false, hiddenDemo = false, onCl
   ]
   const ICON: Record<string, typeof Search> = { search: Globe, read: FileSearch, plan: Gavel, write: Camera, think: Eye }
   const stamp = (ts: number) => { const d = new Date(ts); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}` }
-  // Tably's own references (the user added none): the work is shown, the names are not
+  // Muse Team's own references (the user added none): the work is shown, the names are not
   const hidden = !!r?.hidden
   const SKEL = [
     { w: '38%', h: 14, y: 0 }, { w: '100%', h: 36, y: 26 }, { w: '62%', h: 10, y: 74 }, { w: '48%', h: 10, y: 92 },

@@ -5,7 +5,7 @@
 
 The CLI works in a real folder on this machine (data/builds/<user>/<build>/): it writes files, can run
 commands, and keeps its own conversation (`--continue`) so change requests and resumes keep context.
-Tably Team watches the folder and streams the agent's messages/tools into the builder UI.
+Muse Team watches the folder and streams the agent's messages/tools into the builder UI.
 
 Nothing here talks to claude.ai or chatgpt.com directly: only the vendors' CLIs, with their own login.
 """
@@ -31,7 +31,7 @@ ENGINES: dict[str, dict] = {
     # "default" from the UI resolves to the engine's strongest model, not to whatever the CLI happens to have configured
     "claude-code": {"label": "Claude Code · tu suscripción", "logo": "anthropic", "bin": env("ARENA_CLAUDE_BIN", "claude"), "color": "#C0603F", "default_model": env("ARENA_CLAUDE_MODEL", "claude-opus-5-5")},
     "codex": {"label": "Codex CLI · ChatGPT", "logo": "openai", "bin": env("ARENA_CODEX_BIN", "codex"), "color": "#17896A"},
-    # Meta's coding agent (`muse exec --json`): runs with the user's META_API_KEY from Tably, or with `muse login` on this machine
+    # Meta's coding agent (`muse exec --json`): runs with the user's META_API_KEY from Muse Team, or with `muse login` on this machine
     "muse-code": {"label": "Muse Code · Meta", "logo": "meta", "bin": env("ARENA_MUSE_BIN", "muse"), "color": "#0082FB", "default_model": env("ARENA_MUSE_MODEL", "muse-wonder-1.0")},
 }
 MUSE_HOME = Path(env("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "muse"
@@ -154,7 +154,7 @@ def engine_status(user_id: str | None = None) -> list[dict]:
             _, v = _run([path, "--version"])
             st["version"] = v.splitlines()[0][:40] if v else None
             if meta_key:
-                st["auth"] = "API key de Meta (tu cuenta de Tably)"
+                st["auth"] = "API key de Meta (tu cuenta de Muse Team)"
                 st["ok"] = True
             elif (MUSE_HOME / "auth.json").exists() or os.environ.get("META_API_KEY"):
                 st["auth"] = "sesión de Muse (muse login)"
@@ -581,7 +581,7 @@ async def _muse_loop(proc, texts: list, result: dict, cwd: Path, on_event: Emit)
 
 
 async def run_muse_code(prompt: str, cwd: Path, *, system: str | None = None, continue_: bool = False, resume_session: str | None = None, read_only: bool = False, model: str | None = None, mcp: dict | None = None, on_event: Emit = None, max_turns: int = MAX_TURNS) -> dict:
-    """Streams a headless Muse Code run (`muse exec --json`). Auth: META_API_KEY from the user's Tably key (USER_ENV), else the
+    """Streams a headless Muse Code run (`muse exec --json`). Auth: META_API_KEY from the user's Muse Team key (USER_ENV), else the
     machine's `muse login`. Approvals are off (there is nobody to answer them) and the sandbox too, like our other engines."""
     spec = ENGINES["muse-code"]
     binary = _which(spec) or spec["bin"]

@@ -9,8 +9,8 @@ const INPUT = 'h-10 w-full rounded-xl border border-line bg-paper px-3 text-[13.
 const PRIMARY = 'flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-accent px-4 text-[13px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50'
 const PILL = 'flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-[12.5px] text-ink-2 transition hover:border-accent hover:text-accent disabled:opacity-50'
 
-/** «Conectar un sitio»: an app that lives outside Tably (its own GitHub + Railway/Vercel…) gets Analytics without being uploaded.
- *  With GitHub connected you pick the repo, Tably finds where it is online and opens the PR with the script in the same step. */
+/** «Conectar un sitio»: an app that lives outside Muse Team (its own GitHub + Railway/Vercel…) gets Analytics without being uploaded.
+ *  With GitHub connected you pick the repo, Muse Team finds where it is online and opens the PR with the script in the same step. */
 export function ConnectSite({ onDone }: { onDone: (slug: string) => void }) {
   const T = useT()
   const [open, setOpen] = useState(false)
@@ -51,7 +51,7 @@ export function ConnectSite({ onDone }: { onDone: (slug: string) => void }) {
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="serif text-[19px] leading-tight">{T('Conectar un sitio a Analíticas', 'Connect a site to Analytics')}</div>
-          <p className="mt-1 text-[12.5px] text-ink-3">{T('Para apps que están en tu GitHub y tu hosting (Railway, Vercel…). No hace falta subirlas a Tably ni auditarlas: elegís el repo, Tably abre un pull request con el script de analíticas y, cuando lo mergeás, las visitas llegan acá.', 'For apps on your own GitHub and hosting (Railway, Vercel…). No need to upload or audit them: pick the repo, Tably opens a pull request with the analytics script and, once you merge it, visits land here.')}</p>
+          <p className="mt-1 text-[12.5px] text-ink-3">{T('Para apps que están en tu GitHub y tu hosting (Railway, Vercel…). No hace falta subirlas a Muse Team ni auditarlas: elegís el repo, Muse Team abre un pull request con el script de analíticas y, cuando lo mergeás, las visitas llegan acá.', 'For apps on your own GitHub and hosting (Railway, Vercel…). No need to upload or audit them: pick the repo, Muse Team opens a pull request with the analytics script and, once you merge it, visits land here.')}</p>
         </div>
         <button onClick={() => setOpen(false)} className="text-ink-3 hover:text-ink" aria-label={T('Cerrar', 'Close')}><X size={16} /></button>
       </div>
@@ -61,7 +61,7 @@ export function ConnectSite({ onDone }: { onDone: (slug: string) => void }) {
           : !gh.connected ? (
             <div className="text-[12.5px] text-ink-2">
               <div className="font-semibold text-ink">{T('Conectá tu GitHub', 'Connect your GitHub')}</div>
-              <div className="mt-0.5 text-ink-3">{gh.error || T('Así elegís el repo de la lista y Tably abre el pull request solo.', 'So you pick the repo from a list and Tably opens the pull request by itself.')} <a href="https://github.com/settings/tokens/new?scopes=repo&description=Tably%20Team" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-accent hover:underline">{T('Crear el token (permiso «repo»)', 'Create the token (scope "repo")')} <ExternalLink size={11} /></a></div>
+              <div className="mt-0.5 text-ink-3">{gh.error || T('Así elegís el repo de la lista y Muse Team abre el pull request solo.', 'So you pick the repo from a list and Muse Team opens the pull request by itself.')} <a href="https://github.com/settings/tokens/new?scopes=repo&description=Muse%20Team" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-accent hover:underline">{T('Crear el token (permiso «repo»)', 'Create the token (scope "repo")')} <ExternalLink size={11} /></a></div>
               <div className="mt-2 flex flex-wrap gap-2">
                 <input type="password" value={tok} onChange={(e) => setTok(e.target.value)} placeholder="ghp_…" autoComplete="off" className={`${INPUT} h-9 min-w-[min(100%,240px)] flex-1`} />
                 <button onClick={saveTok} disabled={!tok.trim() || busy} className={PRIMARY}>{busy ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />} {T('Conectar GitHub', 'Connect GitHub')}</button>
@@ -91,7 +91,7 @@ export function ConnectSite({ onDone }: { onDone: (slug: string) => void }) {
         <label className="text-[12px] font-semibold text-ink-2">{T('Repositorio de GitHub', 'GitHub repository')}<input value={f.repo} onChange={(e) => setF({ ...f, repo: e.target.value })} placeholder="https://github.com/usuario/elevum" autoComplete="off" className={`${INPUT} mt-1 font-normal`} /></label>
       </div>
       <div className="mt-4 flex items-center justify-end gap-3">
-        {withPr && <span className="text-[12px] text-ink-3">{T('Tably abre el PR en ese repo. Vos solo lo mergeás.', 'Tably opens the PR on that repo. You just merge it.')}</span>}
+        {withPr && <span className="text-[12px] text-ink-3">{T('Muse Team abre el PR en ese repo. Vos solo lo mergeás.', 'Muse Team opens the PR on that repo. You just merge it.')}</span>}
         <button onClick={save} disabled={busy || !f.title.trim() || !(f.url.trim() || f.repo.trim())} className={PRIMARY}>{busy ? <Loader2 size={14} className="animate-spin" /> : withPr ? <GitPullRequest size={14} /> : <Link2 size={14} />} {withPr ? (busy ? T('Abriendo el PR…', 'Opening the PR…') : T('Conectar y abrir el PR', 'Connect and open the PR')) : T('Conectar', 'Connect')}</button>
       </div>
     </div>
@@ -147,7 +147,7 @@ export function ExternalSetup({ a, onChange }: { a: AnalyticsApp; onChange: () =
     } catch (e) { toast.error(tr('No se pudo comprobar', 'Could not check'), (e as Error).message) } finally { setBusy(null) }
   }
   const remove = async () => {
-    if (!window.confirm(tr(`¿Desconectar ${a.title}? Se borran sus visitas en Tably.`, `Disconnect ${a.title}? Its visits in Tably are deleted.`))) return
+    if (!window.confirm(tr(`¿Desconectar ${a.title}? Se borran sus visitas en Muse Team.`, `Disconnect ${a.title}? Its visits in Muse Team are deleted.`))) return
     setBusy('del')
     try { await api.siteDelete(a.slug); onChange() } catch (e) { toast.error(tr('No se pudo desconectar', 'Could not disconnect'), (e as Error).message); setBusy(null) }
   }
@@ -157,7 +157,7 @@ export function ExternalSetup({ a, onChange }: { a: AnalyticsApp; onChange: () =
       {!a.installed && <div className="mt-2.5 space-y-3">
         {/* 1 · the PR */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="min-w-[min(100%,260px)] flex-1"><b>{T('Que Tably abra un pull request', 'Let Tably open a pull request')}</b> {T('en tu GitHub con el script en tus páginas. Lo mergeás y Railway (o tu hosting) lo despliega solo.', 'on your GitHub with the script in your pages. You merge it and Railway (or your host) deploys it.')}</span>
+          <span className="min-w-[min(100%,260px)] flex-1"><b>{T('Que Muse Team abra un pull request', 'Let Muse Team open a pull request')}</b> {T('en tu GitHub con el script en tus páginas. Lo mergeás y Railway (o tu hosting) lo despliega solo.', 'on your GitHub with the script in your pages. You merge it and Railway (or your host) deploys it.')}</span>
           {x.pr_url ? <a href={x.pr_url} target="_blank" rel="noreferrer" className={PILL}><GitPullRequest size={13} /> {T('Ver el PR', 'See the PR')} <ExternalLink size={11} /></a> : null}
           {!x.repo || badToken ? null : !x.github
             ? <button onClick={() => useArena.getState().set({ view: 'settings' })} className={PRIMARY}><KeyRound size={13} /> {T('Cargar token de GitHub', 'Add GitHub token')}</button>
@@ -176,7 +176,7 @@ export function ExternalSetup({ a, onChange }: { a: AnalyticsApp; onChange: () =
         {badToken && (
           <div className="flex flex-wrap items-center gap-2">
             <input type="password" value={tok} onChange={(e) => setTok(e.target.value)} placeholder="ghp_… / github_pat_…" autoComplete="off" className={`${INPUT} h-9 min-w-[min(100%,240px)] flex-1`} />
-            <a href="https://github.com/settings/tokens/new?scopes=repo&description=Tably%20Team" target="_blank" rel="noreferrer" className={PILL}><KeyRound size={13} /> {T('Crear token (permiso «repo»)', 'Create token (scope "repo")')} <ExternalLink size={11} /></a>
+            <a href="https://github.com/settings/tokens/new?scopes=repo&description=Muse%20Team" target="_blank" rel="noreferrer" className={PILL}><KeyRound size={13} /> {T('Crear token (permiso «repo»)', 'Create token (scope "repo")')} <ExternalLink size={11} /></a>
             <button onClick={newToken} disabled={!tok.trim() || busy === 'pr'} className={PRIMARY}>{busy === 'pr' ? <Loader2 size={13} className="animate-spin" /> : <GitPullRequest size={13} />} {T('Guardar y abrir el PR', 'Save and open the PR')}</button>
           </div>
         )}
@@ -188,8 +188,8 @@ export function ExternalSetup({ a, onChange }: { a: AnalyticsApp; onChange: () =
         </div>
         {way === 'cmd' && <div>{T('En la carpeta del proyecto corré esto; pone el script en tus páginas (index.html, plantillas o layout de Next.js). Después commit y push.', 'Run this in the project folder; it puts the script in your pages (index.html, templates or the Next.js layout). Then commit and push.')}<CopyLine text={`npx -y ${x.package}`} /></div>}
         {way === 'pkg' && <div className="space-y-2">
-          <div>{T('Instalá el paquete (ya trae tu sitio adentro) e importalo una vez en el archivo de entrada (main.ts, main.tsx…):', 'Install the package (your site is already inside) and import it once in your entry file (main.ts, main.tsx…):')}<CopyLine text={`npm i ${x.package}`} /><CopyLine text={"import 'tably-analytics'"} /></div>
-          <div>{T('Para ver quién es cada usuario, donde ya sabés quién inició sesión:', 'To see who each user is, wherever you know who signed in:')}<CopyLine text={"import { identify } from 'tably-analytics'; identify({ email, name, id })"} /></div>
+          <div>{T('Instalá el paquete (ya trae tu sitio adentro) e importalo una vez en el archivo de entrada (main.ts, main.tsx…):', 'Install the package (your site is already inside) and import it once in your entry file (main.ts, main.tsx…):')}<CopyLine text={`npm i ${x.package}`} /><CopyLine text={"import 'muse-team-analytics'"} /></div>
+          <div>{T('Para ver quién es cada usuario, donde ya sabés quién inició sesión:', 'To see who each user is, wherever you know who signed in:')}<CopyLine text={"import { identify } from 'muse-team-analytics'; identify({ email, name, id })"} /></div>
           <div>{T('O sin instalar nada, pegá esta línea dentro del <head> de tu página:', 'Or without installing anything, paste this line inside your page <head>:')}<CopyLine text={x.snippet} /></div>
         </div>}
       </div>}

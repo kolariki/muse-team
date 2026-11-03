@@ -42,4 +42,4 @@ def erase(user: User) -> None:
     for root in (DATA_DIR, BUILD_ROOT, GIT_ROOT, CLAUDE_HOMES):
         shutil.rmtree(root / user.id, ignore_errors=True)
     if mailer.configured():
-        mailer.send(user.email, "Eliminamos tu cuenta de Tably Team", f"Hola {user.name},\n\nTu cuenta y tus datos ya fueron eliminados. Si no fuiste vos, escribinos a {mailer.support_address()}.", reply_to=mailer.support_address())
+        mailer.send(user.email, "Eliminamos tu cuenta de Muse Team", f"Hola {user.name},\n\nTu cuenta y tus datos ya fueron eliminados. Si no fuiste vos, escribinos a {mailer.support_address()}.", reply_to=mailer.support_address())

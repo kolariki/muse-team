@@ -1,10 +1,10 @@
-"""The user's own accounts connected to Tably (Google Calendar first), for the apps they build for themselves.
+"""The user's own accounts connected to Muse Team (Google Calendar first), for the apps they build for themselves.
 
-Apps never handle the provider's OAuth: the user connects the account once in Tably, and their published app reads through
-Tably with its own token (GET /api/connect/<site>/google-calendar/events, Authorization: Bearer TABLY_TOKEN). The owner of
+Apps never handle the provider's OAuth: the user connects the account once in Muse Team, and their published app reads through
+Muse Team with its own token (GET /api/connect/<site>/google-calendar/events, Authorization: Bearer TABLY_TOKEN). The owner of
 the app is the owner of the data: an app only ever sees the connections of the user who built it.
 
-Setup (once per Tably install): a Google Cloud OAuth client of type «Web application» with the redirect URI
+Setup (once per Muse Team install): a Google Cloud OAuth client of type «Web application» with the redirect URI
 <public URL>/api/connections/google/callback, loaded by the admin in Settings (or GOOGLE_OAUTH_CLIENT_ID / _SECRET).
 """
 from __future__ import annotations
@@ -36,8 +36,8 @@ PROVIDERS: dict[str, dict] = {
     "google-calendar": {
         "label": "Google Calendar", "kind": "google",
         "scopes": ["openid", "email", "https://www.googleapis.com/auth/calendar.readonly"],
-        "what": "Lee tus calendarios y eventos (solo lectura). Tus apps los ven a través de Tably, nunca con tu contraseña.",
-        "what_en": "Reads your calendars and events (read-only). Your apps see them through Tably, never with your password.",
+        "what": "Lee tus calendarios y eventos (solo lectura). Tus apps los ven a través de Muse Team, nunca con tu contraseña.",
+        "what_en": "Reads your calendars and events (read-only). Your apps see them through Muse Team, never with your password.",
     },
 }
 
@@ -89,7 +89,7 @@ async def finish(code: str, state: str, public_url: str) -> tuple[str, str]:
     """Code → tokens, kept encrypted. Returns (user_id, provider)."""
     hit = _STATES.pop(state, None)
     if not hit or hit[2] < time.time():
-        raise ValueError("El pedido de conexión venció: probá de nuevo desde Tably.")
+        raise ValueError("El pedido de conexión venció: probá de nuevo desde Muse Team.")
     user_id, provider, _ = hit
     async with httpx.AsyncClient(timeout=20) as cx:
         r = await cx.post(GOOGLE_TOKEN, data={"code": code, "client_id": google_creds()[0], "client_secret": google_creds()[1],
@@ -182,8 +182,8 @@ async def calendar_events(user_id: str, time_min: str, time_max: str, limit: int
             "events": events[:limit]}
 
 
-CONNECT_RULE = ("DATOS DE LAS CUENTAS DEL USUARIO (Google Calendar…): nunca implementes OAuth ni pidas claves de Google. La app los lee de Tably desde el servidor: "
+CONNECT_RULE = ("DATOS DE LAS CUENTAS DEL USUARIO (Google Calendar…): nunca implementes OAuth ni pidas claves de Google. La app los lee de Muse Team desde el servidor: "
                 "GET `${process.env.TABLY_URL}/api/connect/${process.env.TABLY_SITE}/google-calendar/events?from=<ISO>&to=<ISO>` con el header "
                 "`Authorization: Bearer ${process.env.TABLY_TOKEN}`. Responde {connected, account, calendars:[{id,name,color}], events:[{id, calendar, title, start, end, "
                 "all_day, location, description, link, meet, attendees, organizer}]} (start/end en ISO). Si connected es false, mostrá un estado claro: "
-                "«Conectá tu Google Calendar en Tably → Servicios» (no es un error). Cacheá la respuesta unos minutos y nunca expongas TABLY_TOKEN al navegador.")
+                "«Conectá tu Google Calendar en Muse Team → Servicios» (no es un error). Cacheá la respuesta unos minutos y nunca expongas TABLY_TOKEN al navegador.")

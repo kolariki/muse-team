@@ -80,7 +80,7 @@ def git_commit(root: Path, n: int, message: str) -> str | None:
     git = shutil.which("git")
     if not git or not root.exists():
         return None
-    env = {"GIT_AUTHOR_NAME": "Tably Team", "GIT_AUTHOR_EMAIL": "team@tablyteam.com", "GIT_COMMITTER_NAME": "Tably Team", "GIT_COMMITTER_EMAIL": "team@tablyteam.com", "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"}
+    env = {"GIT_AUTHOR_NAME": "Muse Team", "GIT_AUTHOR_EMAIL": "team@tablyteam.com", "GIT_COMMITTER_NAME": "Muse Team", "GIT_COMMITTER_EMAIL": "team@tablyteam.com", "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"}
 
     def run(*args: str) -> subprocess.CompletedProcess:
         return subprocess.run([git, *args], cwd=str(root), capture_output=True, text=True, timeout=60, env=env)

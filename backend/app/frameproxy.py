@@ -1,6 +1,6 @@
 """
 Embed proxy for "App real": the built product often ships strict security headers (CSP `frame-ancestors 'none'`,
-`X-Frame-Options`), which is correct for production but makes the browser refuse to show it inside Tably Team.
+`X-Frame-Options`), which is correct for production but makes the browser refuse to show it inside Muse Team.
 
 So the UI never frames the app directly: it frames a tiny local reverse proxy on another free port that forwards every
 request to the app and drops only the framing headers. The real URL is still shown for "open in a new tab".

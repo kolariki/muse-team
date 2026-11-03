@@ -573,8 +573,8 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
       <div className="w-full px-4 py-5 sm:px-8 sm:py-10 2xl:px-12">
         {/* the sections live in the side bar (AppShell); on a phone only the brand, the tab bar is at the bottom */}
         <div className="-mb-2 flex items-center gap-3 md:hidden">
-          <img src="/icon.svg?v=2" alt="" aria-hidden className="h-9 w-9 rounded-xl shadow-sm" draggable={false} />
-          <span className="serif text-xl">Tably <em className="text-accent">Team</em></span>
+          <img src="/icon.svg?v=3" alt="" aria-hidden className="h-9 w-9 rounded-xl shadow-sm" draggable={false} />
+          <span className="serif text-xl">Muse <em className="text-accent">Team</em></span>
         </div>
         <div className="mt-5 flex flex-wrap items-end justify-between gap-3 md:mt-0">
           <div>

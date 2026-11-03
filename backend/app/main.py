@@ -97,7 +97,7 @@ from .schemas import SessionConfig
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("arena.api")
 
-app = FastAPI(title="Tably Team", version="1.0.0", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
+app = FastAPI(title="Muse Team", version="1.0.0", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["*"], allow_headers=["*"])
 
 MAX_CONCURRENT_JOBS = int(env("ARENA_MAX_JOBS_PER_USER", "3"))
@@ -113,7 +113,7 @@ class SecurityHeaders(BaseHTTPMiddleware):
             if ref and ref.group(2) in runmod.TOKENS:  # the run's token is the check (proxies in front may rewrite Host)
                 return Response(status_code=307, headers={"Location": f"/r/{ref.group(2)}{path}{q}"})
             run_tok = request.cookies.get("tably_run")
-            if run_tok in runmod.TOKENS and request.headers.get("sec-fetch-dest") == "iframe":  # Tably frames nothing but running apps
+            if run_tok in runmod.TOKENS and request.headers.get("sec-fetch-dest") == "iframe":  # Muse Team frames nothing but running apps
                 return Response(status_code=307, headers={"Location": f"/r/{run_tok}{path}{q}"})
         resp = await call_next(request)
         dest, run_tok = request.headers.get("sec-fetch-dest"), request.cookies.get("tably_run")
@@ -125,7 +125,7 @@ class SecurityHeaders(BaseHTTPMiddleware):
                 return Response(status_code=307, headers={"Location": f"/r/{run_tok}{path}{q}"})
             if dest == "document" and request.method == "GET":  # a link of an app that is no longer running
                 return Response(_RUN_GONE, status_code=404, media_type="text/html")
-        if path.startswith("/r/"):  # the running app is shown inside Tably's panel
+        if path.startswith("/r/"):  # the running app is shown inside Muse Team's panel
             if "x-frame-options" in resp.headers:
                 del resp.headers["x-frame-options"]
             return resp
@@ -1163,7 +1163,7 @@ async def create_build(req: BuildRequest, user: User = CurrentUser):
     _check_capacity(user.id)
     if req.deep_analysis:
         if not is_engine(req.provider):
-            raise HTTPException(400, "El análisis profundo (REA) corre con un motor local (Claude Code / Codex) como constructor.")
+            raise HTTPException(400, "El análisis profundo (REA) corre con Muse Code como constructor.")
         if not research.rea_available()["ok"]:
             raise HTTPException(400, "REA no está instalado en esta máquina: corré `npx rea-agents setup` y reiniciá el motor.")
     if not req.references:
@@ -1345,7 +1345,7 @@ def build_services(session_id: str, build_id: str, user: User = CurrentUser):
     b = _build_any(user, session_id, build_id)
     values = deploymod.load_secrets(user.id, build_id)
     data = deploymod.services_for(b.files, b.brief, set(values))
-    # keys of outside services that an older Tably filled with a random value (it took them for the app's own secrets): out
+    # keys of outside services that an older Muse Team filled with a random value (it took them for the app's own secrets): out
     invented = [i["var"] for i in data["items"] if i["tier"] != "auto" and re.fullmatch(r"[A-Za-z0-9_-]{64}", values.get(i["var"]) or "")
                 and re.search(r"TURNSTILE|TRIGGER|RECAPTCHA|HCAPTCHA|SLACK|DISCORD|POSTMARK|MAILGUN", i["var"])]
     if invented:
@@ -1662,8 +1662,8 @@ def account_export(user: User = CurrentUser):
     blob, summary = portability.export_bundle(user.id, code)
     name = f"tably-{time.strftime('%Y%m%d-%H%M')}.tably"
     return Response(blob, media_type="application/octet-stream", headers={
-        "Content-Disposition": f'attachment; filename="{name}"', "X-Tably-Code": code, "X-Tably-Summary": json.dumps(summary),
-        "Access-Control-Expose-Headers": "X-Tably-Code, X-Tably-Summary, Content-Disposition"})
+        "Content-Disposition": f'attachment; filename="{name}"', "X-Muse Team-Code": code, "X-Muse Team-Summary": json.dumps(summary),
+        "Access-Control-Expose-Headers": "X-Muse Team-Code, X-Muse Team-Summary, Content-Disposition"})
 
 
 @app.post("/api/account/import")
@@ -1773,7 +1773,7 @@ def _image_provider(user_id: str, op: str) -> tuple[str, str, str]:
         return (meta.base_url or PROVIDERS["meta"].base_url).rstrip("/") + f"/images/{op}", meta.api_key, "muse-image-1.0"
     if openai and openai.source != "none" and openai.api_key:
         return f"https://api.openai.com/v1/images/{op}", openai.api_key, "gpt-image-2"
-    raise HTTPException(400, "Para crear caras con IA conectá Muse (o OpenAI) en Modelos y API keys; mientras tanto elegí una de las prediseñadas")
+    raise HTTPException(400, "Para crear caras con IA conectá Muse en Modelos y API keys; mientras tanto elegí una de las prediseñadas")
 
 
 async def _save_face(r: httpx.Response, model: str) -> dict:
@@ -2213,9 +2213,9 @@ async def app_run_stop(session_id: str, build_id: str, user: User = CurrentUser)
     return {"ok": True}
 
 
-# «Correr la app» on a server: the user's browser can't open the server's 127.0.0.1, so the app is reached through Tably at
-# <run base>/r/<token>/ — preferably another host than Tably's own (TABLY_RUN_URL, or Railway's service domain), so the
-# app's code never shares an origin with Tably's session. Absolute paths the app asks for (/assets/x.js, /api/…) come back
+# «Correr la app» on a server: the user's browser can't open the server's 127.0.0.1, so the app is reached through Muse Team at
+# <run base>/r/<token>/ — preferably another host than Muse Team's own (TABLY_RUN_URL, or Railway's service domain), so the
+# app's code never shares an origin with Muse Team's session. Absolute paths the app asks for (/assets/x.js, /api/…) come back
 # here with a Referer under /r/<token>/ and are sent into it (see SecurityHeaders).
 def _run_base() -> str | None:
     if env("TABLY_RUN_URL"):
@@ -2233,16 +2233,16 @@ _RUN_DROP = {"content-security-policy", "content-security-policy-report-only", "
 _RUN_HOP = {"host", "connection", "keep-alive", "accept-encoding", "content-length", "x-tably-sw"}
 _RUN_GONE = ("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>La app no está corriendo</title>"
              "<body style='margin:0;display:grid;place-items:center;min-height:100vh;font:15px system-ui;color:#1E2622;background:#F7F5F0'>"
-             "<div style='max-width:420px;padding:24px;text-align:center'><h1 style='font-size:20px'>Este link es de una app que estabas probando en Tably</h1>"
-             "<p style='color:#55625C'>Solo funciona mientras la app está corriendo. Abrila en Tably y tocá «Correr la app»; para compartirlo con otras personas, publicala.</p>"
-             "<a href='/' style='display:inline-block;margin-top:8px;padding:10px 18px;border-radius:999px;background:#2F6B5D;color:#fff;text-decoration:none;font-weight:600'>Ir a Tably</a></div></body>")
+             "<div style='max-width:420px;padding:24px;text-align:center'><h1 style='font-size:20px'>Este link es de una app que estabas probando en Muse Team</h1>"
+             "<p style='color:#55625C'>Solo funciona mientras la app está corriendo. Abrila en Muse Team y tocá «Correr la app»; para compartirlo con otras personas, publicala.</p>"
+             "<a href='/' style='display:inline-block;margin-top:8px;padding:10px 18px;border-radius:999px;background:#2F6B5D;color:#fff;text-decoration:none;font-weight:600'>Ir a Muse Team</a></div></body>")
 _RUN_WAIT = ("<!doctype html><meta charset=utf-8><meta http-equiv=refresh content=4><title>Cargando…</title>"
              "<body style='margin:0;display:grid;place-items:center;height:100vh;font:15px system-ui;color:#55625C;background:#F7F5F0'>Cargando…</body>")
 
 
 def _run_shim(prefix: str) -> str:
     """First script of the app's page when it runs at /r/<token>/: the app sees itself at «/» (its router finds its pages) and
-    every absolute path it asks for (/api/…, /img/…) goes to the app, not to Tably. Navigations that still leave
+    every absolute path it asks for (/api/…, /img/…) goes to the app, not to Muse Team. Navigations that still leave
     (location.href = "/x", a plain link) come back through the tably_run cookie (see SecurityHeaders)."""
     return ("(function(){if(window.__tablyRun)return;var P=" + json.dumps(prefix) + ",O=location.origin;window.__tablyRun=P;"
             "function fix(u){try{var s=u instanceof URL?u.href:u;if(typeof s!=='string')return u;"
@@ -2552,7 +2552,7 @@ async def billing_checkout(body: dict, user: User = CurrentUser):
         pkg = fdemod.package(r["package"]) or {}
         hours = max(4, int(body.get("hours") or 4)) if r["package"] == "hours" else 1
         amount = float(pkg.get("price_usd", 0)) * hours
-        name = f"Tably Team · {pkg.get('name', r['package'])}" + (f" × {hours} h" if hours > 1 else "")
+        name = f"Muse Team · {pkg.get('name', r['package'])}" + (f" × {hours} h" if hours > 1 else "")
         try:
             o = await billing.create_checkout(user.id, user.email, "fde", r["id"], name, f"Pedido {r['id']} · {r['ticket'].get('project', {}).get('title', '')}", amount, back, r["build_id"], r["session_id"])
         except RuntimeError as e:
@@ -2565,7 +2565,7 @@ async def billing_checkout(body: dict, user: User = CurrentUser):
         if total <= 0:
             raise HTTPException(400, "no hay cargos pendientes")
         try:
-            o = await billing.create_checkout(user.id, user.email, "fees", build_id, "Tably Team · cargos por uso", " · ".join(f.get("label", "") for f in due)[:300], total, back, build_id, session_id)
+            o = await billing.create_checkout(user.id, user.email, "fees", build_id, "Muse Team · cargos por uso", " · ".join(f.get("label", "") for f in due)[:300], total, back, build_id, session_id)
         except RuntimeError as e:
             raise HTTPException(502, str(e))
         return o
@@ -2657,12 +2657,12 @@ async def _startup():
     from .tasks import start_runner
 
     start_runner()
-    cloudmod.resume_watchers()  # Tably Cloud apps still deploying on Railway get their «is it up yet?» watcher back
+    cloudmod.resume_watchers()  # Muse Cloud apps still deploying on Railway get their «is it up yet?» watcher back
     spawn(incidentsmod.monitor())  # published apps: their errors go to the builder, fixed and published again
     spawn(adtiermod.daily_loop())  # AdTier: videos whose embed stopped working are unpublished
 
 
-# ================================================================================================ Tably Cloud · git propio, publicar, base de datos, migrar
+# ================================================================================================ Muse Cloud · git propio, publicar, base de datos, migrar
 
 
 # ------------------------------------------------------------------------------------------------ tickets (Notion → team → builder → PR)
@@ -2822,7 +2822,7 @@ def tickets_config(user: User = CurrentUser):
 
 @app.put("/api/tickets/config")
 def tickets_config_save(body: dict, user: User = CurrentUser):
-    """Which Notion database holds the tickets, which Tably project resolves them, and how the statuses map."""
+    """Which Notion database holds the tickets, which Muse Team project resolves them, and how the statuses map."""
     fields: dict = {}
     if "database_id" in body:
         db_id = str(body.get("database_id") or "")
@@ -2847,7 +2847,7 @@ def tickets_config_save(body: dict, user: User = CurrentUser):
     if "repo_url" in body:
         fields["repo_url"] = (body.get("repo_url") or "").strip() or None
     if "projects" in body:
-        # {"prop": "Feature", "map": {"Codifier": {"session_id", "build_id", "repo_url"}, ...}}: one Tably project per value of that property
+        # {"prop": "Feature", "map": {"Codifier": {"session_id", "build_id", "repo_url"}, ...}}: one Muse Team project per value of that property
         pr = body.get("projects") if isinstance(body.get("projects"), dict) else {}
         prop = (pr.get("prop") or "").strip() or None
         mp: dict = {}
@@ -2902,7 +2902,7 @@ def tickets_list(all: bool = False, user: User = CurrentUser):
         out_runs[pid] = _ticket_status(r, b if b and b.user.id == user.id else None)
     pprop = (link.get("projects") or {}).get("prop")
     assigned = ticketsmod.assigned_projects(user.id)
-    for t in items:  # which Tably project takes each ticket (by hand, by Feature, detected from its text, or the default one)
+    for t in items:  # which Muse Team project takes each ticket (by hand, by Feature, detected from its text, or the default one)
         t["project"] = ticketsmod.project_for_ticket(link, t.get("fields") or {}, assigned.get(t["id"]))
         t["project_value"] = ", ".join(ticketsmod.project_values(t.get("fields") or {}, pprop)) or None
     return {"link": link, "tickets": items, "runs": out_runs, "groupable": groupable, "classify": _CLASSIFY_JOBS.get(user.id)}
@@ -3075,10 +3075,10 @@ async def ticket_resolve(page_id: str, user: User = CurrentUser):
     proj = ticketsmod.project_for_ticket(link, page.get("fields") or {}, ticketsmod.assigned_projects(user.id).get(page_id))
     if not proj["ok"]:
         if proj["reason"] == "sin_proyecto":
-            raise HTTPException(400, "Vinculá un proyecto de Tably a los tickets primero.")
+            raise HTTPException(400, "Vinculá un proyecto de Muse Team a los tickets primero.")
         if proj["reason"] == "ticket_sin_valor":
             raise HTTPException(400, f"El ticket no tiene «{proj['prop']}»: completalo en Notion para saber a qué proyecto va.")
-        raise HTTPException(400, f"«{proj['prop']}: {proj['key']}» no tiene un proyecto de Tably asignado: asignalo en la configuración de Tickets.")
+        raise HTTPException(400, f"«{proj['prop']}: {proj['key']}» no tiene un proyecto de Muse Team asignado: asignalo en la configuración de Tickets.")
     b = _build(user, proj["build_id"], proj["session_id"])
     if b.status in ("running", "reviewing", "design_review"):
         raise HTTPException(409, "El equipo ya está trabajando en este proyecto; esperá a que termine.")
@@ -3108,7 +3108,7 @@ async def ticket_resolve(page_id: str, user: User = CurrentUser):
     props, smap = link.get("props") or {}, link.get("status_map") or {}
     try:
         ticketsmod.set_status(token, page_id, props.get("status") or "", props.get("status_type"), smap.get("in_progress"))
-        ticketsmod.comment(token, page_id, f"Tably Team tomó este ticket: el equipo lo está construyendo en «{b.title}» (rama {branch}). Cuando el consejo lo apruebe, abre el pull request y lo pasa a revisión.")
+        ticketsmod.comment(token, page_id, f"Muse Team tomó este ticket: el equipo lo está construyendo en «{b.title}» (rama {branch}). Cuando el consejo lo apruebe, abre el pull request y lo pasa a revisión.")
     except ticketsmod.NotionError as e:
         log.warning("notion status update failed: %s", e)
     b.apply_council(changes, "")
@@ -3127,7 +3127,7 @@ def ticket_on_verdict(b, session_id: str, approved: bool, changes: int) -> None:
         ticketsmod.save_run(b.user.id, run["page_id"], status="changes", council_session=session_id)
         if token:
             try:
-                ticketsmod.comment(token, run["page_id"], f"El consejo revisó el ticket y pidió {changes} cambio(s) antes de abrir el PR. El constructor los aplica en Tably.")
+                ticketsmod.comment(token, run["page_id"], f"El consejo revisó el ticket y pidió {changes} cambio(s) antes de abrir el PR. El constructor los aplica en Muse Team.")
             except ticketsmod.NotionError:
                 pass
         return
@@ -3138,7 +3138,7 @@ def ticket_on_verdict(b, session_id: str, approved: bool, changes: int) -> None:
     if gh and repo_url:
         root = _cloud_root(b.user, b)
         body = (f"Resuelve el ticket de Notion **{run.get('title')}**" + (f" ({run.get('page_url')})" if run.get("page_url") else "") + "\n\n"
-                f"Construido y revisado por el equipo de Tably Team (consejo: {len(b.council_sessions)} ronda(s), versión v{len(b.versions)}).\n\n"
+                f"Construido y revisado por el equipo de Muse Team (consejo: {len(b.council_sessions)} ronda(s), versión v{len(b.versions)}).\n\n"
                 + "\n".join(f"- {s.get('text', '')[:200]}" for s in (b.stages or [])[-6:]))
         res = ticketsmod.open_pull_request(root, gh, repo_url, run["branch"] or "tably/ticket", f"{run.get('title')}", body)
         pr_url, err = res.get("url"), res.get("error")
@@ -3150,7 +3150,7 @@ def ticket_on_verdict(b, session_id: str, approved: bool, changes: int) -> None:
             ticketsmod.set_status(token, run["page_id"], props.get("status") or "", props.get("status_type"), smap.get("review"))
             if pr_url:
                 ticketsmod.set_url(token, run["page_id"], props.get("pr"), pr_url)
-            ticketsmod.comment(token, run["page_id"], (f"Aprobado por el consejo de Tably Team. Pull request listo para code review: {pr_url}" if pr_url else f"Aprobado por el consejo de Tably Team. {err}"))
+            ticketsmod.comment(token, run["page_id"], (f"Aprobado por el consejo de Muse Team. Pull request listo para code review: {pr_url}" if pr_url else f"Aprobado por el consejo de Muse Team. {err}"))
         except ticketsmod.NotionError as e:
             log.warning("notion update failed: %s", e)
     b.emit("ticket.done", page_id=run["page_id"], pr_url=pr_url, error=err)
@@ -3160,7 +3160,7 @@ def ticket_on_verdict(b, session_id: str, approved: bool, changes: int) -> None:
 
 @app.get("/a.js")
 def analytics_snippet():
-    """Tably Analytics: the script a built app loads (`<script defer src=".../a.js" data-site="<slug>">`). No cookies, no personal data."""
+    """Muse Team Analytics: the script a built app loads (`<script defer src=".../a.js" data-site="<slug>">`). No cookies, no personal data."""
     return Response(levelsmod.SNIPPET_JS, media_type="application/javascript", headers={"Cache-Control": "public, max-age=300"})
 
 
@@ -3168,7 +3168,7 @@ _ONLINE_SNIPPET: dict[str, tuple[float, bool | None]] = {}
 
 
 async def _online_has_snippet(url: str | None, published_at: float = 0) -> bool | None:
-    """Whether the page live on the app's URL loads Tably Analytics (None when it could not be read). Cached a minute,
+    """Whether the page live on the app's URL loads Muse Team Analytics (None when it could not be read). Cached a minute,
     and read again as soon as the app is republished."""
     if not url:
         return None
@@ -3178,7 +3178,7 @@ async def _online_has_snippet(url: str | None, published_at: float = 0) -> bool 
     try:
         async with httpx.AsyncClient(timeout=6, follow_redirects=True) as cx:
             r = await cx.get(url)
-        base = re.escape(cloudmod.public_url())  # it has to report here, not to another Tably (e.g. a local one)
+        base = re.escape(cloudmod.public_url())  # it has to report here, not to another Muse Team (e.g. a local one)
         val: bool | None = bool(re.search(rf"{base}/a\.js[^>]*data-site|data-site[^>]*{base}/a\.js", r.text[:400_000])) if r.status_code < 400 else None
     except Exception:  # noqa: BLE001
         val = None
@@ -3188,7 +3188,7 @@ async def _online_has_snippet(url: str | None, published_at: float = 0) -> bool 
 
 @app.get("/api/analytics")
 async def analytics_overview(user: User = CurrentUser):
-    """Tably Analytics for every app the user published: visits, events and errors of each, whether the project has the
+    """Muse Team Analytics for every app the user published: visits, events and errors of each, whether the project has the
     snippet and whether the version online already carries it (if not, the page offers to publish again)."""
     folder = auth.user_dir(user.id)
     out = []
@@ -3212,13 +3212,13 @@ async def analytics_overview(user: User = CurrentUser):
                     # the project has the snippet but the page online does not load it (read from the live URL): publish again
                     "needs_republish": installed and online is False,
                     "stats": st, "visits_7d": levelsmod.hits_for(app_["slug"], time.time() - 7 * 86400)})
-    for site in sitesmod.list_sites(user.id):  # sites outside Tably, connected only to Analytics
+    for site in sitesmod.list_sites(user.id):  # sites outside Muse Team, connected only to Analytics
         st = levelsmod.stats(site["slug"])
         out.append({"slug": site["slug"], "title": site["title"], "url": site.get("url"), "status": "live", "provider": "external", "build_id": "", "session_id": None,
                     "installed": st["pageviews"] > 0 or st["live"] > 0 or st["events"] > 0, "needs_republish": False, "stats": st,
                     "visits_7d": levelsmod.hits_for(site["slug"], time.time() - 7 * 86400),
                     "external": {"repo": site.get("repo"), "pr_url": site.get("pr_url"), "pr_error": site.get("pr_error"), "snippet": sitesmod.tag(cloudmod.public_url(), site["slug"]),
-                                 "package": f"{cloudmod.public_url()}/pkg/tably-analytics-{site['slug']}.tgz", "github": bool(keystore.get_key(user.id, "github")), "github_last4": keystore.key_status(user.id, "github").get("last4")}})
+                                 "package": f"{cloudmod.public_url()}/pkg/muse-team-analytics-{site['slug']}.tgz", "github": bool(keystore.get_key(user.id, "github")), "github_last4": keystore.key_status(user.id, "github").get("last4")}})
     return {"apps": out, "collector": cloudmod.public_url(), "collector_public": not re.match(r"https?://(localhost|127\.0\.0\.1)", cloudmod.public_url())}
 
 
@@ -3233,7 +3233,7 @@ def analytics_detail(slug: str, days: int = 30, user: User = CurrentUser):
 def _my_app(user: User, slug: str) -> dict:
     app_ = next((a for a in cloudmod.list_apps(user.id) if a["slug"] == slug), None)
     if not app_:
-        site = sitesmod.get(user.id, slug)  # a site outside Tably, connected only to Analytics
+        site = sitesmod.get(user.id, slug)  # a site outside Muse Team, connected only to Analytics
         if site:
             return sitesmod.as_app(site)
         raise HTTPException(404)
@@ -3242,8 +3242,8 @@ def _my_app(user: User, slug: str) -> dict:
 
 @app.post("/api/analytics/sites")
 async def analytics_site_create(body: dict, user: User = CurrentUser):
-    """Connect a site that lives outside Tably (its own GitHub + Railway/Vercel…) to Analytics only.
-    With `pr` and a GitHub token, Tably also opens the pull request with the script right away (one step)."""
+    """Connect a site that lives outside Muse Team (its own GitHub + Railway/Vercel…) to Analytics only.
+    With `pr` and a GitHub token, Muse Team also opens the pull request with the script right away (one step)."""
     try:
         site = sitesmod.create(user.id, str(body.get("title") or ""), str(body.get("url") or ""), str(body.get("repo") or ""))
     except ValueError as e:
@@ -3294,7 +3294,7 @@ def analytics_site_delete(slug: str, user: User = CurrentUser):
 
 @app.post("/api/analytics/sites/{slug}/pr")
 async def analytics_site_pr(slug: str, user: User = CurrentUser):
-    """Tably opens a pull request on the site's GitHub repo with the snippet in its pages; the host deploys it on merge."""
+    """Muse Team opens a pull request on the site's GitHub repo with the snippet in its pages; the host deploys it on merge."""
     site = sitesmod.get(user.id, slug)
     if not site:
         raise HTTPException(404)
@@ -3311,7 +3311,7 @@ async def analytics_site_pr(slug: str, user: User = CurrentUser):
 
 @app.post("/api/analytics/sites/{slug}/identify-pr")
 async def analytics_site_identify_pr(slug: str, user: User = CurrentUser):
-    """Tably opens a PR on the site's repo that calls tably.identify where the app knows who signed in (email and name in «Quiénes te visitan»)."""
+    """Muse Team opens a PR on the site's repo that calls tably.identify where the app knows who signed in (email and name in «Quiénes te visitan»)."""
     site = sitesmod.get(user.id, slug)
     if not site:
         raise HTTPException(404)
@@ -3335,9 +3335,9 @@ async def analytics_site_check(slug: str, user: User = CurrentUser):
     return await sitesmod.check(site, cloudmod.public_url())
 
 
-@app.get("/pkg/tably-analytics-{slug}.tgz")
+@app.get("/pkg/muse-team-analytics-{slug}.tgz")
 def analytics_package(slug: str):
-    """The `tably-analytics` npm package with this site inside (`npm i <this url>`, or `npx -y <this url>` to write the tag into the pages)."""
+    """The `muse-team-analytics` npm package with this site inside (`npm i <this url>`, or `npx -y <this url>` to write the tag into the pages)."""
     if not re.fullmatch(r"[a-z0-9-]{1,80}", slug) or not (sitesmod.exists(slug) or levelsmod.hits_for(slug) ):
         raise HTTPException(404)
     return Response(sitesmod.package(slug, cloudmod.public_url()), media_type="application/gzip", headers={"Cache-Control": "no-cache"})
@@ -3345,7 +3345,7 @@ def analytics_package(slug: str):
 
 @app.get("/api/analytics/{slug}/errors")
 def analytics_errors(slug: str, days: int = 30, user: User = CurrentUser):
-    """The app's errors grouped by cause (like Sentry), each with its timeline, status and what Tably did about it."""
+    """The app's errors grouped by cause (like Sentry), each with its timeline, status and what Muse Team did about it."""
     app_ = _my_app(user, slug)
     rows = incidentsmod.list_for(user.id, app_["build_id"])
     return {"issues": observemod.issues(rows, max(1, min(int(days), 90))), "build_id": app_["build_id"]}
@@ -3421,7 +3421,7 @@ def analytics_ask(slug: str, body: dict, user: User = CurrentUser):
     """One click from Analytics: the builder sets up an A/B test or the AI-call reporting in the app."""
     app_ = _my_app(user, slug)
     if app_.get("provider") == "external":
-        raise HTTPException(400, "Este sitio no está en Tably, así que el equipo no puede tocar su código. Pedíselo a quien lo programa con lo que dice acá.")
+        raise HTTPException(400, "Este sitio no está en Muse Team, así que el equipo no puede tocar su código. Pedíselo a quien lo programa con lo que dice acá.")
     found = next(iter(auth.user_dir(user.id).glob(f"*.build.{app_['build_id']}.json")), None)
     if not found:
         raise HTTPException(404, "No encontré el proyecto de esta app")
@@ -3431,7 +3431,7 @@ def analytics_ask(slug: str, body: dict, user: User = CurrentUser):
         if not what:
             raise HTTPException(400, "Contá qué querés probar")
         text = (f"EXPERIMENTO A/B pedido por el usuario: {what}\n"
-                "Armalo con Tably Analytics (el snippet /a.js ya está en la app): const v = window.tably && window.tably.variant ? window.tably.variant('nombre-corto-del-experimento', ['a', 'b']) : 'a'; "
+                "Armalo con Muse Team Analytics (el snippet /a.js ya está en la app): const v = window.tably && window.tably.variant ? window.tably.variant('nombre-corto-del-experimento', ['a', 'b']) : 'a'; "
                 "mostrá la versión A (la actual) o la B según v, y marcá el objetivo con tably.track('nombre-del-objetivo') (o data-track) en la acción que mide si funcionó (registrarse, reservar, pagar…). "
                 "La variante es estable por visitante. No cambies nada más. Al terminar emití <done> y decí el nombre del experimento y del objetivo.")
     elif kind == "ai":
@@ -3475,7 +3475,7 @@ def google_app_set(body: dict, user: User = CurrentUser):
 
 @app.get("/api/connections")
 def connections_list(user: User = CurrentUser):
-    """The user's accounts connected to Tably (their apps read them through Tably) and whether this install can connect them."""
+    """The user's accounts connected to Muse Team (their apps read them through Muse Team) and whether this install can connect them."""
     return {"connections": connectionsmod.listing(user.id), "google_ready": connectionsmod.google_ready(),
             "redirect_uri": connectionsmod.redirect_uri(cloudmod.public_url())}
 
@@ -3485,13 +3485,13 @@ def connections_start(provider: str, user: User = CurrentUser):
     if provider not in connectionsmod.PROVIDERS:
         raise HTTPException(404)
     if not connectionsmod.google_ready():
-        raise HTTPException(400, "Falta configurar la conexión con Google en esta instalación de Tably (Configuración → Conexión de Google).")
+        raise HTTPException(400, "Falta configurar la conexión con Google en esta instalación de Muse Team (Configuración → Conexión de Google).")
     return {"url": connectionsmod.start(user.id, provider, cloudmod.public_url())}
 
 
 @app.get("/api/connections/google/callback", include_in_schema=False)
 async def connections_google_callback(code: str = "", state: str = "", error: str = ""):
-    """Google sends the user back here after the consent screen; Tably keeps the tokens and returns to the app."""
+    """Google sends the user back here after the consent screen; Muse Team keeps the tokens and returns to the app."""
     from urllib.parse import quote
 
     from fastapi.responses import RedirectResponse
@@ -3513,7 +3513,7 @@ async def connections_delete(provider: str, user: User = CurrentUser):
 
 
 def _site_owner(site: str) -> str | None:
-    """Whose data an app may read: the user who owns the published app (or the run being tried in Tably)."""
+    """Whose data an app may read: the user who owns the published app (or the run being tried in Muse Team)."""
     if site.startswith("run-"):
         r = runmod.RUNS.get(site[4:])
         return r.user_id if r else None
@@ -3524,7 +3524,7 @@ def _site_owner(site: str) -> str | None:
 
 @app.get("/api/connect/{site}/google-calendar/events")
 async def connect_calendar_events(site: str, request: Request, start: str = Query("", alias="from"), end: str = Query("", alias="to"), limit: int = 250):
-    """An app reads its owner's Google Calendar through Tably (Authorization: Bearer TABLY_TOKEN). Default: today and the next 7 days."""
+    """An app reads its owner's Google Calendar through Muse Team (Authorization: Bearer TABLY_TOKEN). Default: today and the next 7 days."""
     import datetime as _dt
 
     if not re.fullmatch(r"[a-z0-9-]{1,90}", site) or not observemod.check_token(site, request.headers.get("authorization")):
@@ -3602,8 +3602,8 @@ def build_levels(session_id: str, build_id: str, user: User = CurrentUser):
 def _level_change(b, check: dict, level: int, site: str) -> dict:
     """A pending level check as a request for the builder; the analytics ones carry the exact snippet (any level)."""
     if check["id"] == "analytics":
-        text = b.tx(f"Instalá Tably Analytics: en cada página HTML (o en el layout raíz que las envuelve) agregá exactamente <script defer src=\"{cloudmod.public_url()}/a.js\" data-site=\"{site}\"></script>. Si ya hay un snippet de /a.js apuntando a otra dirección (por ejemplo localhost), reemplazalo por este en TODOS los archivos, incluidos los scripts que generan páginas. Registra visitas, clics, gente en vivo y errores solo; no uses cookies ni otro analytics. Si la app tiene usuarios, donde ya sabe quién es (registro, inicio de sesión, sesión abierta) llamá window.tably && window.tably.identify({{ email, name, id }}).",
-                    f"Install Tably Analytics: on every HTML page (or the root layout that wraps them) add exactly <script defer src=\"{cloudmod.public_url()}/a.js\" data-site=\"{site}\"></script>. If there is already an /a.js snippet pointing elsewhere (e.g. localhost), replace it with this one in EVERY file, including scripts that generate pages. It records visits, clicks, live visitors and errors by itself; use no cookies or other analytics. If the app has users, wherever it already knows who they are (sign up, log in, open session) call window.tably && window.tably.identify({{ email, name, id }}).")
+        text = b.tx(f"Instalá Muse Team Analytics: en cada página HTML (o en el layout raíz que las envuelve) agregá exactamente <script defer src=\"{cloudmod.public_url()}/a.js\" data-site=\"{site}\"></script>. Si ya hay un snippet de /a.js apuntando a otra dirección (por ejemplo localhost), reemplazalo por este en TODOS los archivos, incluidos los scripts que generan páginas. Registra visitas, clics, gente en vivo y errores solo; no uses cookies ni otro analytics. Si la app tiene usuarios, donde ya sabe quién es (registro, inicio de sesión, sesión abierta) llamá window.tably && window.tably.identify({{ email, name, id }}).",
+                    f"Install Muse Team Analytics: on every HTML page (or the root layout that wraps them) add exactly <script defer src=\"{cloudmod.public_url()}/a.js\" data-site=\"{site}\"></script>. If there is already an /a.js snippet pointing elsewhere (e.g. localhost), replace it with this one in EVERY file, including scripts that generate pages. It records visits, clicks, live visitors and errors by itself; use no cookies or other analytics. If the app has users, wherever it already knows who they are (sign up, log in, open session) call window.tably && window.tably.identify({{ email, name, id }}).")
     elif check["id"] == "events":
         text = b.tx("Marcá al menos 3 acciones clave del producto (registro, crear, pagar, etc.) con data-track=\"nombre\" en el botón o tably.track('nombre') en el código.",
                     "Mark at least 3 key product actions (sign up, create, pay, etc.) with data-track=\"name\" on the button or tably.track('name') in code.")
@@ -3625,9 +3625,9 @@ async def build_levels_pending(session_id: str, build_id: str, body: dict | None
     body = body or {}
     ids = set(body.get("ids") or []) | ({"analytics", "events"} if body.get("focus") == "analytics" else set())
     if body.get("focus") == "identify":  # not a level check: who the signed-in users are, for the analytics «people» list
-        b.apply_council([{"severity": "mejora", "role": "Tably Analytics", "text": b.tx(
-            "Identificá a los usuarios en Tably Analytics: donde la app ya sabe quién es el usuario (al registrarse, al iniciar sesión y al cargar la app con la sesión abierta) llamá window.tably && window.tably.identify({ email, name, id }) con los datos que la app ya tiene; nunca contraseñas ni datos sensibles. Si la app no tiene usuarios, no hagas nada. Agregá a la política de privacidad (si existe) que se miden visitas y, para usuarios registrados, su email y nombre.",
-            "Identify users in Tably Analytics: wherever the app already knows who the user is (sign up, log in and app load with an open session) call window.tably && window.tably.identify({ email, name, id }) with the data the app already has; never passwords or sensitive data. If the app has no users, do nothing. Add to the privacy policy (if there is one) that visits are measured and, for registered users, their email and name.")}], "")
+        b.apply_council([{"severity": "mejora", "role": "Muse Team Analytics", "text": b.tx(
+            "Identificá a los usuarios en Muse Team Analytics: donde la app ya sabe quién es el usuario (al registrarse, al iniciar sesión y al cargar la app con la sesión abierta) llamá window.tably && window.tably.identify({ email, name, id }) con los datos que la app ya tiene; nunca contraseñas ni datos sensibles. Si la app no tiene usuarios, no hagas nada. Agregá a la política de privacidad (si existe) que se miden visitas y, para usuarios registrados, su email y nombre.",
+            "Identify users in Muse Team Analytics: wherever the app already knows who the user is (sign up, log in and app load with an open session) call window.tably && window.tably.identify({ email, name, id }) with the data the app already has; never passwords or sensitive data. If the app has no users, do nothing. Add to the privacy policy (if there is one) that visits are measured and, for registered users, their email and name.")}], "")
         return {"ok": True, "items": 1}
     changes = []
     for lv in ev.get("levels") or []:
@@ -3781,25 +3781,25 @@ def meta_ads_start(body: dict | None = None, user: User = CurrentUser):
     if not _meta_open(user):
         raise HTTPException(403, "Conectar Meta Ads va a estar disponible próximamente")
     if not metaads.ready():
-        raise HTTPException(400, "La conexión con Meta Ads todavía no está habilitada en Tably.")
+        raise HTTPException(400, "La conexión con Meta Ads todavía no está habilitada en Muse Team.")
     scopes = metaads.IG_SCOPES if (body or {}).get("for") == "instagram" else metaads.SCOPES  # AdTier reads reference accounts
     return {"url": metaads.start(user.id, cloudmod.public_url(), scopes)}
 
 
 @app.get("/api/meta-ads/callback", include_in_schema=False)
 async def meta_ads_callback(code: str = "", state: str = "", error: str = "", error_description: str = ""):
-    """Meta sends the user back here (in the window Tably opened); the window tells Tably how it went and closes itself."""
+    """Meta sends the user back here (in the window Muse Team opened); the window tells Muse Team how it went and closes itself."""
     from fastapi.responses import HTMLResponse
 
     ok, msg = False, error_description or error or "Se canceló la conexión."
     if code:
         try:
             await metaads.finish(code, state, cloudmod.public_url())
-            ok, msg = True, "Listo: tu cuenta de Meta Ads quedó conectada a Tably."
+            ok, msg = True, "Listo: tu cuenta de Meta Ads quedó conectada a Muse Team."
         except Exception as e:  # noqa: BLE001
             msg = str(e)[:300]
     payload = json.dumps({"tablyMetaAds": "ok" if ok else "error", "message": msg})
-    page = (f"<!doctype html><meta charset=utf-8><title>Tably · Meta Ads</title><body style=\"font:16px system-ui;padding:40px;background:#10161F;color:#F1F4F8\">"
+    page = (f"<!doctype html><meta charset=utf-8><title>Muse Team · Meta Ads</title><body style=\"font:16px system-ui;padding:40px;background:#10161F;color:#F1F4F8\">"
             f"<p>{html.escape(msg)}</p><p>Ya podés cerrar esta ventana.</p><script>try{{window.opener&&window.opener.postMessage({payload},'*')}}catch(e){{}}setTimeout(function(){{window.close()}},1200)</script>")
     return HTMLResponse(page)
 
@@ -3821,7 +3821,7 @@ async def meta_ads_assets(user: User = CurrentUser):
 
 @app.get("/api/meta-ads/brain")
 def meta_brain_get(user: User = CurrentUser):
-    """What Tably learned from the connected ad account and the ads it proposes with the studio videos."""
+    """What Muse Team learned from the connected ad account and the ads it proposes with the studio videos."""
     conn = metaads.connection(user.id)
     return {**brainmod.public(user.id), "meta": {"ready": metaads.ready(), "connected": bool(conn), **(conn or {}), "admin": _is_admin(user), "open": _meta_open(user)}}
 
@@ -4063,7 +4063,7 @@ async def studio_generate(pid: str, body: dict, user: User = CurrentUser):
 
 @app.post("/api/studio/{pid}/tour")
 async def studio_tour(pid: str, body: dict, user: User = CurrentUser):
-    """«Grabar mi app»: Tably opens the app on a phone-sized browser, scrolls it and adds the recording to the ad's material."""
+    """«Grabar mi app»: Muse Team opens the app on a phone-sized browser, scrolls it and adds the recording to the ad's material."""
     _studio(user, pid)
     try:
         studiomod.tour(user, pid, str(body.get("url") or ""))
@@ -4110,7 +4110,7 @@ def studio_file(pid: str, name: str, request: Request, token: str = "", download
 
 def _adtier_admin(user: User) -> None:
     if not _is_admin(user):
-        raise HTTPException(403, "Solo quien administra Tably carga y revisa el catálogo de AdTier")
+        raise HTTPException(403, "Solo quien administra Muse Team carga y revisa el catálogo de AdTier")
 
 
 def _adtier_filters(request: Request) -> dict:
@@ -4131,7 +4131,7 @@ async def adtier_home(request: Request, user: User = CurrentUser):
     return out
 
 
-# «Para vos»: the ads a person needs, from a profile of their business (a Tably project or a few questions)
+# «Para vos»: the ads a person needs, from a profile of their business (a Muse Team project or a few questions)
 @app.get("/api/adtier/foryou")
 def foryou_home(user: User = CurrentUser):
     return {"profiles": foryoumod.profiles(user.id), "projects": foryoumod.projects(user), "sectors": [{"id": a, "es": b, "en": c} for a, b, c in foryoumod.SECTORS],
@@ -4451,7 +4451,7 @@ def market(user: User = CurrentUser):
 
 @app.post("/api/market/{listing_id}/transfer")
 def market_transfer(listing_id: str, body: dict, user: User = CurrentUser):
-    """Ownership transfer to another Tably account (by email): the project, its versions, its workdir and its public app move; the URL stays."""
+    """Ownership transfer to another Muse Team account (by email): the project, its versions, its workdir and its public app move; the URL stays."""
     with auth._db() as c:
         r = c.execute("SELECT * FROM market_listings WHERE id = ?", (listing_id,)).fetchone()
     if not r or r["user_id"] != user.id:
@@ -4460,7 +4460,7 @@ def market_transfer(listing_id: str, body: dict, user: User = CurrentUser):
         raise HTTPException(409, "Esta publicación ya no está activa")
     target = levelsmod.user_by_email(str(body.get("email") or ""))
     if not target:
-        raise HTTPException(404, "No hay una cuenta de Tably con ese email: la otra persona tiene que crearla primero.")
+        raise HTTPException(404, "No hay una cuenta de Muse Team con ese email: la otra persona tiene que crearla primero.")
     if target["id"] == user.id:
         raise HTTPException(400, "Ya es tuyo")
     listing = dict(r)
@@ -4542,7 +4542,7 @@ async def build_cloud_publish(session_id: str, build_id: str, user: User = Curre
 
 
 def _start_publish(user: User, b) -> None:
-    """Publish the build's current files on Tably Cloud in the background (the panel follows the cloud.* events)."""
+    """Publish the build's current files on Muse Cloud in the background (the panel follows the cloud.* events)."""
     build_id = b.id
     root = _cloud_root(user, b)
     b.publishing = True
@@ -4617,11 +4617,11 @@ def on_deploy_failed(user_id: str, build_id: str, reason: str, logs: str) -> boo
     b._deploy_fix = True
     b.resume(
         f"EL DESPLIEGUE EN RAILWAY FALLÓ ({reason}; intento {attempt} de {DEPLOY_FIX_ATTEMPTS}). Corregí el proyecto para que la imagen Docker se construya y la app arranque en Railway, "
-        "sin cambiar lo que hace la app. Railway construye con el Dockerfile de la RAÍZ del repo; si no hay uno propio usa el que genera Tably (empieza con «# generated by Tably»): "
+        "sin cambiar lo que hace la app. Railway construye con el Dockerfile de la RAÍZ del repo; si no hay uno propio usa el que genera Muse Team (empieza con «# generated by Muse Team»): "
         "si el problema está en cómo se instala o se construye (gestor de paquetes, workspaces, versión de Node, carpeta del servicio), escribí un Dockerfile propio en la raíz que funcione, sin esa primera línea. "
         "La app tiene que escuchar en 0.0.0.0 y en el puerto de la variable PORT (8080), servir la web en «/» y leer sus secretos de variables de entorno. "
         "Si hace falta una variable nueva, agregala a .env.example. Al terminar emití <done>.\n\n" + (logs or "(Railway no devolvió logs)"))
-    b._pending_requests, b._pending_trigger = [{"severity": "bloqueante", "role": "Tably Cloud", "text": f"El despliegue falló: {reason}"}], "deploy"
+    b._pending_requests, b._pending_trigger = [{"severity": "bloqueante", "role": "Muse Cloud", "text": f"El despliegue falló: {reason}"}], "deploy"
 
     async def republish() -> None:
         try:
@@ -4689,11 +4689,11 @@ def on_leaks(user_id: str, build_id: str, keys: list[dict], logs: str) -> bool:
     b._deploy_fix = True
     b.resume(
         "HAY CLAVES ESCRITAS EN EL CÓDIGO y no se puede publicar así (cualquiera que vea el código o el navegador las ve). Sacalas del código y leelas de variables "
-        "de entorno, sin cambiar lo que hace la app. Tably ya guardó cada valor como secreto de la app con el nombre indicado, así que en producción la variable existe:\n"
+        "de entorno, sin cambiar lo que hace la app. Muse Team ya guardó cada valor como secreto de la app con el nombre indicado, así que en producción la variable existe:\n"
         + leaksmod.report(keys) + "\n\nPara cada una: reemplazá el valor por la lectura de la variable (process.env.X / os.environ[\"X\"]; en el frontend, solo si es "
         "una clave pública, con el prefijo que use el bundler, p. ej. VITE_X, y si es secreta movela al servidor), agregala a .env.example con un valor de ejemplo, "
         "y si estaba en un archivo de configuración o de datos de ejemplo, dejá un placeholder. No escribas los valores en ningún otro archivo. Al terminar emití <done>.")
-    b._pending_requests, b._pending_trigger = [{"severity": "bloqueante", "role": "Tably Cloud", "text": f"Claves en el código: {services}"}], "deploy"
+    b._pending_requests, b._pending_trigger = [{"severity": "bloqueante", "role": "Muse Cloud", "text": f"Claves en el código: {services}"}], "deploy"
 
     async def republish() -> None:
         try:
@@ -4794,7 +4794,7 @@ def on_app_errors(user_id: str, build_id: str) -> None:
 
 
 def _note(b, text: str, tone: str = "", detail: str = "", run: bool = False, link: dict | None = None, go: str = "") -> None:
-    """A line from Tably in the build's chat (live too). With a tone (working/done/attention) it is a card, not a faint line:
+    """A line from Muse Team in the build's chat (live too). With a tone (working/done/attention) it is a card, not a faint line:
     the user has to see what is happening with their app; `detail` is the technical error, `run` adds «Ver la app»."""
     ts = time.time()
     item = {"role": "system", "text": text, "ts": ts, **({"tone": tone} if tone else {}), **({"detail": detail[:400]} if detail else {}), **({"run": True} if run else {}), **({"link": link} if link else {}), **({"go": go} if go else {})}
@@ -4804,7 +4804,7 @@ def _note(b, text: str, tone: str = "", detail: str = "", run: bool = False, lin
 
 
 def _run_fix(b, state: str | None, **fields) -> None:
-    """What the «App real» pane shows while Tably fixes the run: a loader (fixing/restarting) or a card (needs_approval/stuck/manual)."""
+    """What the «App real» pane shows while Muse Team fixes the run: a loader (fixing/restarting) or a card (needs_approval/stuck/manual)."""
     r = runmod.RUNS.get(b.id)
     if not r:
         return
@@ -4830,7 +4830,7 @@ def _start_error_fix(user: User, b, rows: list[dict], approved: dict | None = No
              f"Las tres explicaciones en {b.req.language or 'español'} simple, para alguien que no sabe programar: una o dos frases cada una, sin jerga técnica "
              "(nada de «migración», «endpoint», «stack», «500»; por ejemplo: «la base de datos no tenía armadas las tablas donde se guardan los turnos, así que la agenda no podía cargar»). "
              "«que_cambia» dice qué va a notar la persona que usa la app. Al terminar emití <done>.")
-    where = {"server": "servidor publicado", "browser": "navegador", "run": "al correr la app en Tably"}
+    where = {"server": "servidor publicado", "browser": "navegador", "run": "al correr la app en Muse Team"}
     errors = "\n\n".join(f"- {r['title']} ({r['count']} vez/veces, {where.get(r['source'], r['source'])})\n{(r['sample'] or r['detail'] or '')[-2500:]}" for r in rows)
     scene = ("AL CORRER LA APP DENTRO DE TABLY («Correr la app»: instala dependencias y levanta el servidor de desarrollo) FALLÓ O TUVO ERRORES"
              if on_run else f"LA APP PUBLICADA ({app_.get('url')}) ESTÁ TENIENDO ERRORES MIENTRAS LA USAN")
@@ -4838,7 +4838,7 @@ def _start_error_fix(user: User, b, rows: list[dict], approved: dict | None = No
         text = (f"EL USUARIO APROBÓ ESTE ARREGLO ({scene.lower()}).\nProblema: {approved.get('what')}\nArreglo aprobado: {approved.get('fix')}\n"
                 "Aplicalo completo, verificá que compila (build/typecheck) y que los tests pasan. Los errores están en .tably/errores.md.\n" + plain.replace("\"tamano\": \"chico\"|\"grande\"", "\"tamano\": \"grande\"") + "\n\nERRORES:\n" + errors)
     else:
-        text = (f"{scene}. Tably los detectó (log del servidor, navegador o el arranque); están abajo y en .tably/errores.md. Encontrá la causa raíz de cada uno.\n"
+        text = (f"{scene}. Muse Team los detectó (log del servidor, navegador o el arranque); están abajo y en .tably/errores.md. Encontrá la causa raíz de cada uno.\n"
                 "Primero decidí el tamaño del arreglo:\n"
                 "- CHICO: corregir un bug acotado, una dependencia o un script que falta, que las tablas/migraciones se creen solas al arrancar, una variable de entorno con valor por defecto, el puerto, una validación, el manejo de un error. "
                 "No borra ni transforma datos existentes y no cambia lo que la app hace ni cómo se ve.\n"
@@ -4849,7 +4849,7 @@ def _start_error_fix(user: User, b, rows: list[dict], approved: dict | None = No
     lessonsmod.record(user.id, b.id, "runtime", "error en producción", "\n".join(r["detail"] or "" for r in rows))
     b._error_fix = True
     b.resume(text)
-    b._pending_requests = [{"severity": "bloqueante", "role": "Tably Cloud", "text": f"Error: {r['title']}"[:300]} for r in rows]
+    b._pending_requests = [{"severity": "bloqueante", "role": "Muse Cloud", "text": f"Error: {r['title']}"[:300]} for r in rows]
     b._pending_trigger = "runtime"
     if on_run:
         _run_fix(b, "fixing", id=rows[0]["id"])
@@ -5178,7 +5178,7 @@ def admin_request_ticket(rid: str, user: User = CurrentUser):
 
 @app.get("/api/admin/deploy-failures")
 def admin_deploy_failures(days: int = 90, user: User = CurrentUser):
-    """What Tably Cloud learned from failed deploys: which errors repeat, which the automatic fix solved (admin only)."""
+    """What Muse Cloud learned from failed deploys: which errors repeat, which the automatic fix solved (admin only)."""
     if not _is_admin(user):
         raise HTTPException(403)
     return lessonsmod.report(max(1, min(days, 365)))
@@ -5226,7 +5226,7 @@ def build_git_github(session_id: str, build_id: str, body: dict, user: User = Cu
     b = _build_any(user, session_id, build_id)
     token = keystore.get_key(user.id, "github")
     if not token:
-        raise HTTPException(400, "Cargá un token de GitHub (permiso «repo») en Configuración → Tably Cloud.")
+        raise HTTPException(400, "Cargá un token de GitHub (permiso «repo») en Configuración → Muse Cloud.")
     res = gitserver.push_github(user.id, build_id, token, body.get("name") or b.title or build_id, private=body.get("private", True), root=_cloud_root(user, b))
     if not res.get("ok"):
         raise HTTPException(400, res.get("error") or "no se pudo mover a GitHub")
@@ -5240,7 +5240,7 @@ async def git_http(user_id: str, repo: str, path: str, request: Request):
     tok = gitserver.parse_basic_auth(request.headers.get("authorization"))
     u = auth.user_from_token(tok) if tok else None
     if not u or u.id != user_id:
-        return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Tably Git"'}, content="token requerido")
+        return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Muse Team Git"'}, content="token requerido")
     body = await request.body()
     status, headers, payload = gitserver.http_backend(user_id, repo, path, request.method, request.url.query, request.headers.get("content-type"), body)
     return Response(status_code=status, headers={k: v for k, v in headers}, content=payload)

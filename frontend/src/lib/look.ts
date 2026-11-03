@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 /**
- * Tably's identity («Equipo», with the dark «Taller» builder), live everywhere since 2026-10-30, and the theme the user picks:
+ * Muse Team's identity («Equipo», with the dark «Taller» builder), live everywhere since 2026-10-30, and the theme the user picks:
  * - light: everything light, the builder included
  * - dark: everything dark («Taller» tokens), the home included
  * - auto: the computer's setting; in light mode the home stays light and the builder is the dark «Taller»

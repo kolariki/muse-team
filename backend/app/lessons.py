@@ -1,4 +1,4 @@
-"""What Tably Cloud learns from failed deploys.
+"""What Muse Cloud learns from failed deploys.
 
 Every failure on Railway is saved with a signature (a known kind of error, or a fingerprint of its last error line) and,
 when the automatic fix worked, what the builder changed. Two uses:
@@ -26,7 +26,7 @@ with _db() as _c:
     )
     _c.execute("CREATE INDEX IF NOT EXISTS deploy_failures_build ON deploy_failures (user_id, build_id, status)")
 
-# (signature, pattern in the logs, what it is, how to avoid it from the start, whether Tably's generated Dockerfile already prevents it)
+# (signature, pattern in the logs, what it is, how to avoid it from the start, whether Muse Team's generated Dockerfile already prevents it)
 CATALOG: list[tuple[str, str, str, str, bool]] = [
     ("workspace-protocol", r'Unsupported URL Type "workspace:"|EUNSUPPORTEDPROTOCOL',
      "Monorepo con dependencias workspace:* instalado con npm",
@@ -57,15 +57,15 @@ CATALOG: list[tuple[str, str, str, str, bool]] = [
      "Con Prisma: `prisma generate` en el build (o postinstall) y migraciones con `prisma migrate deploy` al arrancar, usando DATABASE_URL.", False),
     ("missing-env", r"(Missing|required) (required )?(env|environment variable)|is not set|must be (set|defined)|JWT_SECRET|DATABASE_URL.*(undefined|not)",
      "Falta una variable de entorno al arrancar",
-     "Toda variable que la app necesita va en `.env.example` (con comentario); las propias (JWT_SECRET…) Tably las genera, las externas las carga el usuario.", False),
+     "Toda variable que la app necesita va en `.env.example` (con comentario); las propias (JWT_SECRET…) Muse Team las genera, las externas las carga el usuario.", False),
     ("port-binding", r"EADDRINUSE|listening on (http://)?(localhost|127\.0\.0\.1)",
      "El servidor no escucha donde Railway lo busca",
-     "El servidor escucha en `0.0.0.0` y en `process.env.PORT` (8080 en Tably Cloud), nunca en un puerto fijo ni en localhost.", False),
+     "El servidor escucha en `0.0.0.0` y en `process.env.PORT` (8080 en Muse Cloud), nunca en un puerto fijo ni en localhost.", False),
     ("python-deps", r"No matching distribution found|ModuleNotFoundError: No module named|ResolutionImpossible",
      "Faltan dependencias de Python",
      "Todas las dependencias de Python van en requirements.txt o pyproject.toml, con versiones que existan.", False),
     ("secret-in-code", r"CLAVE EN EL CÓDIGO",
-     "Claves escritas en el código (Tably frena la publicación)",
+     "Claves escritas en el código (Muse Team frena la publicación)",
      "Nunca escribas claves, tokens ni contraseñas en el código, en la configuración ni en datos de ejemplo: leelas siempre de variables de entorno y documentalas en `.env.example`; en el frontend solo claves públicas, las secretas viven en el servidor.", False),
     ("data-in-memory", r"guarda los datos solo en memoria",
      "Los datos de la app de prueba vivían solo en memoria",
@@ -136,13 +136,13 @@ def past_fixes(sig: str, user_id: str, limit: int = 3) -> str:
 
 
 def block(user_id: str | None = None, limit: int = 8) -> str:
-    """For the builder's prompts: the deploy failures that already happened on Tably Cloud (most frequent first) and how to avoid them."""
+    """For the builder's prompts: the deploy failures that already happened on Muse Cloud (most frequent first) and how to avoid them."""
     with _db() as c:
         rows = c.execute("SELECT signature, COUNT(*) n FROM deploy_failures GROUP BY signature ORDER BY n DESC").fetchall()
     rules = [f"- {_BY_SIG[r['signature']][2]} ({r['n']} vez/veces): {_BY_SIG[r['signature']][3]}" for r in rows if r["signature"] in _BY_SIG][:limit]
     if not rules:
         return ""
-    return ("\n\nLECCIONES DE PRODUCCIÓN (fallas que ya pasaron publicando o usando apps en Tably Cloud; dejá el proyecto listo para que no le pasen a este):\n"
+    return ("\n\nLECCIONES DE PRODUCCIÓN (fallas que ya pasaron publicando o usando apps en Muse Cloud; dejá el proyecto listo para que no le pasen a este):\n"
             + "\n".join(rules))
 
 

@@ -1,7 +1,7 @@
 """AdTier: a catalogue of video ads ranked S/A/B/C, each one broken down into a reusable template (hook, beats, CTA).
 
 What makes it different from an awards archive or an ads library is the three things together: curation (only what the admin
-loads, with its evidence), a ranking with criteria, and the template. Inside Tably the approved S and A templates also feed the
+loads, with its evidence), a ranking with criteria, and the template. Inside Muse Team the approved S and A templates also feed the
 ad scripts the team writes («Anuncios» and the Ad Studio).
 
 The tier comes from two independent signals and the higher one wins:
@@ -789,7 +789,7 @@ async def daily_loop() -> None:
             log.exception("adtier embed check")
 
 
-# ------------------------------------------------------------------------------------------------------------ export, Tably and MCP
+# ------------------------------------------------------------------------------------------------------------ export, Muse Team and MCP
 
 def template_markdown(v: dict, tpl: dict) -> str:
     b = tpl or {}
@@ -803,7 +803,7 @@ def template_markdown(v: dict, tpl: dict) -> str:
 
 
 def references(fmt_hint: str | None = None, n: int = 3) -> list[dict]:
-    """Approved S/A templates for Tably's own ad scripts: their skeleton, hook and CTA."""
+    """Approved S/A templates for Muse Team's own ad scripts: their skeleton, hook and CTA."""
     with _db() as c:
         rows = c.execute("""SELECT v.id, v.title, v.brand, v.format, t.tier FROM adtier_videos v JOIN adtier_tiers t ON t.video_id = v.id
                             WHERE v.status = 'published' AND t.tier IN ('S','A') ORDER BY (v.format = ?) DESC, instr('SABC', t.tier), RANDOM() LIMIT ?""", (fmt_hint or "", n)).fetchall()

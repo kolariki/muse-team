@@ -88,7 +88,7 @@ export default function AvatarEditor({ employeeId, value, onSave, onReset, onClo
               </div>
             ) : tab === 'photo' ? (
               <div className="mt-4 space-y-3">
-                <p className="text-[12.5px] text-ink-3">{T('Subí una foto tuya (o de quien quieras) y la IA la convierte en un retrato con el mismo estilo que el resto del equipo, manteniendo el parecido. Lo hace Muse con tu key de Meta (o OpenAI si no tenés Muse); se cobra por imagen. La foto original no se guarda.', 'Upload a photo of yourself (or anyone) and AI turns it into a portrait in the same style as the rest of the team, keeping the likeness. Muse does it with your Meta key (or OpenAI if you have no Muse); billed per image. The original photo is not stored.')}</p>
+                <p className="text-[12.5px] text-ink-3">{T('Subí una foto tuya (o de quien quieras) y la IA la convierte en un retrato con el mismo estilo que el resto del equipo, manteniendo el parecido. Lo hace Muse con tu key de Meta; se cobra por imagen. La foto original no se guarda.', 'Upload a photo of yourself (or anyone) and AI turns it into a portrait in the same style as the rest of the team, keeping the likeness. Muse does it with your Meta key; billed per image. The original photo is not stored.')}</p>
                 <label onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith('image/')) setPhoto(f) }} className="flex cursor-pointer items-center gap-4 rounded-2xl border border-dashed border-line p-4 transition hover:border-accent">
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setPhoto(f); e.target.value = '' }} />
                   <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-surface-2">
@@ -108,7 +108,7 @@ export default function AvatarEditor({ employeeId, value, onSave, onReset, onClo
               </div>
             ) : (
               <div className="mt-4 space-y-3">
-                <p className="text-[12.5px] text-ink-3">{T('Elegí cómo es y la IA genera un retrato realista con el mismo estilo que el resto del equipo. Lo genera Muse con tu key de Meta (o OpenAI si no tenés Muse); se cobra por imagen.', 'Choose how they look and AI generates a realistic portrait in the same style as the rest of the team. Muse generates it with your Meta key (or OpenAI if you have no Muse); billed per image.')}</p>
+                <p className="text-[12.5px] text-ink-3">{T('Elegí cómo es y la IA genera un retrato realista con el mismo estilo que el resto del equipo. Lo genera Muse con tu key de Meta; se cobra por imagen.', 'Choose how they look and AI generates a realistic portrait in the same style as the rest of the team. Muse generates it with your Meta key; billed per image.')}</p>
                 {(Object.keys(CHOICES) as (keyof typeof CHOICES)[]).map((k) => (
                   <div key={k}>
                     <div className="mb-1 text-[11.5px] uppercase tracking-widest text-ink-3">{T(...LABELS[k])}</div>

@@ -1,7 +1,7 @@
 """AdTier «Para vos»: the ads a person needs, not the whole catalogue.
 
 A profile says who the ads are for: what the business does, the sector, B2B or B2C, the country, the audience and the goal.
-- From a project built in Tably it is written by itself (Meta Muse reads the brief, the README and the app summary of «Anuncios»).
+- From a project built in Muse Team it is written by itself (Meta Muse reads the brief, the README and the app summary of «Anuncios»).
 - Otherwise the person answers a few questions (and can add the website or a document); Muse turns that into the profile.
 
 With the profile:
@@ -110,7 +110,7 @@ def owns_video(user_id: str, video_id: str) -> bool:
                                  WHERE pv.video_id = ? AND p.user_id = ?""", (video_id, user_id)).fetchone())
 
 
-# ------------------------------------------------------------------------------------------------------------ the person's Tably projects
+# ------------------------------------------------------------------------------------------------------------ the person's Muse Team projects
 
 def projects(user: User) -> list[dict]:
     """Every session with a saved build: the title and the newest build, to build the profile from."""
@@ -239,7 +239,7 @@ def doc_text(name: str, data: bytes) -> str:
 
 
 async def create(user: User, body: dict) -> dict:
-    """A profile from a Tably project (session_id + build_id) or from the answers (name, description, sector, kind, country, …)."""
+    """A profile from a Muse Team project (session_id + build_id) or from the answers (name, description, sector, kind, country, …)."""
     now = time.time()
     sid, bid = str(body.get("session_id") or ""), str(body.get("build_id") or "")
     answers = {k: str(body.get(k) or "")[:3000] for k in ("name", "description", "sector", "kind", "country", "audience", "goal", "website", "docs", "placement")}
@@ -554,7 +554,7 @@ async def read_account(user: User, acc: dict) -> tuple[list[dict], dict]:
                 note["problem"] = "Instagram muestra los reels solo a cuentas conectadas: conectá tu cuenta de Meta y los leemos con su API oficial."
                 note["action"] = "connect_meta"
             else:
-                note["problem"] = "Instagram no deja leer reels sin la conexión con Meta, que todavía no está habilitada en Tably."
+                note["problem"] = "Instagram no deja leer reels sin la conexión con Meta, que todavía no está habilitada en Muse Team."
                 note["action"] = "enable_meta"
     elif plat == "facebook":
         try:
@@ -568,7 +568,7 @@ async def read_account(user: User, acc: dict) -> tuple[list[dict], dict]:
         elif not note["problem"]:
             note["problem"] = ("Meta deja leer los videos solo de las páginas que administrás." if meta.connection(user.id)
                                else "Para leer los reels de una página de Facebook, conectá tu cuenta de Meta (solo de páginas que administrás)." if meta.ready()
-                               else "Facebook no deja leer los videos de una página sin la conexión con Meta, que todavía no está habilitada en Tably.")
+                               else "Facebook no deja leer los videos de una página sin la conexión con Meta, que todavía no está habilitada en Muse Team.")
             note["action"] = None if meta.connection(user.id) else "connect_meta" if meta.ready() else "enable_meta"
     elif plat == "tiktok":
         items = await asyncio.to_thread(_tiktok, h)
@@ -887,7 +887,7 @@ async def _read_upload(user: User, pid: str, rid: str, raw: "Path", kind: str) -
             await asyncio.to_thread(shrink)
             _set_upload(user.id, pid, rid, status="ready", frames=["f000000.jpg"])
             return
-        # a screen recording (from Tably or the phone) also has the page around the reel and the seconds before and after: we keep
+        # a screen recording (from Muse Team or the phone) also has the page around the reel and the seconds before and after: we keep
         # only the reel, as an H.264 file the person can watch and use
         work = d / "work.mp4"
         await asyncio.to_thread(media.normalise, raw, work, 1280)  # also fixes recordings from the browser, which carry no duration

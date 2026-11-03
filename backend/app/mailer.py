@@ -23,7 +23,7 @@ def configured() -> bool:
 
 
 def sender() -> str:
-    return env("MAIL_FROM", "") or env("SMTP_FROM", "") or "Tably Team <hola@tablyteam.com>"
+    return env("MAIL_FROM", "") or env("SMTP_FROM", "") or "Muse Team <hola@tablyteam.com>"
 
 
 def send(to: str, subject: str, text: str, html: str | None = None, from_addr: str | None = None, reply_to: str | None = None) -> bool:
@@ -90,24 +90,24 @@ def _deliver(to: str, subject: str, text: str, html: str | None, from_addr: str 
 
 
 def verification_email(name: str, code: str) -> tuple[str, str, str]:
-    subject = f"{code} es tu código de Tably Team"
-    text = f"Hola {name},\n\nTu código para verificar el email es: {code}\n\nVence en 15 minutos. Si no creaste una cuenta en Tably Team, ignorá este mensaje."
+    subject = f"{code} es tu código de Muse Team"
+    text = f"Hola {name},\n\nTu código para verificar el email es: {code}\n\nVence en 15 minutos. Si no creaste una cuenta en Muse Team, ignorá este mensaje."
     who = escape(name)
     html = f"""<div style="font-family:Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#17172A">
-  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Tably <em style="color:#6A4BE8">Team</em></div>
+  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Muse <em style="color:#0064E0">Team</em></div>
   <h1 style="font-weight:800;font-size:26px;letter-spacing:-.02em;margin:20px 0 4px">Verificá tu email</h1>
   <p style="color:#47475C;font-size:15px;margin:0">Hola {who}, este es tu código. Vence en 15 minutos.</p>
   <div style="font-family:Menlo,Consolas,monospace;font-size:36px;letter-spacing:.35em;font-weight:700;background:#EEEAFD;color:#4A2FC4;border-radius:14px;padding:18px 0;text-align:center;margin:20px 0">{code}</div>
-  <p style="color:#73738A;font-size:12.5px;margin:0">Si no creaste una cuenta en Tably Team, ignorá este mensaje.</p>
+  <p style="color:#73738A;font-size:12.5px;margin:0">Si no creaste una cuenta en Muse Team, ignorá este mensaje.</p>
 </div>"""
     return subject, text, html
 
 
 def password_reset_email(name: str, code: str) -> tuple[str, str, str]:
-    subject = f"{code} es tu código para cambiar la contraseña de Tably Team"
+    subject = f"{code} es tu código para cambiar la contraseña de Muse Team"
     text = f"Hola {name},\n\nTu código para cambiar la contraseña es: {code}\n\nVence en 15 minutos. Si no lo pediste, ignorá este mensaje: tu contraseña sigue igual."
     html = f"""<div style="font-family:Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#17172A">
-  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Tably <em style="color:#6A4BE8">Team</em></div>
+  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Muse <em style="color:#0064E0">Team</em></div>
   <h1 style="font-weight:800;font-size:26px;letter-spacing:-.02em;margin:20px 0 4px">Cambiá tu contraseña</h1>
   <p style="color:#47475C;font-size:15px;margin:0">Hola {escape(name)}, este es tu código. Vence en 15 minutos.</p>
   <div style="font-family:Menlo,Consolas,monospace;font-size:36px;letter-spacing:.35em;font-weight:700;background:#EEEAFD;color:#4A2FC4;border-radius:14px;padding:18px 0;text-align:center;margin:20px 0">{code}</div>
@@ -118,20 +118,20 @@ def password_reset_email(name: str, code: str) -> tuple[str, str, str]:
 
 def welcome_email(name: str, lang: str = "es") -> tuple[str, str, str]:
     en = lang == "en"
-    subject = "Welcome to Tably Team" if en else "Te damos la bienvenida a Tably Team"
+    subject = "Welcome to Muse Team" if en else "Te damos la bienvenida a Muse Team"
     hello = f"Hi {name}," if en else f"Hola {name},"
     intro = "Your account is ready. This is how you go from idea to a live app:" if en else "Tu cuenta ya está lista. Así pasás de la idea a una app online:"
     steps = (["Write your idea: your AI team debates it, designs it and builds it.", "Publish it online with one click.", "Connect Meta Ads: the AI reads your account, tells you what to change and builds your ads."] if en
              else ["Escribí tu idea: tu equipo de IA la debate, la diseña y la construye.", "Publicala online con un clic.", "Conectá Meta Ads: la IA lee tu cuenta, te dice qué cambiar y arma tus anuncios."])
     cta = "Start building" if en else "Empezar a construir"
-    text = f"{hello}\n\n{intro}\n\n" + "\n".join(f"{i + 1}. {x}" for i, x in enumerate(steps)) + f"\n\n{cta}: https://tablyteam.com"
-    rows = "".join(f'<p style="color:#47475C;font-size:15px;margin:0 0 10px"><b style="color:#6A4BE8">{i + 1}.</b> {x}</p>' for i, x in enumerate(steps))
+    text = f"{hello}\n\n{intro}\n\n" + "\n".join(f"{i + 1}. {x}" for i, x in enumerate(steps)) + f"\n\n{cta}: https://muse-team-production.up.railway.app"
+    rows = "".join(f'<p style="color:#47475C;font-size:15px;margin:0 0 10px"><b style="color:#0064E0">{i + 1}.</b> {x}</p>' for i, x in enumerate(steps))
     html = f"""<div style="font-family:Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#17172A">
-  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Tably <em style="color:#6A4BE8">Team</em></div>
+  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Muse <em style="color:#0064E0">Team</em></div>
   <h1 style="font-weight:800;font-size:26px;letter-spacing:-.02em;margin:20px 0 8px">{escape(hello)}</h1>
   <p style="color:#47475C;font-size:15px;margin:0 0 16px">{intro}</p>
   {rows}
-  <a href="https://tablyteam.com" style="display:inline-block;margin-top:12px;background:#6A4BE8;color:#fff;text-decoration:none;font-weight:600;font-size:15px;border-radius:10px;padding:12px 22px">{cta}</a>
+  <a href="https://muse-team-production.up.railway.app" style="display:inline-block;margin-top:12px;background:#0064E0;color:#fff;text-decoration:none;font-weight:600;font-size:15px;border-radius:10px;padding:12px 22px">{cta}</a>
 </div>"""
     return subject, text, html
 
@@ -150,11 +150,11 @@ def notify_address() -> str | None:
 
 
 def new_account_email(name: str, email: str, total: int) -> tuple[str, str, str]:
-    subject = f"Cuenta nueva en Tably Team: {email}"
+    subject = f"Cuenta nueva en Muse Team: {email}"
     when = time.strftime("%d/%m/%Y %H:%M UTC", time.gmtime())
     text = f"Se creó una cuenta nueva.\n\nNombre: {name}\nEmail: {email}\nFecha: {when}\nCuentas en total: {total}"
     html = f"""<div style="font-family:Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#17172A">
-  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Tably <em style="color:#6A4BE8">Team</em></div>
+  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Muse <em style="color:#0064E0">Team</em></div>
   <h1 style="font-weight:800;font-size:22px;letter-spacing:-.02em;margin:20px 0 12px">Cuenta nueva</h1>
   <p style="font-size:15px;margin:0 0 6px"><b>Nombre:</b> {escape(name)}</p>
   <p style="font-size:15px;margin:0 0 6px"><b>Email:</b> {escape(email)}</p>
@@ -187,7 +187,7 @@ def fde_request_email(rid: str, account: str, package: str, title: str, ticket: 
     payment = "confirmado" if paid else "a coordinar"
     text = f"Pedido: {rid}\nCuenta: {account}\nPago: {payment}\n\n{ticket}"
     html = f"""<div style="font-family:Helvetica,Arial,sans-serif;max-width:720px;margin:0 auto;padding:32px 24px;color:#17172A">
-  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Tably <em style="color:#6A4BE8">Team</em></div>
+  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Muse <em style="color:#0064E0">Team</em></div>
   <h1 style="font-weight:800;font-size:22px;letter-spacing:-.02em;margin:20px 0 12px">{'Pedido pagado' if paid else 'Pedido de developer'}</h1>
   <p style="font-size:15px;margin:0 0 6px"><b>Pedido:</b> {escape(rid)}</p>
   <p style="font-size:15px;margin:0 0 6px"><b>Cuenta:</b> {escape(account)}</p>
@@ -216,7 +216,7 @@ def fde_client_email(rid: str, name: str, package: str, title: str, ticket: str,
         below = "Este es el ticket con el estado de tu proyecto:"
     text = f"{hello}\n\n{got}\n\n{nxt}\n\n{below}\n\n{ticket}"
     html = f"""<div style="font-family:Helvetica,Arial,sans-serif;max-width:720px;margin:0 auto;padding:32px 24px;color:#17172A">
-  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Tably <em style="color:#6A4BE8">Team</em></div>
+  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em">Muse <em style="color:#0064E0">Team</em></div>
   <h1 style="font-weight:800;font-size:22px;letter-spacing:-.02em;margin:20px 0 12px">{escape(hello)}</h1>
   <p style="color:#47475C;font-size:15px;margin:0 0 10px">{escape(got)}</p>
   <p style="color:#47475C;font-size:15px;margin:0 0 20px">{escape(nxt)}</p>
@@ -228,12 +228,12 @@ def fde_client_email(rid: str, name: str, package: str, title: str, ticket: str,
 
 def fde_reply_email(rid: str, name: str, package: str, body: str) -> tuple[str, str, str]:
     subject = f"Tu pedido {rid}: {package}"
-    text = f"{body}\n\nEquipo de Tably Team"
+    text = f"{body}\n\nEquipo de Muse Team"
     paragraphs = "".join(f'<p style="font-size:15px;line-height:1.5;margin:0 0 12px;white-space:pre-wrap">{escape(p)}</p>' for p in body.split("\n\n"))
     html = f"""<div style="font-family:Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#17172A">
-  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em;margin-bottom:20px">Tably <em style="color:#6A4BE8">Team</em></div>
+  <div style="font-size:18px;font-weight:800;letter-spacing:-.02em;margin-bottom:20px">Muse <em style="color:#0064E0">Team</em></div>
   {paragraphs}
-  <p style="color:#47475C;font-size:15px;margin:16px 0 0">Equipo de Tably Team</p>
+  <p style="color:#47475C;font-size:15px;margin:16px 0 0">Equipo de Muse Team</p>
 </div>"""
     return subject, text, html
 
@@ -246,7 +246,7 @@ def fde_requested(rid: str, account: str, client: str, name: str, package: str, 
         return
     team = env("FDE_NOTIFY_EMAIL", "") or notify_address() or support_address()
     support = support_address()
-    from_addr = f"Tably Team <{support}>"
+    from_addr = f"Muse Team <{support}>"
 
     def job() -> None:
         ticket_mail = fde_request_email(rid, account, package, title, ticket, paid)

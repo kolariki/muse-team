@@ -2,7 +2,7 @@ import { avatarSrc, roleKey, useAvatars } from '../lib/avatar'
 import ProviderLogo from './ProviderLogo'
 
 /**
- * Each role is a person: an editorial portrait per role (public/avatars/<role>.webp, generated once for Tably), with the
+ * Each role is a person: an editorial portrait per role (public/avatars/<role>.webp, generated once for Muse Team), with the
  * provider's mark as a small badge on the corner. Custom roles are matched by name; anything else gets the neutral one.
  */
 const ROLES = new Set([

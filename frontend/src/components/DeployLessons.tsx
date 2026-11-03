@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { api, type DeployFailures } from '../lib/api'
 import { useT } from '../lib/i18n'
 
-/** Admin only: the deploy failures Tably Cloud has seen, which ones the automatic fix solved, and the rule each one taught. */
+/** Admin only: the deploy failures Muse Cloud has seen, which ones the automatic fix solved, and the rule each one taught. */
 export default function DeployLessons() {
   const T = useT()
   const [d, setD] = useState<DeployFailures | null>(null)
@@ -14,7 +14,7 @@ export default function DeployLessons() {
   return (
     <div className="mt-8">
       <h2 className="text-2xl">{T('Errores de publicación', 'Publishing errors')}</h2>
-      <p className="mt-1 text-[13px] text-ink-2">{T('Cada falla al publicar en Railway queda guardada. El constructor la arregla solo y, desde ese momento, todas las apps nuevas se construyen evitándola. Las que se repiten se previenen directamente en la configuración de Tably.', 'Every failure publishing to Railway is saved. The builder fixes it by itself and, from then on, every new app is built avoiding it. The ones that repeat are prevented directly in Tably’s configuration.')}</p>
+      <p className="mt-1 text-[13px] text-ink-2">{T('Cada falla al publicar en Railway queda guardada. El constructor la arregla solo y, desde ese momento, todas las apps nuevas se construyen evitándola. Las que se repiten se previenen directamente en la configuración de Muse Team.', 'Every failure publishing to Railway is saved. The builder fixes it by itself and, from then on, every new app is built avoiding it. The ones that repeat are prevented directly in Muse Team’s configuration.')}</p>
       <div className="mt-3 rounded-2xl border border-line bg-surface p-5">
         <div className="flex flex-wrap gap-6 text-[13px]">
           <div><div className="serif text-[26px] leading-none">{d.total}</div><div className="mt-1 text-ink-3">{T(`fallas en ${d.days} días`, `failures in ${d.days} days`)}</div></div>
@@ -42,7 +42,7 @@ export default function DeployLessons() {
                   {g.fix_summary && <div><span className="font-semibold">{T('Cómo se arregló: ', 'How it was fixed: ')}</span>{g.fix_summary}</div>}
                   <pre className="max-h-48 overflow-auto rounded-lg bg-[#1f2622] p-3 font-mono text-[11.5px] leading-relaxed text-[#e6ebe7]">{g.excerpt || '—'}</pre>
                   {!g.prevented && (
-                    <button onClick={async () => { try { await navigator.clipboard.writeText(`Error de publicación en Tably Cloud (${g.signature}, ${g.count} veces): ${g.label}\n\n${g.excerpt}${g.fix_summary ? `\n\nCómo se arregló: ${g.fix_summary}` : ''}\n\nPrevenilo en la configuración de Tably (Dockerfile generado / chequeos) para que no vuelva a pasar.`); setCopied(g.signature); setTimeout(() => setCopied(null), 1500) } catch { /* ignore */ } }} className="flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:brightness-110">
+                    <button onClick={async () => { try { await navigator.clipboard.writeText(`Error de publicación en Muse Cloud (${g.signature}, ${g.count} veces): ${g.label}\n\n${g.excerpt}${g.fix_summary ? `\n\nCómo se arregló: ${g.fix_summary}` : ''}\n\nPrevenilo en la configuración de Muse Team (Dockerfile generado / chequeos) para que no vuelva a pasar.`); setCopied(g.signature); setTimeout(() => setCopied(null), 1500) } catch { /* ignore */ } }} className="flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:brightness-110">
                       {copied === g.signature ? <Check size={13} /> : <Copy size={13} />} {copied === g.signature ? T('Copiado', 'Copied') : T('Copiar el pedido para prevenirlo', 'Copy the request to prevent it')}
                     </button>
                   )}

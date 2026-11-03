@@ -1,11 +1,11 @@
-"""Everything about a published app without leaving Tably, next to its analytics:
+"""Everything about a published app without leaving Muse Team, next to its analytics:
 
-- Errors (like Sentry): the incidents Tably already groups by cause (server log, visitors' browsers, «Correr la app»), with
+- Errors (like Sentry): the incidents Muse Team already groups by cause (server log, visitors' browsers, «Correr la app»), with
   every occurrence kept so each issue has its timeline.
 - AI calls (like Langfuse): the app reports each model call (model, tokens, latency, cost, which feature, ok/error) to
-  POST /api/llm/<site> with its own token; Tably prices it when the app does not and shows cost per day, model and feature.
+  POST /api/llm/<site> with its own token; Muse Team prices it when the app does not and shows cost per day, model and feature.
 - A/B experiments: `tably.variant('exp', ['a', 'b'])` in the analytics snippet assigns each visitor a stable variant and
-  records the exposure; any tracked event is a goal, and Tably compares the conversion of each variant with the first one.
+  records the exposure; any tracked event is a goal, and Muse Team compares the conversion of each variant with the first one.
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ with _db() as _c:
 # ------------------------------------------------------------------------------------------------ the app's own token
 
 def app_token(site: str) -> str:
-    """What the published app sends to Tably's ingest endpoints (TABLY_TOKEN): derived from the server secret, never stored."""
+    """What the published app sends to Muse Team's ingest endpoints (TABLY_TOKEN): derived from the server secret, never stored."""
     from .keystore import _secret
 
     return "tbly_" + hmac.new(_secret(), f"ingest:{site}".encode(), hashlib.sha256).hexdigest()[:40]

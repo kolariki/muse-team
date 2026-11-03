@@ -2,7 +2,7 @@
 
 Two sources:
 - the server's own log on Railway, read every few minutes: unhandled errors, failed jobs, crashes, missing tables…
-- the browser: a small script Tably adds to the app's index.html reports uncaught errors and API calls answered with 5xx.
+- the browser: a small script Muse Team adds to the app's index.html reports uncaught errors and API calls answered with 5xx.
 Errors are grouped by fingerprint (same cause = one incident), kept in `app_errors`, written to `.tably/errores.md` in the
 project and handed to the builder (main.on_app_errors) to fix and publish again. A fix that is big (the builder says so, or
 the diff is) waits for the user's approval, explained in plain words.
@@ -175,7 +175,7 @@ def summary(rows: list[dict]) -> dict:
 def render_md(rows: list[dict]) -> str:
     """`.tably/errores.md`: the errors the published app is having, for the builder (and anyone reading the repo)."""
     out = ["# Errores de la app publicada", "",
-           "Tably los detecta mientras la app está en línea (log del servidor y navegador de los usuarios) y los manda al constructor para arreglarlos.", ""]
+           "Muse Team los detecta mientras la app está en línea (log del servidor y navegador de los usuarios) y los manda al constructor para arreglarlos.", ""]
     for r in rows:
         when = datetime.fromtimestamp(r["last_ts"]).strftime("%Y-%m-%d %H:%M")
         out += [f"## {r['title']}", "", f"- Origen: {'servidor' if r['source'] == 'server' else 'navegador'} · {r['count']} vez/veces · última: {when} · estado: {r['status']}",

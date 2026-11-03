@@ -181,7 +181,7 @@ export function Ad(p: AdProps) {
 
 const TEMPLATE: TemplateSpec = { id: 'promesa', scenes: ['hook', 'points', 'screens', 'cta'], style: { theme: 'auto', fx: 'rise', transition: 'slide', pace: 1, bg: 'blobs' } }
 export const SAMPLE: AdProps = {
-  format: 'vertical', name: 'Turnera Luna', url: 'turnera-luna.tably.app', font: 'grotesk', template: TEMPLATE,
+  format: 'vertical', name: 'Turnera Luna', url: 'turnera-luna.museteam.app', font: 'grotesk', template: TEMPLATE,
   palette: { bg: '#10161F', surface: '#1B2430', ink: '#F1F4F8', muted: '#A9B4C2', accent: '#F5A524', accentInk: '#10161F' },
   labels: { before: 'Antes', after: 'Ahora', pov: 'POV:', stop: 'Basta de', notes: 'Notas', now: 'ahora', chat: 'Caro' },
   hook: 'Tus clientas reservan solas, a cualquier hora', emphasis: 'reservan solas', sub: 'Turnos online con seña, sin llamadas',

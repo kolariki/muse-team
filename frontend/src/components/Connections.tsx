@@ -7,7 +7,7 @@ import { toast } from './Toast'
 
 const ICON: Record<string, typeof CalendarDays> = { 'google-calendar': CalendarDays }
 
-/** The user's accounts connected to Tably (Google Calendar…): their apps read them through Tably, never with the user's password. */
+/** The user's accounts connected to Muse Team (Google Calendar…): their apps read them through Muse Team, never with the user's password. */
 export default function Connections({ compact = false, only }: { compact?: boolean; only?: string[] }) {
   const T = useT()
   const [d, setD] = useState<{ connections: Connection[]; google_ready: boolean } | null>(null)
@@ -50,7 +50,7 @@ export default function Connections({ compact = false, only }: { compact?: boole
             ) : c.ready ? (
               <button disabled={busy === c.id} onClick={() => connect(c)} className="flex h-9 items-center gap-1.5 rounded-full bg-accent px-4 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50">{busy === c.id ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />} {T(`Conectar ${c.label}`, `Connect ${c.label}`)}</button>
             ) : (
-              <button onClick={() => useArena.getState().set({ view: 'settings' })} className="flex h-9 items-center gap-1.5 rounded-full border border-gold/50 bg-gold/10 px-3.5 text-[12px] text-ink transition hover:bg-gold/20" title={T('Hace falta cargar una sola vez la conexión de Google de esta instalación', 'The install’s Google connection must be set up once')}>{T('Falta activar Google en Tably', 'Google is not enabled in Tably yet')}</button>
+              <button onClick={() => useArena.getState().set({ view: 'settings' })} className="flex h-9 items-center gap-1.5 rounded-full border border-gold/50 bg-gold/10 px-3.5 text-[12px] text-ink transition hover:bg-gold/20" title={T('Hace falta cargar una sola vez la conexión de Google de esta instalación', 'The install’s Google connection must be set up once')}>{T('Falta activar Google en Muse Team', 'Google is not enabled in Muse Team yet')}</button>
             )}
           </div>
         )
@@ -86,7 +86,7 @@ export function GoogleAppSettings() {
         </div>
         <span className={`ml-auto rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium ${st.configured ? 'border-ok/30 bg-ok/10 text-ok' : 'border-line text-ink-3'}`}>{st.configured ? T('Configurada', 'Configured') : T('Sin configurar', 'Not configured')}</span>
       </div>
-      <p className="mt-2 text-[12.5px] text-ink-2">{T('Se carga una sola vez. Con esto cada usuario conecta su Google Calendar con un clic y sus apps lo leen a través de Tably. En Google Cloud: activá la «Google Calendar API», configurá la pantalla de consentimiento y creá el cliente con estos datos:', 'Set once. With it every user connects their Google Calendar in one click and their apps read it through Tably. In Google Cloud: enable the «Google Calendar API», set up the consent screen and create the client with these values:')}</p>
+      <p className="mt-2 text-[12.5px] text-ink-2">{T('Se carga una sola vez. Con esto cada usuario conecta su Google Calendar con un clic y sus apps lo leen a través de Muse Team. En Google Cloud: activá la «Google Calendar API», configurá la pantalla de consentimiento y creá el cliente con estos datos:', 'Set once. With it every user connects their Google Calendar in one click and their apps read it through Muse Team. In Google Cloud: enable the «Google Calendar API», set up the consent screen and create the client with these values:')}</p>
       <div className="mt-3 space-y-2">
         <Row label={T('Origen autorizado:', 'Authorized origin:')} v={st.origin} />
         <Row label={T('URI de redirección:', 'Redirect URI:')} v={st.redirect_uri} />

@@ -24,13 +24,13 @@ def _brand(provider: str | None) -> tuple[str, str]:
     """(logo path, brand color) for the AI an article is about."""
     spec = PROVIDERS.get(provider or "")
     ext = "svg" if provider in ("github", "cloudflare") else "png"
-    return (f"/logos/{provider}.{ext}", spec.color if spec else "#6A4BE8") if provider else ("", "#6A4BE8")
+    return (f"/logos/{provider}.{ext}", spec.color if spec else "#0064E0") if provider else ("", "#0064E0")
 
 CONTENT_DIR = Path(env("ARENA_CONTENT_DIR", str(Path(__file__).resolve().parents[1] / "content")))
-SITE_URL = (env("ARENA_PUBLIC_URL", "https://tablyteam.com") or "https://tablyteam.com").rstrip("/")
-SITE_NAME = "Tably Team"
+SITE_URL = (env("ARENA_PUBLIC_URL", "https://muse-team-production.up.railway.app") or "https://muse-team-production.up.railway.app").rstrip("/")
+SITE_NAME = "Muse Team"
 SITE_TAGLINE = "Tu equipo de IA que diseña y construye apps"
-SITE_DESCRIPTION = ("Tably Team arma un equipo de inteligencias artificiales (CEO, CTO, ingeniería, producto, diseño y QA) que debate tu idea, "
+SITE_DESCRIPTION = ("Muse Team arma un equipo de inteligencias artificiales (CEO, CTO, ingeniería, producto, diseño y QA) que debate tu idea, "
                     "estudia apps de referencia, diseña las pantallas, escribe el código y lo revisa antes de entregarte una app lista para correr.")
 
 _MD_EXT = ["extra", "toc", "sane_lists", "smarty"]
@@ -171,7 +171,7 @@ def faq(lang: str = "es") -> list[Faq]:
 # ------------------------------------------------------------------ server-rendered pages
 
 _CSS = """
-:root{--paper:#F6F6FA;--surface:#fff;--surface-2:#F4F3FA;--line:#E4E3EE;--ink:#17172A;--ink-2:#47475C;--ink-3:#73738A;--ink-4:#A6A6B8;--accent:#6A4BE8;--accent-soft:#EEEAFD;--gold:#9C7622}
+:root{--paper:#F6F6FA;--surface:#fff;--surface-2:#F4F3FA;--line:#E4E3EE;--ink:#17172A;--ink-2:#47475C;--ink-3:#73738A;--ink-4:#A6A6B8;--accent:#0064E0;--accent-soft:#EEEAFD;--gold:#9C7622}
 html[data-theme=dark]{--paper:#182230;--surface:#1E2938;--surface-2:#22313F;--line:#434E5E;--ink:#E9EDF2;--ink-2:#C9D2DC;--ink-3:#A9B4C2;--ink-4:#7E8A99;--accent:#F5A524;--accent-soft:#3A3322;--gold:#F5C46B;--head-bg:rgba(24,34,48,.8);color-scheme:dark}
 html[data-theme=dark] body{font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;background-image:none}
 html[data-theme=dark] h1{font-weight:700;letter-spacing:-.01em}html[data-theme=dark] h2,html[data-theme=dark] h3{letter-spacing:-.005em}
@@ -272,12 +272,12 @@ footer .legal{grid-column:1/-1;padding-top:18px;border-top:1px solid var(--line)
 .more{margin-top:64px;padding-top:40px;border-top:1px solid var(--line)}.more h2{font-weight:700;font-size:30px;margin:0 0 18px;letter-spacing:-.01em}
 .crumbs{font-size:12.5px;color:var(--ink-3);margin-bottom:8px}.crumbs a{color:var(--ink-3);text-decoration:none}.crumbs a:hover{color:var(--accent)}
 .progress{position:fixed;left:0;top:0;height:3px;width:0;background:var(--accent);z-index:6;transition:width .1s linear}
-.card.brand{--brand:#6A4BE8;background:linear-gradient(160deg,var(--surface) 45%,color-mix(in srgb,var(--brand) 14%,var(--surface)))}
+.card.brand{--brand:#0064E0;background:linear-gradient(160deg,var(--surface) 45%,color-mix(in srgb,var(--brand) 14%,var(--surface)))}
 .card.brand::before{content:"";position:absolute;right:-30px;top:-30px;width:180px;height:180px;border-radius:999px;background:radial-gradient(closest-side,color-mix(in srgb,var(--brand) 28%,transparent),transparent)}
 .card.brand .wm{position:absolute;right:-18px;bottom:-22px;width:150px;height:150px;opacity:.14;filter:blur(1.5px) saturate(1.2);pointer-events:none;transform:rotate(-8deg)}
 .card.brand:hover .wm{opacity:.22}
 .card.brand>*:not(.wm){position:relative}
-.hero.brand{--brand:#6A4BE8;position:relative;max-width:none;margin:-48px -28px 36px;padding:56px 28px 44px;overflow:hidden;background:linear-gradient(160deg,color-mix(in srgb,var(--brand) 10%,var(--paper)),var(--paper) 70%)}
+.hero.brand{--brand:#0064E0;position:relative;max-width:none;margin:-48px -28px 36px;padding:56px 28px 44px;overflow:hidden;background:linear-gradient(160deg,color-mix(in srgb,var(--brand) 10%,var(--paper)),var(--paper) 70%)}
 .hero.brand::before{content:"";position:absolute;right:-120px;top:-160px;width:560px;height:560px;border-radius:999px;background:radial-gradient(closest-side,color-mix(in srgb,var(--brand) 30%,transparent),transparent)}
 .hero.brand .wm{position:absolute;right:4%;top:50%;width:min(34vw,360px);height:min(34vw,360px);transform:translateY(-50%) rotate(-8deg);opacity:.16;filter:blur(2px) saturate(1.2);pointer-events:none}
 .hero.brand>*:not(.wm){position:relative;max-width:760px}
@@ -302,41 +302,41 @@ _FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel=
           '<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">')
 
 
-CATEGORY_ORDER = ["Inteligencias artificiales", "Prompt engineering y referencias", "Cómo funciona Tably", "Publicar y móvil", "Costos y seguridad"]
+CATEGORY_ORDER = ["Inteligencias artificiales", "Prompt engineering y referencias", "Cómo funciona Muse Team", "Publicar y móvil", "Costos y seguridad"]
 CATEGORY_LEDE = {
     "Inteligencias artificiales": "Una guía por modelo: qué lo distingue, dónde no usarlo, qué rol darle y cuánto cuesta. Y la comparativa por rol.",
-    "Prompt engineering y referencias": "Cómo escribir el pedido para que salga bien y cómo Tably estudia las apps que te gustan antes de construir.",
-    "Cómo funciona Tably": "El equipo, las dos vías de construcción y quién escribe el código.",
+    "Prompt engineering y referencias": "Cómo escribir el pedido para que salga bien y cómo Muse Team estudia las apps que te gustan antes de construir.",
+    "Cómo funciona Muse Team": "El equipo, las dos vías de construcción y quién escribe el código.",
     "Publicar y móvil": "Salir a internet con base de datos y usuarios, y construir para iOS y Android.",
     "Costos y seguridad": "Qué se paga, a quién, cómo bajarlo, y qué pasa con tus claves, tu código y tus datos.",
 }
-CATEGORY_ORDER_EN = ["AI models", "Prompt engineering and references", "How Tably works", "Publishing and mobile", "Costs and security"]
+CATEGORY_ORDER_EN = ["AI models", "Prompt engineering and references", "How Muse Team works", "Publishing and mobile", "Costs and security"]
 CATEGORY_LEDE_EN = {
     "AI models": "One guide per model: what sets it apart, where not to use it, which role to give it and what it costs. Plus the role-by-role comparison.",
-    "Prompt engineering and references": "How to write the request so it comes out right, and how Tably studies the apps you like before building.",
-    "How Tably works": "The team, the two ways to build and who writes the code.",
+    "Prompt engineering and references": "How to write the request so it comes out right, and how Muse Team studies the apps you like before building.",
+    "How Muse Team works": "The team, the two ways to build and who writes the code.",
     "Publishing and mobile": "Going live with a database and users, and building for iOS and Android.",
     "Costs and security": "What you pay, to whom, how to lower it, and what happens to your keys, your code and your data.",
 }
 UI = {
     "es": {"blog": "Blog", "faq": "Preguntas frecuentes", "login": "Iniciar sesión", "signup": "Crear cuenta", "open": "Abrir la app", "home": "Inicio", "read": "Leer →",
            "min": "min de lectura", "by": "por el equipo de", "updated": "actualizado el", "all_sections": "← Todas las secciones", "topic": "Tema", "in_article": "En este artículo",
-           "share": "Compartir", "more": "Seguir leyendo", "cta_title": "Probá Tably Team con tu idea", "cta_text": "Escribí lo que querés construir y mirá cómo el equipo lo debate, lo diseña y lo construye.",
+           "share": "Compartir", "more": "Seguir leyendo", "cta_title": "Probá Muse Team con tu idea", "cta_text": "Escribí lo que querés construir y mirá cómo el equipo lo debate, lo diseña y lo construye.",
            "cta_btn": "Crear cuenta gratis", "product": "Producto", "resources": "Recursos", "legal": "Las marcas de los proveedores de IA pertenecen a sus dueños.",
            "footer_text": "Un equipo de IA con roles que debate tu idea, la diseña, la construye y la revisa. Vos aprobás cada paso.", "tagline": SITE_TAGLINE,
-           "blog_title": "Blog: guías sobre IA para construir apps", "blog_desc": "Guías detalladas sobre Claude, GPT, Gemini, DeepSeek, Grok, Llama, Kimi, Mistral y más: para qué sirve cada una, cómo elegirlas por rol y cómo Tably Team construye apps con ellas.",
-           "blog_h1": "Guías para construir apps con un equipo de IA", "blog_lede": "Qué hace bien cada inteligencia artificial, cómo elegir una para cada rol, qué cuesta construir una app y cómo funciona Tably Team por dentro. Escrito por el equipo que lo construye.",
-           "faq_title": "Preguntas frecuentes", "faq_desc": "Respuestas directas sobre Tably Team: qué es, cuánto cuesta, qué IA conviene para cada rol, cómo se publica la app, dónde queda tu código y cómo se cuidan tus API keys.",
+           "blog_title": "Blog: guías sobre IA para construir apps", "blog_desc": "Guías detalladas sobre Muse y el equipo de IA: cómo elegirlas por rol y cómo Muse Team construye apps con ellas.",
+           "blog_h1": "Guías para construir apps con un equipo de IA", "blog_lede": "Qué hace bien cada inteligencia artificial, cómo elegir una para cada rol, qué cuesta construir una app y cómo funciona Muse Team por dentro. Escrito por el equipo que lo construye.",
+           "faq_title": "Preguntas frecuentes", "faq_desc": "Respuestas directas sobre Muse Team: qué es, cuánto cuesta, qué IA conviene para cada rol, cómo se publica la app, dónde queda tu código y cómo se cuidan tus API keys.",
            "faq_h1": "Lo que te preguntás antes de construir", "faq_lede": "Qué es, cuánto cuesta, qué IA usar, dónde queda tu código, cómo se publica la app y qué pasa con tus claves. Respuestas directas.",
            "search": "Buscar entre {n} preguntas…", "q1": "pregunta", "qn": "preguntas", "guide": "Guía", "locale": "es_AR", "lang": "es", "other": "EN", "other_lang": "en", "other_title": "English"},
     "en": {"blog": "Blog", "faq": "FAQ", "login": "Sign in", "signup": "Create account", "open": "Open the app", "home": "Home", "read": "Read →",
            "min": "min read", "by": "by the team at", "updated": "updated", "all_sections": "← All sections", "topic": "Topic", "in_article": "In this article",
-           "share": "Share", "more": "Keep reading", "cta_title": "Try Tably Team with your idea", "cta_text": "Describe what you want to build and watch the team debate it, design it and build it.",
+           "share": "Share", "more": "Keep reading", "cta_title": "Try Muse Team with your idea", "cta_text": "Describe what you want to build and watch the team debate it, design it and build it.",
            "cta_btn": "Create a free account", "product": "Product", "resources": "Resources", "legal": "AI provider trademarks belong to their owners.",
            "footer_text": "An AI team with roles that debates your idea, designs it, builds it and reviews it. You approve every step.", "tagline": "Your AI team that designs and builds apps",
-           "blog_title": "Blog: guides on AI for building apps", "blog_desc": "In-depth guides on Claude, GPT, Gemini, DeepSeek, Grok, Llama, Kimi, Mistral and more: what each one is good for, how to pick one per role and how Tably Team builds apps with them.",
-           "blog_h1": "Guides to building apps with an AI team", "blog_lede": "What each AI does well, how to pick one for each role, what building an app costs and how Tably Team works inside. Written by the team that builds it.",
-           "faq_title": "Frequently asked questions", "faq_desc": "Straight answers about Tably Team: what it is, what it costs, which AI fits each role, how the app gets published, where your code lives and how your API keys are protected.",
+           "blog_title": "Blog: guides on AI for building apps", "blog_desc": "In-depth guides on Muse and the AI team: how to pick one per role and how Muse Team builds apps with them.",
+           "blog_h1": "Guides to building apps with an AI team", "blog_lede": "What each AI does well, how to pick one for each role, what building an app costs and how Muse Team works inside. Written by the team that builds it.",
+           "faq_title": "Frequently asked questions", "faq_desc": "Straight answers about Muse Team: what it is, what it costs, which AI fits each role, how the app gets published, where your code lives and how your API keys are protected.",
            "faq_h1": "What you ask before you build", "faq_lede": "What it is, what it costs, which AI to use, where your code lives, how the app gets published and what happens to your keys. Straight answers.",
            "search": "Search {n} questions…", "q1": "question", "qn": "questions", "guide": "Guide", "locale": "en_US", "lang": "en", "other": "ES", "other_lang": "es", "other_title": "Español"},
 }
@@ -409,10 +409,10 @@ def _page(*, lang: str, title: str, description: str, path: str, body: str, ld: 
 <meta name="twitter:title" content="{esc(title)}">
 <meta name="twitter:description" content="{esc(description)}">
 {meta_extra}
-<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
-<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=2">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2">
-<meta name="theme-color" content="#6A4BE8">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=3">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3">
+<meta name="theme-color" content="#0064E0">
 <link rel="alternate" type="application/rss+xml" title="{SITE_NAME} · Blog" href="{SITE_URL}{_prefix(lang)}/blog/feed.xml">
 {_THEME_JS}
 {_FONTS}
@@ -421,8 +421,8 @@ def _page(*, lang: str, title: str, description: str, path: str, body: str, ld: 
 </head>
 <body>
 <header class="top">
-  <img src="/icon.svg?v=2" alt="" aria-hidden="true">
-  <a class="brand" href="{app_home}">Tably <em>Team</em></a>
+  <img src="/icon.svg?v=3" alt="" aria-hidden="true">
+  <a class="brand" href="{app_home}">Muse <em>Team</em></a>
   <nav aria-label="Main">
     {switch}
     <a href="{_prefix(lang)}/blog"{" class=on" if current == "blog" else ""}>{u["blog"]}</a>
@@ -442,7 +442,7 @@ def _page(*, lang: str, title: str, description: str, path: str, body: str, ld: 
 </main>
 <footer>
   <div class="in">
-    <div><div class="brand">Tably <em>Team</em></div><p>{u["tagline"]}. {u["footer_text"]}</p></div>
+    <div><div class="brand">Muse <em>Team</em></div><p>{u["tagline"]}. {u["footer_text"]}</p></div>
     <div><h4>{u["product"]}</h4><a href="{app_home}">{u["home"]}</a><a href="{app_home}#signup">{u["signup"]}</a><a href="{app_home}#login">{u["login"]}</a></div>
     <div><h4>{u["resources"]}</h4><a href="{_prefix(lang)}/blog">{u["blog"]}</a><a href="{_prefix(lang)}/faq">{u["faq"]}</a></div>
     <div class="legal">© {date.today().year} {SITE_NAME}. {u["legal"]}</div>
@@ -551,8 +551,8 @@ def legal_body(doc: str) -> str | None:
 
 
 def legal_html(doc: str) -> str:
-    title = f"{LEGAL[doc]} · Tably Team"
-    return _page(lang="es", title=title, description=f"{LEGAL[doc]} de Tably Team.", path=f"/{doc}", body=f'<article class="article">{legal_body(doc)}</article>', ld=[_org_ld()])
+    title = f"{LEGAL[doc]} · Muse Team"
+    return _page(lang="es", title=title, description=f"{LEGAL[doc]} de Muse Team.", path=f"/{doc}", body=f'<article class="article">{legal_body(doc)}</article>', ld=[_org_ld()])
 
 
 def faq_html(lang: str = "es") -> str:
@@ -602,11 +602,11 @@ def rss_xml(lang: str = "es") -> str:
 def llms_txt() -> str:
     """llms.txt: a short, structured guide for LLM crawlers and answer engines (what the site is, where the canonical content lives), in both languages."""
     lines = [f"# {SITE_NAME}", "", f"> {SITE_DESCRIPTION}", "",
-             "Tably Team es una plataforma donde un equipo de agentes de IA con roles (CEO, CTO, Head of Engineering, Product, Diseño y QA), cada uno con el modelo que elijas "
+             "Muse Team es una plataforma donde un equipo de agentes de IA con roles (CEO, CTO, Head of Engineering, Product, Diseño y QA), cada uno con el modelo que elijas "
              "(Claude, GPT, Gemini, DeepSeek, Grok, Llama, Kimi, Mistral, OpenRouter u Ollama), debate una idea, la investiga contra apps de referencia, la diseña, la construye "
-             "(con Claude Code, Codex o un modelo por API) y la revisa. La app se puede correr, descargar o publicar en Tably Cloud.", "",
-             "Tably Team is a platform where a team of AI agents with roles (CEO, CTO, Head of Engineering, Product, Design and QA), each on the model you choose, debates an idea, "
-             "researches it against reference apps, designs it, builds it (with Claude Code, Codex or an API model) and reviews it. The app can be run, downloaded or published on Tably Cloud.", "",
+             "(con Muse Code) y la revisa. La app se puede correr, descargar o publicar en Muse Cloud.", "",
+             "Muse Team is a platform where a team of AI agents with roles (CEO, CTO, Head of Engineering, Product, Design and QA), each on the model you choose, debates an idea, "
+             "researches it against reference apps, designs it, builds it (with Muse Code) and reviews it. The app can be run, downloaded or published on Muse Cloud.", "",
              "## Páginas principales · Main pages", "", f"- [Inicio / Home]({SITE_URL}/)", f"- [Preguntas frecuentes]({SITE_URL}/faq) · [FAQ (English)]({SITE_URL}/en/faq)",
              f"- [Blog (español)]({SITE_URL}/blog) · [Blog (English)]({SITE_URL}/en/blog)", ""]
     for lang, title in (("es", "## Artículos (español)"), ("en", "## Articles (English)")):

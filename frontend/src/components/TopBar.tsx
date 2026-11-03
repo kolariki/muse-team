@@ -20,7 +20,7 @@ export default function TopBar({ onNew, onRerun }: { onNew: () => void; onRerun?
 
   return (
     <div className="relative z-[70] flex h-14 shrink-0 items-center gap-2 border-b border-line bg-surface/90 px-2 backdrop-blur sm:h-16 sm:gap-3 sm:px-4">
-      <img src="/icon.svg?v=2" alt="Tably Team" title="Tably Team" className="h-9 w-9 shrink-0 rounded-xl shadow-sm" draggable={false} />
+      <img src="/icon.svg?v=3" alt="Muse Team" title="Muse Team" className="h-9 w-9 shrink-0 rounded-xl shadow-sm" draggable={false} />
       <div className="ml-1 flex shrink-0 items-center gap-2 sm:ml-2">
         {s.recording ? null : s.status === 'paused' ? (
           <span className="flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-2.5 py-1 text-[11px] font-bold text-gold">
@@ -92,7 +92,7 @@ function ExportMenu({ btn }: { btn: string }) {
   const transcript = async () => {
     setOpen(false)
     const md = await api.transcript(sessionId!)
-    downloadBlob(new Blob([md], { type: 'text/markdown' }), `tablyteam-${slug(config?.title || config?.topic || sessionId!)}-transcripcion.md`)
+    downloadBlob(new Blob([md], { type: 'text/markdown' }), `museteam-${slug(config?.title || config?.topic || sessionId!)}-transcripcion.md`)
   }
   const item = 'flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-surface-2'
   return (
@@ -104,7 +104,7 @@ function ExportMenu({ btn }: { btn: string }) {
         <div ref={menuRef} className="fixed z-[400] w-72 rounded-2xl border border-line bg-surface p-1.5 text-sm shadow-[0_18px_40px_-18px_rgba(30,38,34,.55)]" style={{ top: pos.top, right: pos.right }}>
           <button className={item} onClick={() => { setOpen(false); set({ showBriefExport: true }) }}>
             <Hammer size={17} className="mt-0.5 text-accent" />
-            <span><b className="font-medium">{T('Brief para construir', 'Build brief')}</b><span className="block text-xs text-ink-3">{T('Markdown + prompt para Claude Code, Cursor…', 'Markdown + prompt for Claude Code, Cursor…')}</span></span>
+            <span><b className="font-medium">{T('Brief para construir', 'Build brief')}</b><span className="block text-xs text-ink-3">{T('Markdown + prompt para Muse Code…', 'Markdown + prompt for Muse Code…')}</span></span>
           </button>
           <button className={item} onClick={transcript}>
             <FileText size={17} className="mt-0.5 text-accent" />

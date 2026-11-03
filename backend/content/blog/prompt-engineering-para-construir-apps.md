@@ -1,15 +1,15 @@
 ---
 title: Cómo escribir el pedido de una app para que la IA la construya bien (prompt engineering aplicado)
-description: Qué poner y qué no poner en el pedido de tu app, cómo funciona el prompt engineering automático de Tably Team, ejemplos de pedidos buenos y malos, y una plantilla que podés copiar.
+description: Qué poner y qué no poner en el pedido de tu app, cómo funciona el prompt engineering automático de Muse Team, ejemplos de pedidos buenos y malos, y una plantilla que podés copiar.
 category: Prompt engineering y referencias
 date: 2026-10-22
 tags: [prompt engineering, cómo funciona, guía práctica]
 keywords: [prompt engineering, cómo pedirle una app a la IA, escribir prompt para generar app, brief para desarrollar app, plantilla de prompt]
 ---
 
-Todo empieza con el pedido. Un pedido vago produce una app genérica; un pedido claro produce una app que se parece a lo que tenías en la cabeza. Esta guía explica qué hace Tably Team con tu texto y cómo escribirlo para sacarle el máximo.
+Todo empieza con el pedido. Un pedido vago produce una app genérica; un pedido claro produce una app que se parece a lo que tenías en la cabeza. Esta guía explica qué hace Muse Team con tu texto y cómo escribirlo para sacarle el máximo.
 
-## Qué hace Tably con lo que escribís
+## Qué hace Muse Team con lo que escribís
 
 Cuando tocás «Generar prompt engineering a mi texto», un modelo transforma tu pedido en un **brief estructurado** con estas secciones:
 
@@ -45,7 +45,7 @@ Ese brief es lo que lee el equipo (en la vía con consejo) o directamente el con
 
 ### Referencias
 
-«Que se vea como Calendly pero en español y más simple». Con apps de referencia, Tably las visita, las analiza y las usa de vara (o de plano, si activás la ingeniería inversa).
+«Que se vea como Calendly pero en español y más simple». Con apps de referencia, Muse Team las visita, las analiza y las usa de vara (o de plano, si activás la ingeniería inversa).
 
 ### Plataforma e idioma
 
@@ -87,8 +87,6 @@ Restricciones (stack, hosting, accesibilidad), si las hay:
 Cinco minutos llenando esto valen más que una hora de cambios después.
 
 ## Qué modelo hace el prompt engineering
-
-Elegís el proveedor y el modelo al lado del botón. Claude Sonnet y GPT producen los briefs más completos; Gemini Flash es más rápido y barato y rinde muy bien en pedidos simples. El brief es texto: lo podés editar a mano antes de seguir.
 
 ## Después del brief
 

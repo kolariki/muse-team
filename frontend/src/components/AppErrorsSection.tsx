@@ -15,7 +15,7 @@ function ago(ts: number, T: (es: string, en: string) => string) {
   return h < 48 ? `${h} h` : `${Math.round(h / 24)} d`
 }
 
-/** «Publicar» → errors of the published app: what Tably caught and fixed by itself, and the big fixes waiting for the user's OK. */
+/** «Publicar» → errors of the published app: what Muse Team caught and fixed by itself, and the big fixes waiting for the user's OK. */
 export default function AppErrorsSection({ sessionId, buildId, live }: { sessionId: string; buildId: string; live: boolean }) {
   const T = useT()
   const [data, setData] = useState<AppErrors | null>(null)
@@ -59,7 +59,7 @@ export default function AppErrorsSection({ sessionId, buildId, live }: { session
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent"><Bug size={17} /></span>
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold leading-tight">{T('Errores de la app', 'App errors')}</div>
-          <div className="mt-0.5 text-[12.5px] leading-snug text-ink-3">{T('Tably vigila la app publicada: los errores del servidor y de los navegadores van al constructor, que los arregla y vuelve a publicar solo. Si el arreglo es grande, te lo explica y espera tu OK.', 'Tably watches the published app: server and browser errors go to the builder, which fixes them and republishes by itself. If the fix is big, it explains it and waits for your OK.')}</div>
+          <div className="mt-0.5 text-[12.5px] leading-snug text-ink-3">{T('Muse Team vigila la app publicada: los errores del servidor y de los navegadores van al constructor, que los arregla y vuelve a publicar solo. Si el arreglo es grande, te lo explica y espera tu OK.', 'Muse Team watches the published app: server and browser errors go to the builder, which fixes them and republishes by itself. If the fix is big, it explains it and waits for your OK.')}</div>
         </div>
         {data.summary.fixed > 0 && <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ok/30 bg-ok/10 px-2.5 py-0.5 text-[11.5px] font-medium text-ok"><Check size={11} /> {data.summary.fixed} {T('arreglados solos', 'fixed by itself')}</span>}
       </div>

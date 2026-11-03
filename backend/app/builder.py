@@ -77,10 +77,10 @@ ESTÁNDAR DE CALIDAD (el equipo que diseñó el producto lo va a revisar con est
 REGLAS:
 - Código real, completo, que compila y corre. Nada de pseudocódigo, TODOs vacíos ni placeholders.
 - Primera etapa: estructura del proyecto, README.md (setup), .env.example con TODAS las variables del brief, dependencias y config base.
-- Publicable con un clic (Tably Cloud): si es frontend, `npm run build` tiene que dejar un `dist/` (o `build/`/`out/`) estático que funcione servido desde cualquier ruta (assets relativos o `base` configurable por `--base`); si tiene servidor, tiene que arrancar con la variable `PORT` y escuchar en `0.0.0.0`, con un `Dockerfile` si no es Node o Python estándar. Postgres solo por `DATABASE_URL`; sin `DATABASE_URL` (al probarla en Tably) los datos se guardan en disco en la carpeta de `TABLY_DATA_DIR` (o `.data/`, ignorada en git y Docker): PGlite con dataDir o SQLite, nunca solo en memoria, y el seed de ejemplo solo si la base está vacía, así lo que se crea al probar no se pierde; auth y storage por Supabase (`SUPABASE_URL`, `SUPABASE_ANON_KEY`).
-- Si la app llama a modelos de IA: cada llamada se reporta a Tably desde el servidor (un helper `reportAI` fire-and-forget: POST `${{TABLY_URL}}/api/llm/${{TABLY_SITE}}` con `Authorization: Bearer ${{TABLY_TOKEN}}` y {{provider, model, name, input_tokens, output_tokens, latency_ms, status, error}}); si TABLY_URL no existe no hace nada. Tably carga esas variables al publicar.
-- Si la app usa datos de cuentas del usuario (su Google Calendar…), los lee de Tably desde el servidor: GET `${{TABLY_URL}}/api/connect/${{TABLY_SITE}}/google-calendar/events?from=<ISO>&to=<ISO>` con `Authorization: Bearer ${{TABLY_TOKEN}}` → {{connected, account, calendars, events:[{{id,calendar,title,start,end,all_day,location,description,link,meet,attendees}}]}}; nunca OAuth propio ni claves de Google; si connected es false, un estado claro «Conectá tu Google Calendar en Tably → Servicios».
-- Identidad propia (apps web): un logo diseñado para esta app en SVG (`public/logo.svg`: símbolo + nombre, para el header) y su ícono (`public/icon.svg`: el símbolo solo, cuadrado, legible a 16 px) con los colores del diseño; el header usa el logo, nunca un ícono genérico de librería, y el HTML de entrada enlaza `<link rel="icon" href="/icon.svg" type="image/svg+xml">` y `<link rel="apple-touch-icon" href="/apple-touch-icon.png">` (los PNG los genera Tably al publicar).
+- Publicable con un clic (Muse Cloud): si es frontend, `npm run build` tiene que dejar un `dist/` (o `build/`/`out/`) estático que funcione servido desde cualquier ruta (assets relativos o `base` configurable por `--base`); si tiene servidor, tiene que arrancar con la variable `PORT` y escuchar en `0.0.0.0`, con un `Dockerfile` si no es Node o Python estándar. Postgres solo por `DATABASE_URL`; sin `DATABASE_URL` (al probarla en Muse Team) los datos se guardan en disco en la carpeta de `TABLY_DATA_DIR` (o `.data/`, ignorada en git y Docker): PGlite con dataDir o SQLite, nunca solo en memoria, y el seed de ejemplo solo si la base está vacía, así lo que se crea al probar no se pierde; auth y storage por Supabase (`SUPABASE_URL`, `SUPABASE_ANON_KEY`).
+- Si la app llama a modelos de IA: cada llamada se reporta a Muse Team desde el servidor (un helper `reportAI` fire-and-forget: POST `${{TABLY_URL}}/api/llm/${{TABLY_SITE}}` con `Authorization: Bearer ${{TABLY_TOKEN}}` y {{provider, model, name, input_tokens, output_tokens, latency_ms, status, error}}); si TABLY_URL no existe no hace nada. Muse Team carga esas variables al publicar.
+- Si la app usa datos de cuentas del usuario (su Google Calendar…), los lee de Muse Team desde el servidor: GET `${{TABLY_URL}}/api/connect/${{TABLY_SITE}}/google-calendar/events?from=<ISO>&to=<ISO>` con `Authorization: Bearer ${{TABLY_TOKEN}}` → {{connected, account, calendars, events:[{{id,calendar,title,start,end,all_day,location,description,link,meet,attendees}}]}}; nunca OAuth propio ni claves de Google; si connected es false, un estado claro «Conectá tu Google Calendar en Muse Team → Servicios».
+- Identidad propia (apps web): un logo diseñado para esta app en SVG (`public/logo.svg`: símbolo + nombre, para el header) y su ícono (`public/icon.svg`: el símbolo solo, cuadrado, legible a 16 px) con los colores del diseño; el header usa el logo, nunca un ícono genérico de librería, y el HTML de entrada enlaza `<link rel="icon" href="/icon.svg" type="image/svg+xml">` y `<link rel="apple-touch-icon" href="/apple-touch-icon.png">` (los PNG los genera Muse Team al publicar).
 {delivery_rule}- Respetá el stack, el modelo de datos, los contratos y las pantallas del brief. Si algo falta, decidilo y anotalo en NOTES.md.
 - Cada archivo se entrega una sola vez por turno. Un archivo por <file>. Rutas sin "./" inicial.
 - MÁXIMO 4 archivos por turno (o menos si son largos): tu salida tiene un límite y un archivo cortado no sirve. Si una etapa
@@ -174,7 +174,7 @@ CLONE_NOTE = (f"\n\nMODO CLON (ingeniería inversa activada por el usuario): el 
               "Lo ÚNICO que cambia: el nombre, el logo y los textos literales (reescribilos con el mismo sentido y largo). No copies imágenes, íconos de marca, assets ni código del sitio: todo se implementa propio. "
               "Criterio de terminado: abierto al lado del referente, se ve y se siente igual.")
 
-PREVIEW_RULE = (f"\n\nREGLA DEL PROTOTIPO: `{PREVIEW_PATH}` es la vista previa que el usuario abre en Tably sin correr nada, dentro de un iframe aislado. "
+PREVIEW_RULE = (f"\n\nREGLA DEL PROTOTIPO: `{PREVIEW_PATH}` es la vista previa que el usuario abre en Muse Team sin correr nada, dentro de un iframe aislado. "
                 "Tiene que funcionar SOLO, sin backend ni servidor: datos de ejemplo dentro del propio prototipo, sin llamadas a la API real, sin login, "
                 "sin depender de localStorage para arrancar. Nunca lo conviertas en cliente de la API de la app: la app real (apps/, src/…) es la que se conecta "
                 "al backend; el prototipo la refleja con datos de ejemplo. Si cambian las pantallas, actualizalo con los mismos datos de ejemplo.")
@@ -851,7 +851,7 @@ class Build:
 
     # ------------------------------------------------------------- local engines (Claude Code / Codex)
     async def _seed_uikit(self) -> str:
-        """Web builds start from Tably's UI kit (shadcn/ui + Tailwind + the design tokens) copied into the tree before the first turn."""
+        """Web builds start from Muse Team's UI kit (shadcn/ui + Tailwind + the design tokens) copied into the tree before the first turn."""
         if not uikit.enabled(self.req.platform) or any(p.startswith(uikit.UI_DIR + "/") or p == uikit.GUIDE_PATH for p in self.files):
             return self._uikit_reminder()
         try:
@@ -1265,7 +1265,7 @@ class Build:
             self._activity("plan", "Armando el brief de referentes", RESEARCH_PATH)
             synth = await self._ask(rsch.synth_system(bool(self.req.deep_analysis)), f"NUESTRO BRIEF:\n{self.brief[:8000]}\n\nREFERENTES (en orden de prioridad): {', '.join(r['name'] or r['url'] for r in refs)}\n\nNOTAS DE BENCHMARK:\n\n" + "\n\n---\n\n".join(notes), provider, model, cred, max_tokens=8000,
                                     mock_text="# Referentes\n| app | mejor | falta |\n|---|---|---|\n| Open-Meteo | API clara | UI |\n# Patrones a emular\n- Buscador arriba\n# Patrones a evitar\n- Densidad\n# Flujo recomendado\n1. Buscar ciudad 2. Ver pronóstico\n# Copy y tono\nDirecto.\n# Checklist\n1. Carga < 2 s")
-            md = f"<!-- Benchmark generado por Tably Team el {rsch.stamp()}. Observación de productos públicos; nada copiado. -->\n\n{synth.strip()}\n\n---\n\n# Notas por referente\n\n" + "\n\n".join(notes) + "\n"
+            md = f"<!-- Benchmark generado por Muse Team el {rsch.stamp()}. Observación de productos públicos; nada copiado. -->\n\n{synth.strip()}\n\n---\n\n# Notas por referente\n\n" + "\n\n".join(notes) + "\n"
             self._write(RESEARCH_PATH, md)
             self.research_md = md
             if self.workdir:
@@ -1449,7 +1449,7 @@ class Build:
             self._auto_publish()
 
     async def _ensure_delivery(self) -> None:
-        """The first delivery is everything the user asked for, end to end: when the builder says it is done, Tably checks the
+        """The first delivery is everything the user asked for, end to end: when the builder says it is done, Muse Team checks the
         code against the brief and the delivery contract and sends it back to complete what is missing (at most twice)."""
         if getattr(self, "_error_fix", False) or getattr(self, "_deploy_fix", False):
             return
@@ -1695,7 +1695,7 @@ class Build:
         # the seeded kit (shadcn components, Tailwind glue) is vendor code: listed in the tree, never dumped
         vendored = {p for p in self.files if p.startswith(uikit.UI_DIR + "/") or p in (uikit.UTILS_PATH, uikit.INDEX_CSS, "components.json")}
         keyed = sorted((p for p in self.files if p not in vendored), key=lambda p: (0 if p in prio else 1 if re.search(r"(schema|migration|prisma|\.sql$)", p) else 2 if p == PREVIEW_PATH else 1, p))
-        tree = "\n".join(f"- {p} ({c.count(chr(10)) + 1} líneas)" + (" [kit de UI sembrado por Tably]" if p in vendored else "") for p, c in self.files.items())
+        tree = "\n".join(f"- {p} ({c.count(chr(10)) + 1} líneas)" + (" [kit de UI sembrado por Muse Team]" if p in vendored else "") for p, c in self.files.items())
         out = [f"ÁRBOL ({len(self.files)} archivos):\n{tree}\n"]
         used = len(out[0])
         for p in keyed:
@@ -1998,7 +1998,7 @@ def _mock_build_script(turn: int, title: str, brief: str) -> str:
 <file path="README.md">
 # {title}
 
-Proyecto generado por Tably Team (modo simulado).
+Proyecto generado por Muse Team (modo simulado).
 
 ## Setup
 ```bash

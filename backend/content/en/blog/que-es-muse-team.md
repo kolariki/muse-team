@@ -1,19 +1,17 @@
 ---
-title: What Tably Team is and how it builds an app with a team of AI models
-description: Tably Team assembles an AI team with real roles (CEO, CTO, engineering, product, design and QA), has it debate your idea, design it and build it. Here is how it works under the hood, step by step.
-category: How Tably works
+title: What Muse Team is and how it builds an app with a team of AI models
+description: Muse Team assembles an AI team with real roles (CEO, CTO, engineering, product, design and QA), has it debate your idea, design it and build it. Here is how it works under the hood, step by step.
+category: How Muse Team works
 date: 2026-10-22
-tags: [Tably Team, how it works, AI team]
-keywords: [build an app with AI, AI agent team, AI app generator, Tably Team]
+tags: [Muse Team, how it works, AI team]
+keywords: [build an app with AI, AI agent team, AI app generator, Muse Team]
 ---
 
-Most tools that "build apps with AI" work the same way: you type a request, a single model interprets it and spits out code. When the result isn't what you wanted, you type again. Tably Team starts from a different idea: **a good app doesn't come from a model that guesses, it comes from a team that discusses, decides and only then builds**.
+Most tools that "build apps with AI" work the same way: you type a request, a single model interprets it and spits out code. When the result isn't what you wanted, you type again. Muse Team starts from a different idea: **a good app doesn't come from a model that guesses, it comes from a team that discusses, decides and only then builds**.
 
-This guide explains what Tably Team is, what each part of the system does and what you can expect from each stage.
+This guide explains what Muse Team is, what each part of the system does and what you can expect from each stage.
 
 ## The idea in one sentence
-
-Tably Team turns a description in plain language ("an app to book appointments at my salon, with WhatsApp reminders") into an application that is ready to run, by passing it through a **team of AI agents with roles**: leadership, technology, engineering, product, design and quality. Each role can use a different AI (Claude, GPT, Gemini, DeepSeek, Grok, Llama, Kimi, Mistral, OpenRouter models or local models with Ollama), with its own prompt and its own skills.
 
 You choose who sits in each seat, watch the debate live, approve the design and ask for changes. The team iterates.
 
@@ -53,21 +51,17 @@ You can change the model for each role, rewrite its prompt and add **skills**: p
 3. **Reference apps**. If you provide URLs of apps you like, the team visits them with a real browser, takes screenshots and describes them with a vision model. With deep analysis enabled, it also reverse-engineers their bundles, routes and APIs to understand how they are built.
 4. **Council debate** (on the team path). Turns, disagreements, decisions. Everything is recorded and can be exported.
 5. **Design**. The designer writes the design system and lays out the screens. You approve or ask for changes.
-6. **Build**. The builder (Claude Code, Codex or a model via API) writes the code in stages, file by file, with a chat where you watch the progress, a timer per turn and the accumulated total.
+
 7. **Review**. The council audits each version. You ask for changes to the design or the code and the team iterates again.
-8. **Run, download or publish**. The app runs from Tably (web in a tab, mobile in the simulator or emulator), downloads as a zip with its git repository, or publishes to Tably Cloud with a database and authentication.
+8. **Run, download or publish**. The app runs from Muse Team (web in a tab, mobile in the simulator or emulator), downloads as a zip with its git repository, or publishes to Muse Cloud with a database and authentication.
 
 ## Who builds the code
 
 This is one of the most important decisions, because it defines cost and quality.
 
-- **Claude Code (desktop)**: Anthropic's coding agent, running on your subscription. It doesn't spend API tokens. It is our default builder when available, for the quality of its code and its ability to work with complete repositories.
-- **Codex CLI (desktop)**: OpenAI's agent, with your ChatGPT account. Same scheme: subscription, no API tokens.
-- **Via API**: any model configured with your key. Tokens are billed by the provider, not by Tably.
+- **Via API**: any model configured with your key. Tokens are billed by the provider, not by Muse Team.
 
-If you use Tably in the cloud and turn off your computer, you can connect your Claude subscription to the server with a setup token and keep building from your phone.
-
-## What Tably Team is not
+## What Muse Team is not
 
 It is not a chat with a model. It is not a template generator. It is not a black box: every team decision is written down, every file is visible, every version can be compared. And it doesn't replace your judgment: the team proposes, you approve.
 
@@ -80,4 +74,4 @@ It is not a chat with a model. It is not a template generator. It is not a black
 
 ## How to get started
 
-Create an account, choose "Direct builder" for your first try, write your idea in two or three lines and see what happens. When you want to get serious, switch to the builder with a team: that is where Tably Team sets itself apart from everything else.
+Create an account, choose "Direct builder" for your first try, write your idea in two or three lines and see what happens. When you want to get serious, switch to the builder with a team: that is where Muse Team sets itself apart from everything else.

@@ -121,7 +121,7 @@ export default function LevelsPanel() {
     setBusy('list')
     try {
       await api.marketList(b.sessionId, b.id, { pitch, price_usd: price.trim() ? Number(price) : null })
-      toast.ok(T('Publicado en el marketplace', 'Listed on the marketplace'), T('Cualquier usuario de Tably puede verlo y hacerte una oferta.', 'Any Tably user can see it and make you an offer.'))
+      toast.ok(T('Publicado en el marketplace', 'Listed on the marketplace'), T('Cualquier usuario de Muse Team puede verlo y hacerte una oferta.', 'Any Muse Team user can see it and make you an offer.'))
       await load()
     } catch (e) {
       toast.error(T('No se pudo publicar', 'Could not list'), (e as Error).message)
@@ -221,7 +221,7 @@ export default function LevelsPanel() {
                     )}
                     {!c.ok && (c.id === 'published' || c.id === 'republished') && (
                       <>
-                        <div className="mt-0.5 text-[11px] text-ink-3">{c.id === 'published' ? T('Un clic y queda en una URL pública de Tably Cloud.', 'One click and it is on a public Tably Cloud URL.') : T('Publicá la última versión para que la URL muestre lo nuevo.', 'Publish the latest version so the URL shows what is new.')}</div>
+                        <div className="mt-0.5 text-[11px] text-ink-3">{c.id === 'published' ? T('Un clic y queda en una URL pública de Muse Cloud.', 'One click and it is on a public Muse Cloud URL.') : T('Publicá la última versión para que la URL muestre lo nuevo.', 'Publish the latest version so the URL shows what is new.')}</div>
                         <button onClick={() => useBuild.getState().set({ pane: 'cloud', paneOpen: true })} disabled={running || Object.keys(b.files).length === 0} className="mt-1.5 inline-flex h-8 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-40">
                           <CloudUpload size={13} /> {c.id === 'published' ? T('Publicar', 'Publish') : T('Volver a publicar', 'Publish again')}
                         </button>
@@ -247,7 +247,7 @@ export default function LevelsPanel() {
         {/* analytics (level 2) */}
         <div className={CARD}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 text-[15px] font-semibold text-ink"><BarChart3 size={15} className="text-accent" /> Tably Analytics</h3>
+            <h3 className="flex items-center gap-2 text-[15px] font-semibold text-ink"><BarChart3 size={15} className="text-accent" /> Muse Team Analytics</h3>
             {an?.site && <span className="font-mono text-[11px] text-ink-3">site: {an.site}</span>}
           </div>
           {an?.site ? (
@@ -305,7 +305,7 @@ export default function LevelsPanel() {
                     {data.app?.url && <a href={data.app.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 truncate text-[12px] text-accent hover:underline"><ExternalLink size={12} /> {data.app.url}</a>}
                     <div className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-ink-3">{T('Transferir la propiedad', 'Transfer ownership')}</div>
                     <div className="flex items-center gap-2">
-                      <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={T('email del comprador (cuenta de Tably)', "buyer's email (Tably account)")} className="min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-1.5 text-[12.5px] text-ink outline-none focus:border-accent" />
+                      <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={T('email del comprador (cuenta de Muse Team)', "buyer's email (Muse Team account)")} className="min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-1.5 text-[12.5px] text-ink outline-none focus:border-accent" />
                       <button onClick={transfer} disabled={!!busy || !email.trim()} className={PILL + ' h-8'}>{busy === 'transfer' ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} {T('Transferir', 'Transfer')}</button>
                     </div>
                     <div className="text-[11px] text-ink-3">{T('El proyecto, sus versiones, el repo y la app publicada pasan a esa cuenta. La URL no cambia.', 'The project, its versions, the repo and the published app move to that account. The URL does not change.')}</div>

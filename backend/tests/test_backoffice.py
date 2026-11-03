@@ -75,7 +75,7 @@ def test_marking_paid_shows_in_payments_and_survives_later_steps(monkeypatch):
 def test_email_log_keeps_verification_codes_out(monkeypatch):
     monkeypatch.delenv("RESEND_API_KEY", raising=False)
     monkeypatch.delenv("SMTP_HOST", raising=False)
-    assert not mailer.send("a@example.test", "482913 es tu código de Tably Team", "cuerpo")
+    assert not mailer.send("a@example.test", "482913 es tu código de Muse Team", "cuerpo")
     last = mailer.mail_log(1)[0]
     assert last["to_addr"] == "a@example.test" and last["ok"] == 0
     assert "482913" not in last["subject"] and "código" in last["subject"]
@@ -95,7 +95,7 @@ def test_operator_replies_from_support_and_it_stays_on_the_ticket(monkeypatch):
     assert r.status_code == 200
     to, subject, text, html, kw = sent[0]
     assert to == "bo@example.test" and "bo_r" in subject and "Hola, ¿coordinamos?" in text and "&lt;b&gt;" in html
-    assert kw == {"from_addr": "Tably Team <soporte@tablyteam.com>", "reply_to": "soporte@tablyteam.com"}
+    assert kw == {"from_addr": "Muse Team <soporte@tablyteam.com>", "reply_to": "soporte@tablyteam.com"}
     assert next(x for x in d["requests"] if x["id"] == "bo_r")["messages"][-1]["text"] == "Hola, ¿coordinamos? <b>"
 
 

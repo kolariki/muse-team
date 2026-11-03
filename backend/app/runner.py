@@ -1,5 +1,5 @@
 """
-Run the built product locally, from inside Tably Team.
+Run the built product locally, from inside Muse Team.
 
 detect(root)  → the runnable services in the project (Next/Vite/Node, FastAPI/Flask/Django, docker compose)
 start(...)    → installs what's missing, launches the dev server on a free port, streams logs, waits until it answers
@@ -30,7 +30,7 @@ Log = Callable[[str], None | Awaitable[None]]
 MAX_DEPTH = 3
 READY_TIMEOUT = 150  # s: `next dev` first compile can be slow
 INSTALL_TIMEOUT = 600
-# on a server, the user's browser can't open 127.0.0.1: the app is shown through Tably itself at <RUN_BASE>/r/<token>/
+# on a server, the user's browser can't open 127.0.0.1: the app is shown through Muse Team itself at <RUN_BASE>/r/<token>/
 # (set by main; None on a local installation, where the frame proxy on 127.0.0.1 is used)
 RUN_BASE: str | None = None
 ON_STATUS: Callable[["AppRun"], None] | None = None  # set by main: a run that fails goes to the builder, a fixed one comes back
@@ -244,8 +244,8 @@ class AppRun:
         self.task: asyncio.Task | None = None
         self.started = time.time()
         self.host = "127.0.0.1"
-        self.token = secrets.token_urlsafe(16)  # the app's address through Tably (/r/<token>/)
-        self.fix: dict | None = None  # Tably fixing it: {state: fixing|restarting|needs_approval|stuck|manual, since, what, fix, impact, id}
+        self.token = secrets.token_urlsafe(16)  # the app's address through Muse Team (/r/<token>/)
+        self.fix: dict | None = None  # Muse Team fixing it: {state: fixing|restarting|needs_approval|stuck|manual, since, what, fix, impact, id}
         TOKENS[self.token] = self
 
     def state(self) -> dict:
@@ -305,11 +305,11 @@ class AppRun:
         s = self.service
         cwd = self.root / s["dir"]
         env = {**os.environ, "PORT": str(self.port), "HOST": "127.0.0.1", "BROWSER": "none", "CI": "1", "NO_COLOR": "1", "FORCE_COLOR": "0", "PYTHONUNBUFFERED": "1"}
-        # where the app keeps its data while it is tried without DATABASE_URL: inside the project, on Tably's volume, so a restart loses nothing
+        # where the app keeps its data while it is tried without DATABASE_URL: inside the project, on Muse Team's volume, so a restart loses nothing
         data_dir = self.root / ".data"
         data_dir.mkdir(exist_ok=True)
         env.setdefault("TABLY_DATA_DIR", str(data_dir))
-        if RUN_BASE or os.environ.get("TABLY_CLOUD_URL"):  # connected accounts (Google Calendar…) and AI-call reports, read/sent through Tably
+        if RUN_BASE or os.environ.get("TABLY_CLOUD_URL"):  # connected accounts (Google Calendar…) and AI-call reports, read/sent through Muse Team
             from .cloud import public_url
             from .observe import app_token
 
@@ -363,7 +363,7 @@ class AppRun:
                     host = await _host_of(self.port)
                     self.host = host
                     self.url = f"http://localhost:{self.port}" if host != "127.0.0.1" else f"http://127.0.0.1:{self.port}"
-                    if RUN_BASE:  # Tably on a server: the browser reaches the app through Tably's own address
+                    if RUN_BASE:  # Muse Team on a server: the browser reaches the app through Muse Team's own address
                         self.url = self.embed_url = f"{RUN_BASE}/r/{self.token}/"
                         self._log(f"· la app se ve en {self.url}")
                         self._set("running")

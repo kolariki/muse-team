@@ -32,7 +32,7 @@ function screenSteps(view: View, lane: Lane | null): Step[] {
       ]
     case 'audit':
       return [
-        { sel: 'audit', title: ['Subí tu proyecto', 'Upload your project'], text: ['Arrastrá la carpeta o un .zip de un proyecto que ya tengas. Tably descarta lo que no hace falta antes de subirlo.', 'Drop the folder or a .zip of a project you already have. Tably leaves out what is not needed before uploading.'] },
+        { sel: 'audit', title: ['Subí tu proyecto', 'Upload your project'], text: ['Arrastrá la carpeta o un .zip de un proyecto que ya tengas. Muse Team descarta lo que no hace falta antes de subirlo.', 'Drop the folder or a .zip of a project you already have. Muse Team leaves out what is not needed before uploading.'] },
         { sel: 'audit-team', title: ['Elegí quién audita', 'Choose who audits'], text: ['Cada rol revisa el proyecto desde su mirada y te dice qué está mal y qué mejorar.', 'Each role reviews the project from its own angle and tells you what is wrong and what to improve.'] },
       ]
     case 'agents':
@@ -43,27 +43,27 @@ function screenSteps(view: View, lane: Lane | null): Step[] {
       ]
     case 'analytics':
       return [
-        { sel: 'analytics', title: ['Conectá un sitio', 'Connect a site'], text: ['Las apps que publicás con Tably ya miden solas. Para una que vive afuera, este botón instala las analíticas.', 'Apps you publish with Tably already measure on their own. For one that lives elsewhere, this button installs analytics.'] },
+        { sel: 'analytics', title: ['Conectá un sitio', 'Connect a site'], text: ['Las apps que publicás con Muse Team ya miden solas. Para una que vive afuera, este botón instala las analíticas.', 'Apps you publish with Muse Team already measure on their own. For one that lives elsewhere, this button installs analytics.'] },
         { sel: 'apps', title: ['Tus números', 'Your numbers'], text: ['Visitas, gente en vivo, eventos y errores de cada app. Tocá «Ver detalle» para ver quién entra y qué toca.', 'Visits, live people, events and errors for each app. Tap «See details» to see who comes in and what they tap.'] },
       ]
     case 'studio':
       return [
         { sel: 'studio', title: ['Contá qué anunciás', 'Say what you advertise'], text: ['Qué querés anunciar, el link de destino y el objetivo. Con esto el equipo decide el mensaje.', 'What you want to advertise, the destination link and the goal. The team decides the message from this.'] },
         { sel: 'studio-files', title: ['Subí tu material', 'Upload your material'], text: ['Arrastrá videos e imágenes. El equipo elige los mejores momentos y arma el video.', 'Drop videos and images. The team picks the best moments and edits the video.'] },
-        { sel: 'studio-record', title: ['O grabá tu app', 'Or record your app'], text: ['Pegá el link y Tably la abre como un celular, la recorre y suma la grabación al anuncio.', 'Paste the link and Tably opens it like a phone, walks through it and adds the recording to the ad.'] },
+        { sel: 'studio-record', title: ['O grabá tu app', 'Or record your app'], text: ['Pegá el link y Muse Team la abre como un celular, la recorre y suma la grabación al anuncio.', 'Paste the link and Muse Team opens it like a phone, walks through it and adds the recording to the ad.'] },
         { sel: 'studio-twin', title: ['¿No tenés material?', 'No material?'], text: ['Tu gemelo digital habla a cámara con tu cara y tu voz, con un guion escrito por la IA.', 'Your digital twin talks to camera with your face and voice, from a script written by the AI.'] },
         { sel: 'studio-ads', title: ['Tus anuncios', 'Your ads'], text: ['Acá quedan los que hiciste, listos en vertical y cuadrado.', 'The ones you made stay here, ready in vertical and square.'] },
       ]
     case 'metaads':
       return [
-        { sel: 'metaads', title: ['Conectá tu cuenta', 'Connect your account'], text: ['Elegí la cuenta publicitaria y tocá analizar. Tably solo lee tus números y crea anuncios en pausa.', 'Pick the ad account and tap analyse. Tably only reads your numbers and creates paused ads.'] },
+        { sel: 'metaads', title: ['Conectá tu cuenta', 'Connect your account'], text: ['Elegí la cuenta publicitaria y tocá analizar. Muse Team solo lee tus números y crea anuncios en pausa.', 'Pick the ad account and tap analyse. Muse Team only reads your numbers and creates paused ads.'] },
         { sel: 'diagnosis', title: ['Tu diagnóstico', 'Your diagnosis'], text: ['Los números importantes, qué funciona y qué cambiar. Cada punto trae el botón para hacerlo: pausar, eliminar o mover presupuesto.', 'The numbers that matter, what works and what to change. Each point has the button to do it: pause, delete or move budget.'] },
         { sel: 'newads', title: ['Tus anuncios nuevos', 'Your new ads'], text: ['La IA arma un anuncio por cada video de «Crear anuncio». Revisá el texto y publicalo en pausa.', 'The AI builds an ad for each «Create ad» video. Check the text and publish it paused.'] },
       ]
     case 'adtier':
       return [
         { sel: 'adtier', title: ['Elegí cómo mirar', 'Choose how to browse'], text: ['«Para vos» trae lo que le sirve a tu negocio. En las otras pestañas ves el ranking, los videos y las plantillas.', '«For you» shows what fits your business. The other tabs have the ranking, the videos and the templates.'] },
-        { sel: 'profile', title: ['El perfil de tu negocio', 'Your business profile'], text: ['Con esto Tably busca anuncios de tu rubro. Si algo no está bien, corregilo.', 'Tably uses this to find ads in your sector. If something is off, correct it.'] },
+        { sel: 'profile', title: ['El perfil de tu negocio', 'Your business profile'], text: ['Con esto Muse Team busca anuncios de tu rubro. Si algo no está bien, corregilo.', 'Muse Team uses this to find ads in your sector. If something is off, correct it.'] },
         { sel: 'reels', title: ['5 reels para hacer', '5 reels to make'], text: ['Pegá cuentas que te gusten o subí reels de otras marcas, y te escribimos 5 reels para tu negocio.', 'Paste accounts you like or upload reels from other brands, and we write 5 reels for your business.'] },
       ]
     case 'market':
@@ -78,9 +78,9 @@ function screenSteps(view: View, lane: Lane | null): Step[] {
       ]
     case 'settings':
       return [
-        { sel: 'subscription', title: ['Construí con tu plan', 'Build on your plan'], text: ['Si pagás Claude o ChatGPT, podés construir con esa suscripción, sin gastar API.', 'If you pay for Claude or ChatGPT, you can build on that subscription, with no API spend.'] },
-        { sel: 'keys', title: ['Tus API keys', 'Your API keys'], text: ['Conectá tus IAs. Hasta que cargues una, Tably trabaja en modo simulado, sin un modelo real.', 'Connect your AIs. Until you add one, Tably works in simulated mode, without a real model.'] },
-        { sel: 'connections', title: ['Tus cuentas', 'Your accounts'], text: ['Conectá servicios como Google Calendar: tus apps los leen a través de Tably.', 'Connect services like Google Calendar: your apps read them through Tably.'] },
+        { sel: 'subscription', title: ['Construí con Muse Code', 'Build with Muse Code'], text: ['Muse Code es el agente de Meta que escribe tu app. Se instala una vez y la app lo detecta sola.', 'Muse Code is the Meta agent that writes your app. Install it once and the app detects it on its own.'] },
+        { sel: 'keys', title: ['Tu key de Meta', 'Your Meta key'], text: ['Conectá Muse con tu key de Meta. Hasta que la cargues, Muse Team trabaja en modo simulado, sin un modelo real.', 'Connect Muse with your Meta key. Until you add it, Muse Team works in simulated mode, without a real model.'] },
+        { sel: 'connections', title: ['Tus cuentas', 'Your accounts'], text: ['Conectá servicios como Google Calendar: tus apps los leen a través de Muse Team.', 'Connect services like Google Calendar: your apps read them through Muse Team.'] },
       ]
     default:
       return []

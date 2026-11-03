@@ -16,7 +16,7 @@ import { useAiConnect } from './AiConnect'
 const TARGET_HINT: Record<string, [string, string]> = {
   'claude-code': ['Pide BRIEF.md + CLAUDE.md y construir por etapas verificando cada una.', 'Asks for BRIEF.md + CLAUDE.md and to build in stages, verifying each one.'],
   cursor: ['Pide BRIEF.md + reglas en .cursor/rules y commits chicos.', 'Asks for BRIEF.md + rules in .cursor/rules and small commits.'],
-  chat: ['Para pegar en ChatGPT / Claude.ai / Gemini: plan primero, luego archivo por archivo.', 'To paste into ChatGPT / Claude.ai / Gemini: plan first, then file by file.'],
+  chat: ['Para pegar en un chat de IA: plan primero, luego archivo por archivo.', 'To paste into an AI chat: plan first, then file by file.'],
   generic: ['Agnóstico: cualquier agente de código puede seguirlo.', 'Agnostic: any coding agent can follow it.'],
 }
 
@@ -173,7 +173,7 @@ export default function BriefExport({ onClose, onBuild, onOpenBuild }: { onClose
   const steps = [T('Leyendo la transcripción', 'Reading the transcript'), T('Rescatando las decisiones del equipo', 'Recovering the team decisions'), T('Resolviendo desacuerdos', 'Resolving disagreements'), T('Escribiendo la especificación', 'Writing the specification')]
   const stepIdx = Math.min(steps.length - 1, Math.floor(elapsed / 6))
   const prompt = useMemo(() => extractPrompt(text), [text])
-  const base = `tablyteam-${slug(config?.title || config?.topic || sessionId)}`
+  const base = `museteam-${slug(config?.title || config?.topic || sessionId)}`
 
   const generate = async (regenerate: boolean) => {
     setError(null)
@@ -398,7 +398,7 @@ export default function BriefExport({ onClose, onBuild, onOpenBuild }: { onClose
                   onChange={(v) => { setDeep(v); if (v) setResearch(true) }}
                   title={T('Análisis profundo e ingeniería inversa', 'Deep analysis and reverse engineering')}
                   badge={<span className="rounded-full border border-gold/50 bg-gold/10 px-2 py-[1px] text-[10.5px] font-semibold text-gold">{T('pago por uso', 'pay per use')} · USD {(rstatus?.deep_fee_usd ?? 9).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>}
-                  hint={rstatus && !rstatus.rea.ok ? T('Instalá REA: npx rea-agents setup', 'Install REA: npx rea-agents setup') : !isEngineProvider(bProvider) ? T('Disponible con Claude Code o Codex como constructor.', 'Available with Claude Code or Codex as builder.') : T('REA analiza bundles, rutas y APIs de los referentes para entender cómo están hechos.', 'REA analyses the references\' bundles, routes and APIs to understand how they are built.')}
+                  hint={rstatus && !rstatus.rea.ok ? T('Instalá REA: npx rea-agents setup', 'Install REA: npx rea-agents setup') : !isEngineProvider(bProvider) ? T('Disponible con Muse Code como constructor.', 'Available with Muse Code as builder.') : T('REA analiza bundles, rutas y APIs de los referentes para entender cómo están hechos.', 'REA analyses the references\' bundles, routes and APIs to understand how they are built.')}
                 />
                 <Toggle checked={designFirst} onChange={setDesignFirst} title={T('Diseño UX/UI primero', 'UX/UI design first')} hint={T('El Product Designer entrega sistema, pantallas y mockup; la UI debe seguirlo.', 'The Product Designer delivers system, screens and mockup; the UI must follow it.')} />
                 <Toggle checked={recordBuild} onChange={setRecordBuild} title={T('Grabar la construcción en video', 'Record the build on video')} hint={T('Chrome pide compartir esta pestaña.', 'Chrome asks to share this tab.')} />

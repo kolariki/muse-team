@@ -1,12 +1,12 @@
-# Términos y condiciones de Tably Team
+# Términos y condiciones de Muse Team
 
 Última actualización: 3 de noviembre de 2026
 
 ## 1. Quiénes somos y aceptación
-Tably Team (tablyteam.com) es un producto de THE ELEVUM GROUP S.A.S., sociedad constituida en la provincia de Mendoza, Argentina. Al crear una cuenta aceptás estos términos. Tenés que ser mayor de edad.
+Muse Team es un producto de THE ELEVUM GROUP S.A.S., sociedad constituida en la provincia de Mendoza, Argentina. Al crear una cuenta aceptás estos términos. Tenés que ser mayor de edad.
 
 ## 2. El servicio
-Tably Team reúne agentes de inteligencia artificial que debaten tu idea, la diseñan, la construyen y la revisan, y te permite publicarla, medirla y crear anuncios.
+Muse Team reúne agentes de inteligencia artificial que debaten tu idea, la diseñan, la construyen y la revisan, y te permite publicarla, medirla y crear anuncios.
 
 ## 3. Tu cuenta
 Sos responsable de tu contraseña y de lo que se haga con tu cuenta. Mantené tus datos al día. Podés eliminar tu cuenta cuando quieras desde **Mi perfil**.

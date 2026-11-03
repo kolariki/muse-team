@@ -121,7 +121,7 @@ export default function Dashboard({ onOpen, onCouncil, onReplay, onAudit, refres
           <div className="text-[11px] uppercase tracking-widest text-ink-3">{T('Gasto en API', 'API spend')}</div>
           <div className="mt-1 font-mono text-3xl">{fmtUsd(data.spend.month_usd)}</div>
           <div className="text-[12px] text-ink-3">{T('este mes', 'this month')} · total {fmtUsd(data.spend.total_usd)}</div>
-          <div className="mt-2 text-[11px] text-ink-4">{T('Estimado con precios de lista; las construcciones con Claude Code por suscripción no suman.', 'Estimated at list prices; builds with Claude Code by subscription do not count.')}</div>
+          <div className="mt-2 text-[11px] text-ink-4">{T('Estimado con precios de lista.', 'Estimated at list prices.')}</div>
         </div>
         <div className="panel rounded-2xl p-4">
           <div className="text-[11px] uppercase tracking-widest text-ink-3">{T('Trabajos en curso', 'Jobs running')}</div>

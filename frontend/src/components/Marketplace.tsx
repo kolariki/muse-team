@@ -8,7 +8,7 @@ import { LEVEL_COLORS } from './LevelsPanel'
 import HomeLoader from './HomeLoader'
 import PageHeader from './PageHeader'
 
-/** Every app for sale on Tably: level, public URL, real visits, pitch and price. Buyers write to the owner; the owner transfers from the builder. */
+/** Every app for sale on Muse Team: level, public URL, real visits, pitch and price. Buyers write to the owner; the owner transfers from the builder. */
 export default function Marketplace({ onBack }: { onBack: () => void }) {
   const T = useT()
   const en = T('es', 'en') === 'en'
@@ -23,7 +23,7 @@ export default function Marketplace({ onBack }: { onBack: () => void }) {
           onBack={onBack}
           kicker={T('Apps en venta', 'Apps for sale')}
           title="Marketplace"
-          subtitle={T('Apps construidas con Tably, en línea y con visitas reales. Cada una muestra el nivel que alcanzó.', 'Apps built with Tably, live and with real visits. Each one shows the level it reached.')}
+          subtitle={T('Apps construidas con Muse Team, en línea y con visitas reales. Cada una muestra el nivel que alcanzó.', 'Apps built with Muse Team, live and with real visits. Each one shows the level it reached.')}
           right={<span className="flex items-center gap-1.5 text-[12px] text-ink-3"><Store size={14} className="text-accent" /> {T('nivel 1 o más', 'level 1 or more')}</span>}
         />
         {data && (
@@ -70,7 +70,7 @@ export default function Marketplace({ onBack }: { onBack: () => void }) {
                     {l.mine && l.session_id && l.build_id ? (
                       <button onClick={() => useArena.getState().set({ pendingBuild: { buildId: l.build_id!, sessionId: l.session_id! } })} className="flex h-8 items-center gap-1.5 rounded-full bg-accent px-3 text-[12px] font-semibold text-white transition hover:brightness-110">{T('Gestionar', 'Manage')}</button>
                     ) : l.owner_email ? (
-                      <a href={`mailto:${l.owner_email}?subject=${encodeURIComponent(`Tably Marketplace · ${l.title}`)}`} className="flex h-8 items-center gap-1.5 rounded-full bg-accent px-3 text-[12px] font-semibold text-white transition hover:brightness-110"><Mail size={12} /> {T('Hacer una oferta', 'Make an offer')}</a>
+                      <a href={`mailto:${l.owner_email}?subject=${encodeURIComponent(`Muse Team Marketplace · ${l.title}`)}`} className="flex h-8 items-center gap-1.5 rounded-full bg-accent px-3 text-[12px] font-semibold text-white transition hover:brightness-110"><Mail size={12} /> {T('Hacer una oferta', 'Make an offer')}</a>
                     ) : null}
                   </div>
                 </motion.div>

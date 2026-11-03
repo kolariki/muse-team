@@ -82,7 +82,7 @@ CLOSING_REVIEW_PROTOCOL = """RONDA DE CIERRE DE LA REVISIÓN. La discusión term
 Respondé SOLO con:
 <reflexion>qué pesó más en tu decisión, en 1-2 frases</reflexion>
 <message>Primera línea: `APRUEBO` o `CAMBIOS`. Después, la lista de cambios que pedís de tu área, uno por línea, con este formato exacto:
-- [bloqueante] qué cambiar y dónde (archivo, pantalla o endpoint concreto) — solo lo que se arregla en el código; publicar, desplegar o cargar secretos lo hace el usuario desde Tably y nunca es bloqueante
+- [bloqueante] qué cambiar y dónde (archivo, pantalla o endpoint concreto) — solo lo que se arregla en el código; publicar, desplegar o cargar secretos lo hace el usuario desde Muse Team y nunca es bloqueante
 - [mejora] qué cambiar y dónde
 Si aprobás sin cambios, dejá la lista vacía. Máximo 8 ítems, concretos y accionables para el constructor.</message>
 <stance>propose</stance>
@@ -104,7 +104,7 @@ cumplidos DEBEN aparecer en <changes> como [bloqueante] [Nivel N]: el equipo sig
 Nunca devuelvas <changes> vacío si algún rol pidió cambios.
 QUÉ PUEDE SER [bloqueante]: solo lo que el constructor puede resolver escribiendo código en el repo (un bug, un flujo roto, un hueco de
 seguridad, datos que se pierden, una prioridad del usuario o un requisito [team] del nivel sin cumplir). Publicar en una URL, desplegar,
-cargar secretos o variables de un host, crear cuentas, correr CI en un servidor real o conseguir dominios lo hace el USUARIO desde Tably
+cargar secretos o variables de un host, crear cuentas, correr CI en un servidor real o conseguir dominios lo hace el USUARIO desde Muse Team
 (Publicar): eso nunca es bloqueante; como mucho, una [mejora] que diga que queda listo para publicar.
 CONVERGENCIA: desde la ronda 2, no abras alcance nuevo. Un bloqueante nuevo solo si es un defecto real que rompe el producto; lo demás es
 [mejora]. Si los bloqueantes de la ronda anterior quedaron resueltos y no hay defectos reales, aprobá."""

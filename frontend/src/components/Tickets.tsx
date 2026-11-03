@@ -139,7 +139,7 @@ export default function Tickets({ onBack }: { onBack: () => void }) {
   const link = cfg?.link
   const schema = cfg?.schema && !('error' in cfg.schema) ? cfg.schema : null
   const ready = !!(notion?.set && link?.database_id)  // tickets show as soon as the database is set
-  // the project property (Feature, Repo, …): with one set, each value of it needs its own Tably project and tickets go strictly there
+  // the project property (Feature, Repo, …): with one set, each value of it needs its own Muse Team project and tickets go strictly there
   const projProp = link?.projects?.prop ?? schema?.props?.project ?? ''
   const projMap = link?.projects?.map ?? {}
   const projOptions = useMemo(() => {
@@ -195,7 +195,7 @@ export default function Tickets({ onBack }: { onBack: () => void }) {
         <PageHeader onBack={onBack} kicker="Notion" title="Tickets" subtitle={T('Tus tickets de Notion, por urgencia. «Resolver ticket» se lo da al equipo: lo construye, el consejo lo verifica contra el ticket y, si aprueba, abre el pull request y lo pasa a code review.', 'Your Notion tickets, by urgency. "Resolve ticket" hands it to the team: it builds it, the council verifies it against the ticket and, if it approves, opens the pull request and moves it to code review.')}
           right={ready ? <button onClick={() => setSetup((v) => !v)} className={PILL}><Settings2 size={14} /> {T('Configurar', 'Set up')}</button> : undefined} />
 
-        {/* the link: Notion token → database → Tably project → status mapping → GitHub */}
+        {/* the link: Notion token → database → Muse Team project → status mapping → GitHub */}
         <AnimatePresence initial={false}>
           {showSetup && (
             <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className={`${CARD} mt-6`}>
@@ -239,7 +239,7 @@ export default function Tickets({ onBack }: { onBack: () => void }) {
                   {cfg?.schema && 'error' in cfg.schema && <div className="mt-1 text-[12px] text-danger">{cfg.schema.error}</div>}
                 </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">3 · {T('Qué proyecto de Tably resuelve cada ticket', 'Which Tably project resolves each ticket')}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">3 · {T('Qué proyecto de Muse Team resuelve cada ticket', 'Which Muse Team project resolves each ticket')}</div>
                   {(schema?.project_props?.length ?? 0) > 0 && (
                     <label className="mt-2 block text-[12px] text-ink-2">{T('Propiedad que dice de qué proyecto es el ticket', 'Property that says which project a ticket belongs to')}
                       <select value={projProp} onChange={(e) => saveProjects(e.target.value || null, projMap)} className={`${SELECT} mt-1 w-full`}>
@@ -259,7 +259,7 @@ export default function Tickets({ onBack }: { onBack: () => void }) {
                               <option value="">{T('Sin proyecto: no se resuelve', 'No project: not resolvable')}</option>
                               {projects.map((p) => (p.builds ?? []).map((b) => <option key={b.id} value={`${p.id}|${b.id}`}>{p.title || p.topic} · v{b.version ?? 1}</option>))}
                             </select>
-                            <input defaultValue={m?.repo_url ?? ''} key={`${opt}-${m?.repo_url ?? ''}`} onBlur={(e) => { if ((e.target.value || '') !== (m?.repo_url ?? '')) saveProjects(projProp, { ...projMap, [opt]: { session_id: m?.session_id ?? null, build_id: m?.build_id ?? null, repo_url: e.target.value.trim() || null } }) }} placeholder={T('repo en GitHub (vacío: Tably lo crea)', 'GitHub repo (empty: Tably creates it)')} className="h-8 w-full rounded-lg border border-line bg-surface px-2 font-mono text-[11px] outline-none focus:border-accent" />
+                            <input defaultValue={m?.repo_url ?? ''} key={`${opt}-${m?.repo_url ?? ''}`} onBlur={(e) => { if ((e.target.value || '') !== (m?.repo_url ?? '')) saveProjects(projProp, { ...projMap, [opt]: { session_id: m?.session_id ?? null, build_id: m?.build_id ?? null, repo_url: e.target.value.trim() || null } }) }} placeholder={T('repo en GitHub (vacío: Muse Team lo crea)', 'GitHub repo (empty: Muse Team creates it)')} className="h-8 w-full rounded-lg border border-line bg-surface px-2 font-mono text-[11px] outline-none focus:border-accent" />
                           </div>
                         )
                       })}
@@ -287,7 +287,7 @@ export default function Tickets({ onBack }: { onBack: () => void }) {
                 <div>
                   <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-ink-3"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-surface ring-1 ring-black/10"><ProviderLogo provider="github" size={12} /></span> 4 · GitHub</div>
                   <div className="mt-2 text-[13px]">{cfg?.github?.set ? <span className="flex items-center gap-1 text-ok"><Check size={13} /> {T('Token cargado: el PR se abre solo', 'Token set: the PR opens by itself')}</span> : <span className="text-ink-2">{T('Sin token: el ticket se construye y se revisa, pero no hay PR.', 'No token: the ticket is built and reviewed, but no PR.')} <button onClick={() => useArena.getState().set({ view: 'settings' })} className="text-accent hover:underline">{T('Cargar en Modelos y API keys', 'Add it in Models & API keys')}</button></span>}</div>
-                  {!projProp && <input value={link?.repo_url ?? ''} onChange={(e) => setCfg((c) => (c ? { ...c, link: { ...(c.link ?? {}), repo_url: e.target.value } as TicketsConfig['link'] } : c))} onBlur={(e) => saveCfg({ repo_url: e.target.value })} placeholder={T('https://github.com/usuario/repo (vacío: Tably lo crea)', 'https://github.com/user/repo (empty: Tably creates it)')} className="mt-2 h-9 w-full rounded-xl border border-line bg-paper px-3 font-mono text-[12px] outline-none focus:border-accent" />}
+                  {!projProp && <input value={link?.repo_url ?? ''} onChange={(e) => setCfg((c) => (c ? { ...c, link: { ...(c.link ?? {}), repo_url: e.target.value } as TicketsConfig['link'] } : c))} onBlur={(e) => saveCfg({ repo_url: e.target.value })} placeholder={T('https://github.com/usuario/repo (vacío: Muse Team lo crea)', 'https://github.com/user/repo (empty: Muse Team creates it)')} className="mt-2 h-9 w-full rounded-xl border border-line bg-paper px-3 font-mono text-[12px] outline-none focus:border-accent" />}
                 </div>
               </div>
             </motion.div>
@@ -335,7 +335,7 @@ export default function Tickets({ onBack }: { onBack: () => void }) {
                 <button onClick={() => setJob(null)} className="ml-2 text-accent hover:underline">{T('ok', 'ok')}</button>
               </div>
             )}
-            {!canResolve && !showSetup && <div className="mt-4 flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/10 px-4 py-2.5 text-[13px] text-ink-2"><Hammer size={14} className="text-gold" /> {T('Para resolver tickets falta elegir el proyecto de Tably que los trabaja.', 'To resolve tickets, pick the Tably project that works on them.')} <button onClick={() => setSetup(true)} className="ml-auto text-accent hover:underline">{T('Elegir proyecto', 'Pick project')}</button></div>}
+            {!canResolve && !showSetup && <div className="mt-4 flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/10 px-4 py-2.5 text-[13px] text-ink-2"><Hammer size={14} className="text-gold" /> {T('Para resolver tickets falta elegir el proyecto de Muse Team que los trabaja.', 'To resolve tickets, pick the Muse Team project that works on them.')} <button onClick={() => setSetup(true)} className="ml-auto text-accent hover:underline">{T('Elegir proyecto', 'Pick project')}</button></div>}
             {err && <div className="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{err}</div>}
             {!data && !err && <div className="mt-10 flex justify-center text-ink-3"><Loader2 size={18} className="animate-spin" /></div>}
             {data && visible.length === 0 && <div className="mt-8 rounded-2xl border border-dashed border-line bg-surface px-6 py-10 text-center text-sm text-ink-2">{hidden > 0 ? T(`No hay tickets abiertos de este proyecto. Hay ${hidden} de otros proyectos o sin proyecto asignado.`, `No open tickets for this project. ${hidden} belong to other projects or have none assigned.`) : T('No hay tickets abiertos en esta base.', 'No open tickets in this database.')} {hidden > 0 && <button onClick={() => setProjFilter('all')} className="text-accent hover:underline">{T('Ver todos', 'Show all')}</button>}</div>}
@@ -353,7 +353,7 @@ export default function Tickets({ onBack }: { onBack: () => void }) {
                       const tproj = tp?.ok ? projects.find((p) => p.id === tp.session_id) : undefined
                       const tbuild = tproj?.builds?.find((b) => b.id === tp?.build_id)
                       const noProject = tp ? !tp.ok : !canResolve
-                      const noProjectMsg = !tp || tp.reason === 'sin_proyecto' ? T('Elegí primero el proyecto de Tably', 'Pick the Tably project first')
+                      const noProjectMsg = !tp || tp.reason === 'sin_proyecto' ? T('Elegí primero el proyecto de Muse Team', 'Pick the Muse Team project first')
                         : tp.reason === 'ticket_sin_valor' ? T(`El ticket no tiene «${tp.prop}» en Notion`, `The ticket has no "${tp.prop}" in Notion`)
                         : T(`«${tp.key}» no tiene proyecto asignado`, `"${tp.key}" has no project assigned`)
                       const lbl = run ? RUN_LABEL[run.status] : null

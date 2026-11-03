@@ -1,9 +1,9 @@
-"""Tably Analytics for apps that live outside Tably (their own GitHub + Railway/Vercel/…): the site is registered here,
+"""Muse Team Analytics for apps that live outside Muse Team (their own GitHub + Railway/Vercel/…): the site is registered here,
 and the `/a.js` snippet gets into the app in one of three ways:
 
-  · a pull request Tably opens on the app's GitHub repo (with the token from Settings), so the host deploys it on merge
-  · `npx -y <collector>/pkg/tably-analytics-<slug>.tgz` run in the project folder: it adds the snippet to the pages itself
-  · the `tably-analytics` package (`npm i <same url>` + `import 'tably-analytics'`) or the plain script tag
+  · a pull request Muse Team opens on the app's GitHub repo (with the token from Settings), so the host deploys it on merge
+  · `npx -y <collector>/pkg/muse-team-analytics-<slug>.tgz` run in the project folder: it adds the snippet to the pages itself
+  · the `muse-team-analytics` package (`npm i <same url>` + `import 'muse-team-analytics'`) or the plain script tag
 
 The package is built on the fly with the site and the collector already inside, so there is nothing to configure.
 """
@@ -265,7 +265,7 @@ def _paths(own: str, name: str, sha: str, token: str) -> list[str] | None:
     return out
 
 
-BRANCH = "tably-analytics"
+BRANCH = "muse-team-analytics"
 BAD_TOKEN = "GitHub no acepta tu token: venció, lo borraste o lo que se guardó no es un token. Cargá uno nuevo con permiso «repo»."
 
 
@@ -394,11 +394,11 @@ def open_pr(site: dict, token: str, collector: str) -> dict:
     if not changes:
         return {"ok": False, "code": "no_pages", "error": f"En {own}/{name} no hay ninguna página donde poner el script (ni un index.html ni un layout de Next.js)."}
     files = "\n".join(f"- `{p}`" for p in changes)
-    body = (f"Agrega **Tably Analytics** a {site['title']}: visitas, de dónde llegan, qué tocan, gente en vivo y errores. Sin cookies ni datos personales.\n\n"
+    body = (f"Agrega **Muse Team Analytics** a {site['title']}: visitas, de dónde llegan, qué tocan, gente en vivo y errores. Sin cookies ni datos personales.\n\n"
             f"Es una sola línea en cada página:\n\n```html\n{snippet}\n```\n\nArchivos:\n{files}\n\n"
-            "Cuando se mergee y se despliegue, las visitas aparecen en Tably → Analíticas.\n\n"
+            "Cuando se mergee y se despliegue, las visitas aparecen en Muse Team → Analíticas.\n\n"
             "Si la app tiene usuarios, donde ya sabe quién inició sesión se puede agregar `window.tably && window.tably.identify({ email, name, id })` para ver quién es cada visitante.")
-    return _push(own, name, base, head_sha, changes, token, BRANCH, "Tably Analytics: visitas, clics y errores (sin cookies)", "Tably Analytics", body)
+    return _push(own, name, base, head_sha, changes, token, BRANCH, "Muse Team Analytics: visitas, clics y errores (sin cookies)", "Muse Team Analytics", body)
 
 
 # ------------------------------------------------------------------------------------------------ who signed in
@@ -407,7 +407,7 @@ ID_BRANCH = "tably-identify"
 AUTH_PATH = re.compile(r"auth|login|log-in|signin|sign-in|session|account|user|profile|guard|interceptor|store|context|provider|app\.(component|tsx|jsx|vue)", re.I)
 AUTH_CODE = re.compile(r"\b(login|logIn|signIn|signin|signInWith\w*|setUser|currentUser|onAuthStateChanged|getSession|getUser|useSession|useUser|"
                        r"me\(\)|/auth/|/login|/me\b|localStorage\.setItem\(\s*['\"](?:token|user|auth|access_token|jwt))", re.I)
-ID_SYSTEM = """Sos un ingeniero que agrega la identificación de usuarios de Tably Analytics a una app, tocando lo mínimo.
+ID_SYSTEM = """Sos un ingeniero que agrega la identificación de usuarios de Muse Team Analytics a una app, tocando lo mínimo.
 Te paso los archivos de la app donde se maneja el inicio de sesión. Buscá los lugares donde la app YA SABE quién es el usuario:
 justo después de un login o registro exitoso, y cuando la app carga con la sesión ya abierta (al leer el usuario guardado o al pedir /me).
 Ahí agregá una sola llamada con los datos que la app ya tiene a mano en ese punto:
@@ -476,7 +476,7 @@ def _excerpt(text: str, limit: int = 14000) -> str:
 
 
 async def identify_pr(site: dict, token: str, user_id: str) -> dict:
-    """A PR that tells Tably Analytics who signed in: the model finds the app's login and adds tably.identify({ email, name, id })."""
+    """A PR that tells Muse Team Analytics who signed in: the model finds the app's login and adds tably.identify({ email, name, id })."""
     import asyncio
 
     from . import studio as studiomod
@@ -504,10 +504,10 @@ async def identify_pr(site: dict, token: str, user_id: str) -> dict:
     if not changes:
         return {"ok": False, "error": "No pude agregarlo solo: " + (str(raw.get("summary") or "no encontré dónde la app sabe quién inició sesión."))[:300]}
     files = "\n".join(f"- `{p}`" for p in changes)
-    body = (f"Para que **Tably Analytics** muestre el email y el nombre de quienes inician sesión en {site['title']}.\n\n"
+    body = (f"Para que **Muse Team Analytics** muestre el email y el nombre de quienes inician sesión en {site['title']}.\n\n"
             f"{raw.get('summary') or ''}\n\nAgrega `tably.identify({{ email, name, id }})` donde la app ya sabe quién es el usuario. No manda contraseñas ni tokens.\n\n"
             f"Archivos:\n{files}\n\nRecordá mencionar en tu política de privacidad que, para usuarios registrados, se registran su email y nombre junto a sus visitas.\n\n_Escrito por {by}._")
-    return await asyncio.to_thread(_push, own, name, base, head_sha, changes, token, ID_BRANCH, "Tably Analytics: identificar a quien inicia sesión", "Tably Analytics: quién inició sesión", body)
+    return await asyncio.to_thread(_push, own, name, base, head_sha, changes, token, ID_BRANCH, "Muse Team Analytics: identificar a quien inicia sesión", "Muse Team Analytics: quién inició sesión", body)
 
 
 # ------------------------------------------------------------------------------------------------ is it connected?
@@ -533,7 +533,7 @@ async def check(site: dict, collector: str) -> dict:
 # ------------------------------------------------------------------------------------------------ the npm package
 
 def package(slug: str, collector: str) -> bytes:
-    """`tably-analytics` with this site and collector inside: import it once and the app reports to Tably; or run it with
+    """`muse-team-analytics` with this site and collector inside: import it once and the app reports to Muse Team; or run it with
     npx in the project folder and it writes the script tag into the pages."""
     cfg = json.dumps({"site": slug, "base": collector})
     core = f"""var CFG = {cfg};
@@ -558,7 +558,7 @@ load();
     mjs = core + "export { init, track, identify, variant };\nexport default { init, track, identify, variant };\n"
     cjs = core + "module.exports = { init: init, track: track, identify: identify, variant: variant };\nmodule.exports.default = module.exports;\n"
     dts = """export declare function init(): void;
-/** An action that matters (sign up, buy, book…). It shows up in Tably → Analytics → Events. */
+/** An action that matters (sign up, buy, book…). It shows up in Muse Team → Analytics → Events. */
 export declare function track(name: string, props?: Record<string, unknown>): void;
 /** Who the signed-in visitor is, so Analytics shows people by name. */
 export declare function identify(user: { email?: string; name?: string; id?: string }): void;
@@ -568,7 +568,7 @@ declare const _default: { init: typeof init; track: typeof track; identify: type
 export default _default;
 """
     bin_js = r"""#!/usr/bin/env node
-// Writes the Tably Analytics script tag into this project's pages (index.html, templates, Next.js layout/_document).
+// Writes the Muse Team Analytics script tag into this project's pages (index.html, templates, Next.js layout/_document).
 var fs = require('fs'), path = require('path');
 var CFG = __CFG__;
 var TAG = '<script defer src="' + CFG.base + '/a.js" data-site="' + CFG.site + '"></script>';
@@ -624,32 +624,32 @@ if (!changed.length && already.length) {
   process.exit(0);
 }
 if (!changed.length) {
-  console.log('\nNo encontré dónde poner Tably Analytics (ni un index.html ni un layout de Next.js).');
+  console.log('\nNo encontré dónde poner Muse Team Analytics (ni un index.html ni un layout de Next.js).');
   console.log('Pegá esta línea dentro del <head> de tu página:\n\n  ' + TAG + '\n');
   process.exit(1);
 }
 console.log('\nTably Analytics quedó en:\n' + changed.map(function (c) { return '  - ' + c; }).join('\n'));
-console.log('\nHacé commit y push; cuando se despliegue, las visitas aparecen en Tably → Analíticas.\n');
+console.log('\nHacé commit y push; cuando se despliegue, las visitas aparecen en Muse Team → Analíticas.\n');
 """
     bin_js = bin_js.replace("__CFG__", cfg).replace("__SKIP__", json.dumps(sorted(SKIP_DIRS))).replace("__EXT__", json.dumps(list(PAGE_EXT))).replace("__GENDIRS__", json.dumps(sorted(GENERATED_DIRS)))
-    readme = f"""# tably-analytics
+    readme = f"""# muse-team-analytics
 
-Tably Analytics for **{slug}**: visits, where they come from, what people tap, who is live and errors. No cookies.
+Muse Team Analytics for **{slug}**: visits, where they come from, what people tap, who is live and errors. No cookies.
 
 ```js
-import 'tably-analytics'            // once, in your entry file (main.ts / main.tsx / app root)
-import {{ track, identify }} from 'tably-analytics'
+import 'muse-team-analytics'            // once, in your entry file (main.ts / main.tsx / app root)
+import {{ track, identify }} from 'muse-team-analytics'
 identify({{ email, name, id }})       // where you know who signed in
 track('signup')                     // the actions that matter
 ```
 
-Or, without the dependency: `npx -y {collector}/pkg/tably-analytics-{slug}.tgz` in the project folder writes
+Or, without the dependency: `npx -y {collector}/pkg/muse-team-analytics-{slug}.tgz` in the project folder writes
 `{tag(collector, slug)}` into your pages.
 """
-    pkg = {"name": "tably-analytics", "version": "1.0.0", "description": f"Tably Analytics for {slug}", "license": "MIT",
+    pkg = {"name": "muse-team-analytics", "version": "1.0.0", "description": f"Muse Team Analytics for {slug}", "license": "MIT",
            "main": "index.cjs", "module": "index.mjs", "types": "index.d.ts", "sideEffects": True,
            "exports": {".": {"types": "./index.d.ts", "import": "./index.mjs", "require": "./index.cjs"}},
-           "bin": {"tably-analytics": "bin/connect.cjs"}}
+           "bin": {"muse-team-analytics": "bin/connect.cjs"}}
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         for name, text, mode in (("package.json", json.dumps(pkg, indent=2), 0o644), ("index.mjs", mjs, 0o644), ("index.cjs", cjs, 0o644),
@@ -751,7 +751,7 @@ def repo_for_url(token: str, url: str, skip: str = "") -> str | None:
 
 
 def connect_pr(site: dict, token: str, collector: str) -> dict:
-    """The PR on the site's repo; when that repo has no page (a backend, say), Tably finds the repo that serves the site and uses it."""
+    """The PR on the site's repo; when that repo has no page (a backend, say), Muse Team finds the repo that serves the site and uses it."""
     res = open_pr(site, token, collector)
     if res.get("code") != "no_pages" or not site.get("url"):
         return res

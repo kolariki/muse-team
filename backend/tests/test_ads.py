@@ -23,11 +23,11 @@ def test_palette_keeps_only_readable_colours():
 def test_clean_bounds_the_script_and_the_meta_copy():
     shots = [{"kind": "phone"}, {"kind": "desktop"}]
     s = ads.clean({"hook": "Reservá sin llamar", "emphasis": "no está en el gancho", "points": ["a", "b", "c", "d"], "captions": ["uno"],
-                   "cta_type": "BUY_A_HOUSE", "font": "comic", "headline": "x" * 80}, _build(), shots, "https://x.tably.app")
+                   "cta_type": "BUY_A_HOUSE", "font": "comic", "headline": "x" * 80}, _build(), shots, "https://x.museteam.app")
     assert s["emphasis"] == ""  # only words that are in the hook get highlighted
     assert len(s["points"]) == 3 and len(s["captions"]) == 2 and s["captions"][1]
     assert s["cta_type"] == "LEARN_MORE" and s["font"] == "grotesk" and len(s["headline"]) <= 40
-    assert s["link"] == "https://x.tably.app"
+    assert s["link"] == "https://x.museteam.app"
 
 
 def test_plain_script_skips_markdown_noise():
@@ -67,7 +67,7 @@ def test_publish_creates_everything_paused(tmp_path, monkeypatch):
     monkeypatch.setattr(meta_ads, "_token", lambda uid: "tok")
     monkeypatch.setattr(meta_ads.asyncio, "sleep", lambda s: asyncio.sleep(0))
     ad = {"script": {"name": "Turnera", "angle": "Sin llamadas", "headline": "Reservá online", "primary_text": "Tus clientas reservan solas",
-                     "description": "", "cta_type": "BOOK_NOW", "link": "https://turnera.tably.app"}}
+                     "description": "", "cta_type": "BOOK_NOW", "link": "https://turnera.museteam.app"}}
     steps: list[str] = []
     res = asyncio.run(meta_ads.publish("u", ad, tmp_path, {"account_id": "act_123", "page_id": "p1", "daily_budget": 12.5, "currency": "ARS",
                                                           "countries": ["AR"], "age_min": 21, "days": 7}, steps.append))
@@ -78,7 +78,7 @@ def test_publish_creates_everything_paused(tmp_path, monkeypatch):
     assert camp["status"] == "PAUSED" and camp["objective"] == "OUTCOME_TRAFFIC" and camp["special_ad_categories"] == "[]"
     assert adset["status"] == "PAUSED" and adset["daily_budget"] == "1250" and json.loads(adset["targeting"])["geo_locations"]["countries"] == ["AR"]
     creative = json.loads([f for p, f in calls if p == "act_123/adcreatives"][0]["object_story_spec"])
-    assert creative["page_id"] == "p1" and creative["video_data"]["call_to_action"] == {"type": "BOOK_NOW", "value": {"link": "https://turnera.tably.app"}}
+    assert creative["page_id"] == "p1" and creative["video_data"]["call_to_action"] == {"type": "BOOK_NOW", "value": {"link": "https://turnera.museteam.app"}}
     assert all(f["status"] == "PAUSED" for p, f in calls if p == "act_123/ads")
     assert res["account_id"] == "123" and "act=123" in res["manager_url"] and len(res["ad_ids"]) == 2
     assert steps and meta_ads.budget_units(5000, "CLP") == 5000

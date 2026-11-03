@@ -19,8 +19,8 @@ const STEPS: Record<string, { plan: string; install: string; login: string; what
     plan: 'META_API_KEY · Meta Model API',
     install: 'curl -fsSL https://dev.meta.ai/install.sh | sh',
     login: 'muse login',
-    what: 'Con tu META_API_KEY cargada en «Modelos y API keys» no hace falta login: Tably corre Muse Code con esa key. `muse login` sirve para usar tu cuenta de Meta en la terminal.',
-    what_en: 'With your META_API_KEY loaded in “Models and API keys” there is no login needed: Tably runs Muse Code with that key. `muse login` lets you use your Meta account in the terminal.',
+    what: 'Con tu META_API_KEY cargada en «Modelos y API keys» no hace falta login: Muse Team corre Muse Code con esa key. `muse login` sirve para usar tu cuenta de Meta en la terminal.',
+    what_en: 'With your META_API_KEY loaded in “Models and API keys” there is no login needed: Muse Team runs Muse Code with that key. `muse login` lets you use your Meta account in the terminal.',
   },
   codex: {
     plan: 'ChatGPT Plus / Pro',
@@ -90,12 +90,12 @@ export default function SubscriptionPanel() {
     <section className="mt-8">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <div className="text-xs uppercase tracking-[0.3em] text-ink-3">{T('Tu suscripción', 'Your subscription')}</div>
-          <h2 className="text-3xl mt-1">{T('Construir con tu plan pago, sin API', 'Build with your paid plan, no API')}</h2>
+          <div className="text-xs uppercase tracking-[0.3em] text-ink-3">{T('Constructor', 'Builder')}</div>
+          <h2 className="text-3xl mt-1">{T('Construir con Muse Code', 'Build with Muse Code')}</h2>
         </div>
       </div>
       <p className="mt-1 w-full text-[13px] text-ink-2">
-        {T('Si ya pagás Claude o ChatGPT, la app puede', 'If you already pay for Claude or ChatGPT, the app can')} <b>{T('construir y revisar', 'build and review')}</b> {T('el producto usando ese plan a través de su agente oficial instalado en esta máquina. Nada sale de tu computadora hacia terceros; la app solo le pasa el brief y lee los archivos que escribe.', 'the product using that plan through its official agent installed on this machine. Nothing leaves your computer to third parties; the app only hands it the brief and reads the files it writes.')}
+        {T('Muse Code es el agente oficial de Meta: con tu key puede', 'Muse Code is the official Meta agent: with your key it can')} <b>{T('construir y revisar', 'build and review')}</b> {T('el producto. La app solo le pasa el brief y lee los archivos que escribe.', 'the product. The app only hands it the brief and reads the files it writes.')}
       </p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         {engines.map((e) => {
@@ -123,7 +123,7 @@ export default function SubscriptionPanel() {
               {e.id === 'claude-code' && (!e.ok || e.token_set || remoteOpen) && (
                 <div className={`relative mt-4 rounded-xl border px-3.5 py-3 ${e.token_set ? 'border-ok/30 bg-ok/5' : 'border-accent/30 bg-accent-soft/40'}`}>
                   <div className="flex items-center gap-2 text-[13px] font-semibold"><Smartphone size={14} className="text-accent" /> {T('Usala desde cualquier lado, con la PC apagada', 'Use it from anywhere, PC off')}{e.ok && !e.token_set && <span className="ml-auto text-[11px] font-normal text-ink-4">{T('opcional', 'optional')}</span>}</div>
-                  <p className="mt-1 text-[12.5px] leading-snug text-ink-2">{T('Conectá tu suscripción con un token: así Tably corre Claude Code en su servidor como vos, y podés construir y chatear con tus sesiones desde el celular aunque tu computadora esté apagada.', 'Connect your subscription with a token: Tably then runs Claude Code on its server as you, so you can build and chat with your sessions from your phone even with your computer off.')}</p>
+                  <p className="mt-1 text-[12.5px] leading-snug text-ink-2">{T('Conectá tu suscripción con un token: así Muse Team corre Claude Code en su servidor como vos, y podés construir y chatear con tus sesiones desde el celular aunque tu computadora esté apagada.', 'Connect your subscription with a token: Muse Team then runs Claude Code on its server as you, so you can build and chat with your sessions from your phone even with your computer off.')}</p>
                   {e.token_set ? (
                     <div className="mt-2 flex items-center gap-2 text-[12.5px]"><CheckCircle2 size={15} className="text-ok" /> {T('Token guardado (cifrado). Las construcciones y «Mis sesiones» corren con tu suscripción.', 'Token saved (encrypted). Builds and "My sessions" run on your subscription.')}
                       <button onClick={async () => { await api.saveClaudeToken(null, true); toast.ok(tr('Token borrado', 'Token deleted'), ''); check(true) }} className="ml-auto inline-flex items-center gap-1 text-[12px] text-ink-3 hover:text-danger"><Trash2 size={12} /> {T('Borrar', 'Delete')}</button>

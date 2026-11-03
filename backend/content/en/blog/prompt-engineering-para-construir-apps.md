@@ -1,15 +1,15 @@
 ---
 title: How to write an app request so the AI builds it well (applied prompt engineering)
-description: What to include and what to leave out of your app request, how Tably Team's automatic prompt engineering works, examples of good and bad requests, and a template you can copy.
+description: What to include and what to leave out of your app request, how Muse Team's automatic prompt engineering works, examples of good and bad requests, and a template you can copy.
 category: Prompt engineering and references
 date: 2026-10-22
 tags: [prompt engineering, how it works, practical guide]
 keywords: [prompt engineering, how to ask AI for an app, write a prompt to generate an app, brief for app development, prompt template]
 ---
 
-Everything starts with the request. A vague request produces a generic app; a clear request produces an app that looks like what you had in mind. This guide explains what Tably Team does with your text and how to write it to get the most out of it.
+Everything starts with the request. A vague request produces a generic app; a clear request produces an app that looks like what you had in mind. This guide explains what Muse Team does with your text and how to write it to get the most out of it.
 
-## What Tably does with what you write
+## What Muse Team does with what you write
 
 When you tap "Generate prompt engineering for my text", a model transforms your request into a **structured brief** with these sections:
 
@@ -45,7 +45,7 @@ That brief is what the team reads (on the council path) or the builder reads dir
 
 ### References
 
-"Make it look like Calendly but in Spanish and simpler". With reference apps, Tably visits them, analyzes them and uses them as a yardstick (or as a blueprint, if you enable reverse engineering).
+"Make it look like Calendly but in Spanish and simpler". With reference apps, Muse Team visits them, analyzes them and uses them as a yardstick (or as a blueprint, if you enable reverse engineering).
 
 ### Platform and language
 
@@ -87,8 +87,6 @@ Constraints (stack, hosting, accessibility), if any:
 Five minutes filling this in are worth more than an hour of changes later.
 
 ## Which model does the prompt engineering
-
-You choose the provider and the model next to the button. Claude Sonnet and GPT produce the most complete briefs; Gemini Flash is faster and cheaper and performs very well on simple requests. The brief is text: you can edit it by hand before moving on.
 
 ## After the brief
 

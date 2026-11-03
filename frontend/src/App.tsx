@@ -221,7 +221,7 @@ function AppInner() {
         unsub()
         const blob = await rec.stop()
         useBuild.getState().set({ recording: false })
-        downloadBlob(blob, `tablyteam-construccion-${slug(title)}.${rec.mime.includes('mp4') ? 'mp4' : 'webm'}`)
+        downloadBlob(blob, `museteam-construccion-${slug(title)}.${rec.mime.includes('mp4') ? 'mp4' : 'webm'}`)
       }
       // stop ~6 s after the build finishes (so the preview is on screen), or when the user ends the share
       const unsub = useBuild.subscribe((b, prev) => {
@@ -462,7 +462,7 @@ function AppInner() {
     const blob = await rec.stop()
     const cfg = useArena.getState().config
     const ext = rec.mime.includes('mp4') ? 'mp4' : 'webm'
-    downloadBlob(blob, `tablyteam-${slug(cfg?.title || cfg?.topic || id)}-${o.layout === 'vertical' ? '9x16' : '16x9'}.${ext}`)
+    downloadBlob(blob, `museteam-${slug(cfg?.title || cfg?.topic || id)}-${o.layout === 'vertical' ? '9x16' : '16x9'}.${ext}`)
     setSfx(prev.sound)
     useArena.getState().set({ recording: false, layout: prev.layout, recMode: prev.recMode, speed: prev.speed })
   }
@@ -512,7 +512,7 @@ function AppInner() {
       let back = ''
       try { back = sessionStorage.getItem('tably.returnHash') ?? ''; sessionStorage.removeItem('tably.returnHash') } catch { /* private mode */ }
       history.replaceState(null, '', location.pathname + (back.startsWith('#build=') ? back : ''))
-      if (cm[1] === 'connected') toast.ok(tr('Cuenta conectada', 'Account connected'), tr('Tus apps ya pueden leerla a través de Tably.', 'Your apps can now read it through Tably.'))
+      if (cm[1] === 'connected') toast.ok(tr('Cuenta conectada', 'Account connected'), tr('Tus apps ya pueden leerla a través de Muse Team.', 'Your apps can now read it through Muse Team.'))
       else toast.error(tr('No se pudo conectar la cuenta', 'Could not connect the account'), decodeURIComponent(cm[2] || ''))
     }
     if (TICKETS_ENABLED && location.hash.startsWith('#tickets')) {  // back from Notion's OAuth consent: straight to the tickets screen

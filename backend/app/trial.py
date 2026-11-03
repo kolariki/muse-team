@@ -1,4 +1,4 @@
-"""Free trial on Baseten: users without their own key debate on open models paid by Tably, within two caps.
+"""Free trial on Baseten: users without their own key debate on open models paid by Muse Team, within two caps.
 
 Each user gets ARENA_TRIAL_ROUNDS rounds (default 5), and all trial spend together stops at ARENA_TRIAL_BUDGET_USD
 (default 90, a margin under the $100 credit). The server key (BASETEN_API_KEY) never leaves the server; ARENA_TRIAL=off

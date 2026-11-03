@@ -1,4 +1,4 @@
-"""Move a whole account between Tably installations (e.g. a local install → tablyteam.com), as one encrypted file.
+"""Move a whole account between Muse Team installations (e.g. a local install → tablyteam.com), as one encrypted file.
 
 Export: the user's session files (debates, briefs, builds, versions), the project folders (without node_modules and other
 re-installable caches; with their git history), the user's git repos, and every database row of the user (team, memory,
@@ -142,7 +142,7 @@ def _rewrite(text: str, roots: dict[str, str], new: dict[str, str]) -> str:
 
 def import_bundle(user_id: str, blob: bytes, code: str) -> dict:
     if len(blob) > MAX_BUNDLE or not blob.startswith(b"TABLY1"):
-        raise ValueError("Ese archivo no es una exportación de Tably")
+        raise ValueError("Ese archivo no es una exportación de Muse Team")
     salt, token = blob[6:22], blob[22:]
     try:
         raw = _key(code, salt).decrypt(token)
@@ -153,7 +153,7 @@ def import_bundle(user_id: str, blob: bytes, code: str) -> dict:
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
         manifest = json.loads(z.read("manifest.json"))
         if manifest.get("format") != FORMAT:
-            raise ValueError("La exportación es de una versión de Tably que esta instalación no entiende")
+            raise ValueError("La exportación es de una versión de Muse Team que esta instalación no entiende")
         roots = manifest["roots"]
         for info in z.infolist():
             name = info.filename

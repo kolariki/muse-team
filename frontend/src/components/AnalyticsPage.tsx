@@ -12,7 +12,7 @@ import PageHeader from './PageHeader'
 import HomeLoader from './HomeLoader'
 import { AnimatePresence } from 'framer-motion'
 
-/** Tably Analytics for every published app: visits, events and errors, read from the `/a.js` snippet each app carries. */
+/** Muse Team Analytics for every published app: visits, events and errors, read from the `/a.js` snippet each app carries. */
 export default function AnalyticsPage({ onBack }: { onBack: () => void }) {
   const T = useT()
   const [data, setData] = useState<{ apps: AnalyticsApp[]; collector: string; collector_public: boolean } | null>(null)
@@ -31,19 +31,19 @@ export default function AnalyticsPage({ onBack }: { onBack: () => void }) {
   return (
     <div className="h-full overflow-y-auto scroll-thin arena-bg">
       <div className="w-full px-4 py-5 sm:px-8 sm:py-8 2xl:px-12">
-        <PageHeader onBack={onBack} kicker="Tably Analytics" title={T('Analíticas', 'Analytics')}
-          subtitle={T('Visitas, eventos y errores reales de cada app que publicaste con Tably o que conectaste desde tu hosting. Sin cookies ni datos personales: cada app carga el script /a.js y las visitas llegan acá.', 'Real visits, events and errors of every app you published with Tably or connected from your own host. No cookies or personal data: each app loads the /a.js script and the visits land here.')}
+        <PageHeader onBack={onBack} kicker="Muse Team Analytics" title={T('Analíticas', 'Analytics')}
+          subtitle={T('Visitas, eventos y errores reales de cada app que publicaste con Muse Team o que conectaste desde tu hosting. Sin cookies ni datos personales: cada app carga el script /a.js y las visitas llegan acá.', 'Real visits, events and errors of every app you published with Muse Team or connected from your own host. No cookies or personal data: each app loads the /a.js script and the visits land here.')}
           right={data && <span className="flex h-9 items-center gap-3 rounded-full border border-line bg-surface px-3.5 text-sm text-ink-2 shadow-sm"><span className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${live ? 'bg-ok animate-pulse' : 'bg-ink-4'}`} /> {live} {T('en vivo', 'live')}</span><span className="h-4 w-px bg-line" /><span className="flex items-center gap-1.5"><BarChart3 size={15} /> {total} {T('visitas en total', 'visits in total')}</span></span>} />
         {data && !data.collector_public && (
           <div className="mt-6 flex items-start gap-3 rounded-2xl border border-gold/40 bg-gold/10 px-4 py-3 text-[13px] text-ink-2">
             <AlertTriangle size={16} className="mt-0.5 shrink-0 text-gold" />
-            <div>{T('Esta instalación recibe las visitas en', 'This installation receives visits at')} <code className="font-mono">{data.collector}</code>{T(', que no se alcanza desde internet: las visitas a tus apps publicadas no van a llegar acá. En tablyteam.com funciona solo; corriendo local, configurá TABLY_CLOUD_URL con una URL pública del backend.', ', which cannot be reached from the internet: visits to your published apps will not land here. On tablyteam.com it just works; running locally, set TABLY_CLOUD_URL to a public URL of the backend.')}</div>
+            <div>{T('Esta instalación recibe las visitas en', 'This installation receives visits at')} <code className="font-mono">{data.collector}</code>{T(', que no se alcanza desde internet: las visitas a tus apps publicadas no van a llegar acá. En la versión online funciona solo; corriendo local, configurá TABLY_CLOUD_URL con una URL pública del backend.', ', which cannot be reached from the internet: visits to your published apps will not land here. In the online version it just works; running locally, set TABLY_CLOUD_URL to a public URL of the backend.')}</div>
           </div>
         )}
         {error && <div className="mt-6 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-[13px] text-danger">{error}</div>}
         <AnimatePresence>{!data && !error && <HomeLoader key="loader" caption={T('Midiendo tus apps…', 'Measuring your apps…')} />}</AnimatePresence>
         {data && !openApp && <div data-tour="analytics" className="mt-6 flex flex-wrap items-center gap-3"><ConnectSite onDone={() => reload()} /></div>}
-        {data && !data.apps.length && <div className="mt-6 rounded-2xl border border-dashed border-line px-6 py-12 text-center text-[14px] text-ink-3">{T('Todavía no hay apps acá. Publicá una con Tably Cloud o conectá un sitio que ya tengas online (en tu GitHub y tu hosting).', 'No apps here yet. Publish one with Tably Cloud or connect a site you already have online (on your GitHub and host).')}</div>}
+        {data && !data.apps.length && <div className="mt-6 rounded-2xl border border-dashed border-line px-6 py-12 text-center text-[14px] text-ink-3">{T('Todavía no hay apps acá. Publicá una con Muse Cloud o conectá un sitio que ya tengas online (en tu GitHub y tu hosting).', 'No apps here yet. Publish one with Muse Cloud or connect a site you already have online (on your GitHub and host).')}</div>}
         {openApp ? <div className="mt-8"><AnalyticsDetail app={openApp} onBack={() => setOpen(null)} /></div>
           : <div data-tour="apps" className="mt-8 space-y-5">{data?.apps.map((a) => <AppCard key={a.slug} a={a} onDetail={() => setOpen(a.slug)} onChange={reload} />)}</div>}
       </div>

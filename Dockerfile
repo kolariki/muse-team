@@ -1,4 +1,4 @@
-# Tably Team · single service for Railway: the API serves the built frontend, runs Claude Code / Codex for the users
+# Muse Team · single service for Railway: the API serves the built frontend, runs Claude Code / Codex for the users
 # (each with their own subscription token) and keeps everything under /data: attach a Railway Volume mounted at /data in the
 # service settings (no VOLUME instruction here: Railway rejects Dockerfiles that declare one).
 FROM node:22-bookworm-slim AS web
@@ -25,7 +25,7 @@ RUN npm ci --no-audit --no-fund && node -e "require('@remotion/renderer').ensure
 COPY backend/video/src ./src
 COPY backend/video/render.mjs backend/video/tour.mjs ./
 RUN npx remotion bundle src/index.ts --out-dir build
-# betterleaks: before publishing, Tably looks for keys written in the apps' code (see app/leaks.py); pinned and checked
+# betterleaks: before publishing, Muse Team looks for keys written in the apps' code (see app/leaks.py); pinned and checked
 ARG BETTERLEAKS=1.9.0
 ARG BETTERLEAKS_SHA256=f8b185a39ffcece2a1ca82bf3a4e7435cd81963ffd16b7a9128daf75f35f6de7
 RUN curl -fsSL -o /tmp/bl.tgz https://github.com/betterleaks/betterleaks/releases/download/v${BETTERLEAKS}/betterleaks_${BETTERLEAKS}_linux_x64.tar.gz \

@@ -201,7 +201,7 @@ def test_signup_needs_the_terms_accepted_and_records_them(monkeypatch):
 
 
 def test_legal_pages_are_public_and_complete():
-    for path, title in (("/privacidad", "Política de privacidad de Tably Team"), ("/terminos", "Términos y condiciones de Tably Team")):
+    for path, title in (("/privacidad", "Política de privacidad de Muse Team"), ("/terminos", "Términos y condiciones de Muse Team")):
         r = client.get(path)
         assert r.status_code == 200 and title in r.text and "THE ELEVUM GROUP" in r.text and "COMPLETAR" not in r.text
     assert "Política de privacidad" in client.get("/api/content/legal/privacidad").json()["html"]

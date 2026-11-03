@@ -1,4 +1,4 @@
-"""Tably Analytics, the detailed view: who visits a published app, from where, on what, and what they do there.
+"""Muse Team Analytics, the detailed view: who visits a published app, from where, on what, and what they do there.
 
 Privacy by design: no cookies, no IP stored or looked up. The visitor id is a random string kept in the browser; the country
 comes from the browser's time zone (or the region of its language); clicks record the label of what was tapped, never what

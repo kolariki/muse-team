@@ -18,7 +18,7 @@ type Assets = Awaited<ReturnType<typeof api.metaAdsAssets>>
 
 const money = (n: number | null | undefined, cur = 'USD') => (n == null ? '—' : new Intl.NumberFormat(getLang() === 'en' ? 'en-US' : 'es-AR', { style: 'currency', currency: cur, maximumFractionDigits: n < 100 ? 2 : 0 }).format(n))
 
-/** Meta Ads: the user connects their ad account, Tably's model reads its numbers (what sells, to whom, where) and turns every
+/** Meta Ads: the user connects their ad account, Muse Team's model reads its numbers (what sells, to whom, where) and turns every
  *  finished «Crear anuncio» video into a ready ad, published paused with one tap. */
 export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
   const T = useT()
@@ -76,8 +76,8 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
     <IconContext.Provider value={{ weight: 'duotone' }}>
     <div className="min-h-full bg-paper">
       <div className="w-full px-4 py-5 sm:px-8 sm:py-8 2xl:px-12">
-        <PageHeader onBack={onBack} kicker="Meta Ads" title={b && b.meta.open === false ? T('Próximamente: todos tus anuncios, en Tably', 'Coming soon: all your ads, in Tably') : T('Tu cuenta de Meta Ads, leída por la IA', 'Your Meta Ads account, read by the AI')}
-          subtitle={b && b.meta.open === false ? T('Vas a poder manejar todos tus anuncios desde nuestra plataforma, con nuestra IA guiándote paso a paso.', 'You will be able to manage all your ads from our platform, with our AI guiding you step by step.') : T('Conectá tu cuenta publicitaria. Tably lee tus campañas, ve qué anuncios, públicos y ubicaciones te traen resultados al menor costo, y arma los anuncios nuevos con los videos que hiciste en «Crear anuncio», listos para publicar en pausa.', 'Connect your ad account. Tably reads your campaigns, sees which ads, audiences and placements bring results at the lowest cost, and builds new ads with the videos you made in «Create ad», ready to publish paused.')} />
+        <PageHeader onBack={onBack} kicker="Meta Ads" title={b && b.meta.open === false ? T('Próximamente: todos tus anuncios, en Muse Team', 'Coming soon: all your ads, in Muse Team') : T('Tu cuenta de Meta Ads, leída por la IA', 'Your Meta Ads account, read by the AI')}
+          subtitle={b && b.meta.open === false ? T('Vas a poder manejar todos tus anuncios desde nuestra plataforma, con nuestra IA guiándote paso a paso.', 'You will be able to manage all your ads from our platform, with our AI guiding you step by step.') : T('Conectá tu cuenta publicitaria. Muse Team lee tus campañas, ve qué anuncios, públicos y ubicaciones te traen resultados al menor costo, y arma los anuncios nuevos con los videos que hiciste en «Crear anuncio», listos para publicar en pausa.', 'Connect your ad account. Muse Team reads your campaigns, sees which ads, audiences and placements bring results at the lowest cost, and builds new ads with the videos you made in «Create ad», ready to publish paused.')} />
 
         {!b ? (failed ? (
           <div className={`${CARD} mt-5 flex flex-wrap items-center gap-3 text-[13.5px] text-ink-2`}><AlertTriangle size={18} className="text-danger" /><span className="min-w-[min(100%,260px)] flex-1">{T('No pude leer Meta Ads', 'Could not read Meta Ads')}: {failed}</span><button onClick={load} className={PILL}><RefreshCw size={14} /> {T('Reintentar', 'Retry')}</button></div>
@@ -87,7 +87,7 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
             <div className="relative">
               <span className="inline-flex rounded-full border border-accent/40 bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent">{T('Próximamente', 'Coming soon')}</span>
               <h2 className="mt-4 max-w-[760px] font-sans text-[26px] font-semibold leading-tight tracking-tight text-ink sm:text-[32px]">{T('Tu IA para vender más con tus anuncios', 'Your AI to sell more with your ads')}</h2>
-              <p className="mt-3 max-w-[720px] text-[15px] leading-relaxed text-ink-2">{T('Conectá tu cuenta y manejá todo desde Tably. La IA lee tus resultados y te guía en cada decisión, sin que tengas que ser experto en publicidad.', 'Connect your account and manage everything from Tably. The AI reads your results and guides every decision, with no need to be an advertising expert.')}</p>
+              <p className="mt-3 max-w-[720px] text-[15px] leading-relaxed text-ink-2">{T('Conectá tu cuenta y manejá todo desde Muse Team. La IA lee tus resultados y te guía en cada decisión, sin que tengas que ser experto en publicidad.', 'Connect your account and manage everything from Muse Team. The AI reads your results and guides every decision, with no need to be an advertising expert.')}</p>
               <div className="mt-8 grid gap-x-8 gap-y-6 border-t border-line pt-6 sm:grid-cols-2 xl:grid-cols-4">
                 {[
                   [T('Todo en un solo lugar', 'Everything in one place'), T('Tus campañas, anuncios y resultados, sin saltar entre pantallas.', 'Your campaigns, ads and results, without jumping between screens.')],
@@ -112,7 +112,7 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-surface shadow-sm"><ProviderLogo provider="meta-ads" size={22} /></span>
                 <span className="min-w-[min(100%,220px)] flex-1">
                   <span className="block text-[15px] font-bold text-ink">{connected ? T('Meta Ads conectado', 'Meta Ads connected') : T('Conectá tu cuenta de Meta Ads', 'Connect your Meta Ads account')}{connected && b.meta.account ? <span className="font-normal text-ink-3"> · {b.meta.account}</span> : null}</span>
-                  <span className="block text-[12.5px] text-ink-3">{!b.meta.ready ? T('La conexión con Meta todavía no está habilitada en esta instalación.', 'The Meta connection is not enabled on this install yet.') : connected ? T('Tably solo lee tus números y crea anuncios en pausa: nada se gasta hasta que vos los actives.', 'Tably only reads your numbers and creates paused ads: nothing is spent until you turn them on.') : b.meta.expired ? T('La conexión venció (dura unos 60 días).', 'The connection expired (it lasts about 60 days).') : T('Una sola vez. Se abre Meta para que elijas la cuenta y das permiso.', 'Just once. Meta opens so you pick the account and allow it.')}</span>
+                  <span className="block text-[12.5px] text-ink-3">{!b.meta.ready ? T('La conexión con Meta todavía no está habilitada en esta instalación.', 'The Meta connection is not enabled on this install yet.') : connected ? T('Muse Team solo lee tus números y crea anuncios en pausa: nada se gasta hasta que vos los actives.', 'Muse Team only reads your numbers and creates paused ads: nothing is spent until you turn them on.') : b.meta.expired ? T('La conexión venció (dura unos 60 días).', 'The connection expired (it lasts about 60 days).') : T('Una sola vez. Se abre Meta para que elijas la cuenta y das permiso.', 'Just once. Meta opens so you pick the account and allow it.')}</span>
                 </span>
                 {!b.meta.ready ? (b.meta.admin ? <button onClick={() => setSetup(true)} className={PILL}><KeyRound size={14} /> {T('Cargar la app de Meta', 'Add the Meta app')}</button> : null)
                   : !connected ? <button onClick={connect} className={PRIMARY}><Link2 size={14} /> {b.meta.expired ? T('Volver a conectar', 'Reconnect') : T('Conectar Meta Ads', 'Connect Meta Ads')}</button>
@@ -253,7 +253,7 @@ function Findings({ icon, tone, kind, title, items, cur, onB }: { icon: React.Re
   )
 }
 
-/** One thing Tably can do in the ad account for a finding: pause, turn on, delete, change the budget or the audience. Budget and
+/** One thing Muse Team can do in the ad account for a finding: pause, turn on, delete, change the budget or the audience. Budget and
  *  audience open their values first so they can be changed before applying; deleting asks once more. */
 function Action({ a, kind, i, j, cur, onB }: { a: MetaAction; kind: 'works' | 'fix'; i: number; j: number; cur: string; onB: (b: MetaBrain) => void }) {
   const T = useT()

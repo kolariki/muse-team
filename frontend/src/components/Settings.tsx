@@ -80,8 +80,8 @@ export default function Settings({ onBack }: { onBack: () => void }) {
         <div data-tour="subscription"><SubscriptionPanel /></div>
         <div data-tour="keys" className="mt-10">
           <div className="text-xs uppercase tracking-[0.3em] text-ink-3">API keys</div>
-          <h2 className="text-3xl mt-1">{MUSE_FIRST ? T('Muse, el motor de Tably', 'Muse, the engine of Tably') : T('Modelos por API, para los debates', 'API models, for the debates')}</h2>
-          <p className="mt-1 text-[13px] text-ink-2">{T('Los agentes del equipo (CEO, CTO, QA…) hablan por API y cada proveedor factura por uso. Cargá solo los que quieras usar.', 'The team agents (CEO, CTO, QA…) talk through APIs and each provider bills per use. Add only the ones you want to use.')}</p>
+          <h2 className="text-3xl mt-1">{MUSE_FIRST ? T('Muse, el motor de tu equipo', 'Muse, the engine of your team') : T('Modelos por API, para los debates', 'API models, for the debates')}</h2>
+          <p className="mt-1 text-[13px] text-ink-2">{T('Los agentes del equipo (CEO, CTO, QA…) hablan con Muse por la Meta Model API, que factura por uso. Cargá tu key de Meta para empezar.', 'The team agents (CEO, CTO, QA…) talk to Muse through the Meta Model API, billed per use. Add your Meta key to get started.')}</p>
         </div>
         <div className="mt-4 grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(100%,440px),1fr))]">
           {items.filter((p) => !MUSE_FIRST || p.id === 'meta').map((p, i) => (
@@ -107,7 +107,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
         {TICKETS_ENABLED && <NotionAppSettings />}
         <section className="mt-8">
           <h2 className="text-2xl">{T('Tus cuentas conectadas', 'Your connected accounts')}</h2>
-          <p className="mt-1 mb-3 text-[13px] text-ink-2">{T('Tus apps leen estos datos a través de Tably (por ejemplo tu panel personal con tu agenda), nunca con tu contraseña. Podés desconectarlas cuando quieras.', 'Your apps read this data through Tably (for example your personal panel with your calendar), never with your password. Disconnect them anytime.')}</p>
+          <p className="mt-1 mb-3 text-[13px] text-ink-2">{T('Tus apps leen estos datos a través de Muse Team (por ejemplo tu panel personal con tu agenda), nunca con tu contraseña. Podés desconectarlas cuando quieras.', 'Your apps read this data through Muse Team (for example your personal panel with your calendar), never with your password. Disconnect them anytime.')}</p>
           <div data-tour="connections"><Connections /></div>
           <GoogleAppSettings />
         </section>
@@ -120,7 +120,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
   )
 }
 
-/** Tably Cloud: what this installation can publish/provision (operator .env) and the user's GitHub token for «Mover a GitHub». */
+/** Muse Cloud: what this installation can publish/provision (operator .env) and the user's GitHub token for «Mover a GitHub». */
 function TablyCloudSettings() {
   const T = useT()
   const [st, setSt] = useState<Awaited<ReturnType<typeof api.cloudStatus>> | null>(null)
@@ -131,7 +131,7 @@ function TablyCloudSettings() {
   useEffect(load, [])
   if (!st) return null
   const rows = [
-    { icon: <Globe size={15} />, title: T('Hosting estático', 'Static hosting'), ok: true, value: st.static === 'cloudflare' ? 'Cloudflare Pages' : T('Servidor de Tably (local)', 'Tably server (local)'), hint: st.static === 'cloudflare' ? null : st.missing.cloudflare },
+    { icon: <Globe size={15} />, title: T('Hosting estático', 'Static hosting'), ok: true, value: st.static === 'cloudflare' ? 'Cloudflare Pages' : T('Servidor de Muse Team (local)', 'Muse Team server (local)'), hint: st.static === 'cloudflare' ? null : st.missing.cloudflare },
     { icon: <Server size={15} />, title: T('Apps con servidor', 'Server apps'), ok: !!st.server, value: st.server ? 'Fly Machines' : T('No disponible', 'Not available'), hint: st.missing.fly },
     { icon: <Database size={15} />, title: 'Postgres', ok: !!st.database, value: st.database ? 'Neon' : T('No disponible', 'Not available'), hint: st.missing.neon },
     { icon: <ShieldCheck size={15} />, title: T('Auth y storage', 'Auth and storage'), ok: !!st.auth, value: st.auth ? 'Supabase' : T('No disponible', 'Not available'), hint: st.missing.supabase },
@@ -140,9 +140,9 @@ function TablyCloudSettings() {
     <div className="mt-8">
       <div className="flex items-center gap-2">
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white"><CloudUpload size={15} /></span>
-        <h2 className="text-2xl">Tably Cloud</h2>
+        <h2 className="text-2xl">Muse Cloud</h2>
       </div>
-      <p className="mt-1 text-[13px] text-ink-2">{T('Publicación con un clic desde el constructor: hosting, base de datos y auth salen de las cuentas de Tably y la app se lleva a otro lado cuando quieras. Lo que falte se configura en el .env del backend.', 'One-click publishing from the builder: hosting, database and auth come from Tably\'s accounts and the app can be moved elsewhere whenever you want. Anything missing is configured in the backend .env.')}</p>
+      <p className="mt-1 text-[13px] text-ink-2">{T('Publicación con un clic desde el constructor: hosting, base de datos y auth salen de las cuentas de Muse Team y la app se lleva a otro lado cuando quieras. Lo que falte se configura en el .env del backend.', 'One-click publishing from the builder: hosting, database and auth come from Muse Team\'s accounts and the app can be moved elsewhere whenever you want. Anything missing is configured in the backend .env.')}</p>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         {rows.map((r) => (
           <div key={r.title} className={`flex items-start gap-3 rounded-2xl border px-4 py-3.5 ${r.ok ? 'border-ok/30 bg-ok/5' : 'border-line bg-surface'}`}>
@@ -161,7 +161,7 @@ function TablyCloudSettings() {
           <span className="flex h-11 w-11 items-center justify-center rounded-full bg-surface shadow-sm ring-1 ring-black/10"><ProviderLogo provider="github" size={22} /></span>
           <div>
             <div className="text-[15px] font-semibold">GitHub</div>
-            <a href="https://github.com/settings/tokens/new?scopes=repo&description=Tably%20Team" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] text-ink-3 hover:text-accent">{T('crear token con permiso «repo»', 'create a token with the "repo" scope')} <ExternalLink size={11} /></a>
+            <a href="https://github.com/settings/tokens/new?scopes=repo&description=Muse%20Team" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] text-ink-3 hover:text-accent">{T('crear token con permiso «repo»', 'create a token with the "repo" scope')} <ExternalLink size={11} /></a>
           </div>
           <span className={`ml-auto inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium ${st.github.set && !st.github.error ? 'border-ok/30 bg-ok/10 text-ok' : st.github.set ? 'border-danger/30 bg-danger/10 text-danger' : 'border-line bg-surface text-ink-3'}`}>{st.github.set && <span className={`h-2 w-2 rounded-full ${st.github.error ? 'bg-danger' : 'bg-ok'}`} />}{!st.github.set ? T('Sin token', 'No token') : st.github.error ? T('No funciona', 'Not working') : T('Conectado', 'Connected')}</span>
         </div>
@@ -171,7 +171,7 @@ function TablyCloudSettings() {
           <button disabled={!tok.trim()} onClick={async () => { try { await api.saveGithubToken(tok.trim()); setTok(''); setGhErr(''); setMsg(tr('Token de GitHub guardado y probado', 'GitHub token saved and tested')); load() } catch (e) { setMsg(''); setGhErr((e as Error).message) } }} className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[13px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-40"><Check size={14} /> {T('Guardar', 'Save')}</button>
           {st.github.set && <button onClick={async () => { await api.saveGithubToken(null, true); setMsg(tr('Token borrado', 'Token deleted')); load() }} className="flex h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[13px] text-ink-2 transition hover:border-danger hover:text-danger"><Trash2 size={14} /> {T('Borrar', 'Delete')}</button>}
         </div>
-        {(ghErr || st.github.error) && <div className="mt-2 rounded-lg border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-[12px] text-danger">{ghErr || st.github.error} <a href="https://github.com/settings/tokens/new?scopes=repo&description=Tably%20Team" target="_blank" rel="noreferrer" className="font-semibold underline">{T('Crear un token nuevo', 'Create a new token')}</a></div>}
+        {(ghErr || st.github.error) && <div className="mt-2 rounded-lg border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-[12px] text-danger">{ghErr || st.github.error} <a href="https://github.com/settings/tokens/new?scopes=repo&description=Muse%20Team" target="_blank" rel="noreferrer" className="font-semibold underline">{T('Crear un token nuevo', 'Create a new token')}</a></div>}
         {msg && <div className="mt-2 text-[12px] text-ok">{msg}</div>}
       </div>
       {st.apps.length > 0 && (
@@ -215,7 +215,7 @@ function NotionAppSettings() {
         </div>
         <span className={`ml-auto inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11.5px] font-medium ${st.configured ? 'border-ok/30 bg-ok/10 text-ok' : 'border-line bg-surface text-ink-3'}`}>{st.configured ? T('Configurada', 'Configured') : T('Sin configurar', 'Not configured')}{st.from_env ? ' · .env' : ''}</span>
       </div>
-      <p className="mt-2 text-[12.5px] text-ink-2">{T('Se carga una sola vez. Con esto, cada usuario conecta su Notion desde «Tickets» con un clic y Tably recibe un token propio de esa persona. El secret queda cifrado en el servidor; nunca llega a ningún navegador.', 'Set once. With it, every user connects their Notion from "Tickets" with one click and Tably receives a token of their own. The secret stays encrypted on the server; it never reaches any browser.')}</p>
+      <p className="mt-2 text-[12.5px] text-ink-2">{T('Se carga una sola vez. Con esto, cada usuario conecta su Notion desde «Tickets» con un clic y Muse Team recibe un token propio de esa persona. El secret queda cifrado en el servidor; nunca llega a ningún navegador.', 'Set once. With it, every user connects their Notion from "Tickets" with one click and Muse Team receives a token of their own. The secret stays encrypted on the server; it never reaches any browser.')}</p>
       <div className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 text-[12px]">
         <span className="text-ink-3">{T('Redirect URI en Notion:', 'Redirect URI in Notion:')}</span>
         <code className="min-w-0 flex-1 truncate font-mono text-ink">{st.redirect_uri}</code>

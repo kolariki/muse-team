@@ -15,10 +15,10 @@ const PRIMARY = 'flex h-9 items-center gap-1.5 rounded-full bg-accent px-4 text-
 const CARD = 'rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(30,38,34,.04),0_8px_24px_-16px_rgba(30,38,34,.18)]'
 
 const PROVIDER_LABEL: Record<string, [string, string]> = {
-  local: ['Tably Cloud · servidor propio', 'Tably Cloud · own server'],
-  cloudflare: ['Tably Cloud · Cloudflare', 'Tably Cloud · Cloudflare'],
-  fly: ['Tably Cloud · Fly Machines', 'Tably Cloud · Fly Machines'],
-  railway: ['Tably Cloud · Railway', 'Tably Cloud · Railway'],
+  local: ['Muse Cloud · servidor propio', 'Muse Cloud · own server'],
+  cloudflare: ['Muse Cloud · Cloudflare', 'Muse Cloud · Cloudflare'],
+  fly: ['Muse Cloud · Fly Machines', 'Muse Cloud · Fly Machines'],
+  railway: ['Muse Cloud · Railway', 'Muse Cloud · Railway'],
 }
 
 const infoCache = new Map<string, CloudInfo>()
@@ -136,7 +136,7 @@ export default function CloudPanel() {
       <div className="mx-auto max-w-[760px] space-y-4">
         <div className="flex items-start gap-4">
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] uppercase tracking-[0.3em] text-accent">Tably Cloud</div>
+            <div className="text-[11px] uppercase tracking-[0.3em] text-accent">Muse Cloud</div>
             <h3 className="mt-0.5 text-[24px] leading-tight">{T('Publicar', 'Publish')}</h3>
             <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{T('La app sale funcionando con una URL, con base de datos y auth si las necesita, y con su repositorio git. Cuando quieras, te la llevás a tus propias cuentas.', 'The app goes live with a URL, with database and auth when needed, and its own git repository. Whenever you want, take it to your own accounts.')}</p>
           </div>
@@ -156,7 +156,7 @@ export default function CloudPanel() {
         <Section
           icon={<Globe size={17} />}
           title={live ? T('Tu app está publicada', 'Your app is published') : T('Hosting', 'Hosting')}
-          hint={live ? undefined : st?.static === 'cloudflare' ? T('Estáticos en Cloudflare bajo nuestro dominio; apps con servidor en ' + (st?.server === 'railway' ? 'Railway' : 'Fly Machines') + '.', 'Static sites on Cloudflare under our domain; server apps on ' + (st?.server === 'railway' ? 'Railway' : 'Fly Machines') + '.') : st?.server === 'railway' ? T('Estáticos servidos por Tably Cloud al instante. Apps con servidor: en Railway, con su propia base de datos.', 'Static sites served by Tably Cloud instantly. Server apps: on Railway, with their own database.') : T('Estáticos servidos por Tably Cloud al instante. Apps con servidor: según la instalación.', 'Static sites served by Tably Cloud instantly. Server apps: depends on the installation.')}
+          hint={live ? undefined : st?.static === 'cloudflare' ? T('Estáticos en Cloudflare bajo nuestro dominio; apps con servidor en ' + (st?.server === 'railway' ? 'Railway' : 'Fly Machines') + '.', 'Static sites on Cloudflare under our domain; server apps on ' + (st?.server === 'railway' ? 'Railway' : 'Fly Machines') + '.') : st?.server === 'railway' ? T('Estáticos servidos por Muse Cloud al instante. Apps con servidor: en Railway, con su propia base de datos.', 'Static sites served by Muse Cloud instantly. Server apps: on Railway, with their own database.') : T('Estáticos servidos por Muse Cloud al instante. Apps con servidor: según la instalación.', 'Static sites served by Muse Cloud instantly. Server apps: depends on the installation.')}
           right={app?.provider && <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-2.5 py-0.5 text-[11.5px] text-ink-3">{app.provider === 'cloudflare' ? <ProviderLogo provider="cloudflare" size={12} /> : app.provider === 'fly' || app.provider === 'railway' ? <Server size={12} /> : <Globe size={12} />} {T(...(PROVIDER_LABEL[app.provider] ?? [app.provider, app.provider]))}</span>}
         >
           {live && app?.url && (
@@ -300,7 +300,7 @@ export default function CloudPanel() {
                 </button>
               </div>
             ) : (
-              <p className="mt-2 text-[12px] leading-snug text-ink-3">{T('Cargá un token de GitHub (permiso «repo») en', 'Add a GitHub token (scope "repo") in')} <button onClick={() => useArena.getState().set({ view: 'settings' })} className="text-accent hover:underline">{T('Configuración → Tably Cloud', 'Settings → Tably Cloud')}</button> {T('y el repo se crea y se sube con el historial completo.', 'and the repo is created and pushed with the full history.')}</p>
+              <p className="mt-2 text-[12px] leading-snug text-ink-3">{T('Cargá un token de GitHub (permiso «repo») en', 'Add a GitHub token (scope "repo") in')} <button onClick={() => useArena.getState().set({ view: 'settings' })} className="text-accent hover:underline">{T('Configuración → Muse Cloud', 'Settings → Muse Cloud')}</button> {T('y el repo se crea y se sube con el historial completo.', 'and the repo is created and pushed with the full history.')}</p>
             )}
           </div>
         </Section>

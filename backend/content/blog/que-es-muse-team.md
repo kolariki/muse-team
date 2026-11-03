@@ -1,19 +1,17 @@
 ---
-title: Qué es Tably Team y cómo construye una app con un equipo de inteligencias artificiales
-description: Tably Team arma un equipo de IA con roles reales (CEO, CTO, ingeniería, producto, diseño y QA), lo pone a debatir tu idea, a diseñarla y a construirla. Así funciona por dentro, paso a paso.
-category: Cómo funciona Tably
+title: Qué es Muse Team y cómo construye una app con un equipo de inteligencias artificiales
+description: Muse Team arma un equipo de IA con roles reales (CEO, CTO, ingeniería, producto, diseño y QA), lo pone a debatir tu idea, a diseñarla y a construirla. Así funciona por dentro, paso a paso.
+category: Cómo funciona Muse Team
 date: 2026-10-22
-tags: [Tably Team, cómo funciona, equipo de IA]
-keywords: [construir app con IA, equipo de agentes de IA, generador de apps con inteligencia artificial, Tably Team]
+tags: [Muse Team, cómo funciona, equipo de IA]
+keywords: [construir app con IA, equipo de agentes de IA, generador de apps con inteligencia artificial, Muse Team]
 ---
 
-La mayoría de las herramientas que «hacen apps con IA» funcionan igual: escribís un pedido, un único modelo lo interpreta y escupe código. Cuando el resultado no es lo que querías, volvés a escribir. Tably Team parte de otra idea: **una app buena no sale de un modelo que adivina, sale de un equipo que discute, decide y recién después construye**.
+La mayoría de las herramientas que «hacen apps con IA» funcionan igual: escribís un pedido, un único modelo lo interpreta y escupe código. Cuando el resultado no es lo que querías, volvés a escribir. Muse Team parte de otra idea: **una app buena no sale de un modelo que adivina, sale de un equipo que discute, decide y recién después construye**.
 
-Esta guía explica qué es Tably Team, qué hace cada parte del sistema y qué podés esperar de cada etapa.
+Esta guía explica qué es Muse Team, qué hace cada parte del sistema y qué podés esperar de cada etapa.
 
 ## La idea en una frase
-
-Tably Team convierte una descripción en lenguaje natural («una app para reservar turnos en mi peluquería, con recordatorios por WhatsApp») en una aplicación lista para correr, pasando por un **equipo de agentes de inteligencia artificial con roles**: dirección, tecnología, ingeniería, producto, diseño y calidad. Cada rol puede usar una IA distinta (Claude, GPT, Gemini, DeepSeek, Grok, Llama, Kimi, Mistral, modelos de OpenRouter o modelos locales con Ollama), con su propio prompt y sus propias habilidades.
 
 Vos elegís quién ocupa cada silla, mirás el debate en vivo, aprobás el diseño y pedís cambios. El equipo itera.
 
@@ -53,21 +51,17 @@ Podés cambiar el modelo de cada rol, reescribir su prompt y sumarle **skills**:
 3. **Apps de referencia**. Si pasás URLs de apps que te gustan, el equipo las visita con un navegador real, saca capturas y las describe con un modelo con visión. Con el análisis profundo activado, además hace ingeniería inversa de sus bundles, rutas y APIs para entender cómo están hechas.
 4. **Debate del consejo** (en la vía con equipo). Turnos, desacuerdos, decisiones. Todo queda registrado y se puede exportar.
 5. **Diseño**. El diseñador escribe el sistema de diseño y arma las pantallas. Vos aprobás o pedís cambios.
-6. **Construcción**. El constructor (Claude Code, Codex o un modelo por API) escribe el código por etapas, archivo por archivo, con un chat donde ves el avance, un timer por turno y el total acumulado.
+
 7. **Revisión**. El consejo audita cada versión. Pedís cambios en el diseño o en el código y el equipo vuelve a iterar.
-8. **Correr, descargar o publicar**. La app se corre desde Tably (web en una pestaña, móvil en el simulador o el emulador), se descarga como zip con su repositorio git, o se publica en Tably Cloud con base de datos y autenticación.
+8. **Correr, descargar o publicar**. La app se corre desde Muse Team (web en una pestaña, móvil en el simulador o el emulador), se descarga como zip con su repositorio git, o se publica en Muse Cloud con base de datos y autenticación.
 
 ## Quién construye el código
 
 Acá está una de las decisiones más importantes, porque define costo y calidad.
 
-- **Claude Code (escritorio)**: el agente de programación de Anthropic, corriendo con tu suscripción. No gasta API. Es nuestro constructor por defecto cuando está disponible, por la calidad de su código y su capacidad de trabajar con repositorios completos.
-- **Codex CLI (escritorio)**: el agente de OpenAI, con tu cuenta de ChatGPT. Mismo esquema: suscripción, sin tokens de API.
-- **Por API**: cualquier modelo configurado con tu clave. Se cobran los tokens al proveedor, no a Tably.
+- **Por API**: cualquier modelo configurado con tu clave. Se cobran los tokens al proveedor, no a Muse Team.
 
-Si usás Tably en la nube y apagás tu computadora, podés conectar tu suscripción de Claude al servidor con un token de configuración y seguir construyendo desde el teléfono.
-
-## Qué no es Tably Team
+## Qué no es Muse Team
 
 No es un chat con un modelo. No es un generador de plantillas. No es una caja negra: cada decisión del equipo queda escrita, cada archivo se ve, cada versión se puede comparar. Y no reemplaza tu criterio: el equipo propone, vos aprobás.
 
@@ -80,4 +74,4 @@ No es un chat con un modelo. No es un generador de plantillas. No es una caja ne
 
 ## Cómo empezar
 
-Creá una cuenta, elegí «Constructor directo» para tu primera prueba, escribí tu idea en dos o tres líneas y mirá qué pasa. Cuando quieras ir en serio, pasate al constructor con equipo: ahí es donde Tably Team se diferencia de todo lo demás.
+Creá una cuenta, elegí «Constructor directo» para tu primera prueba, escribí tu idea en dos o tres líneas y mirá qué pasa. Cuando quieras ir en serio, pasate al constructor con equipo: ahí es donde Muse Team se diferencia de todo lo demás.

@@ -30,7 +30,7 @@ export default function MetaSetup({ onDone, onCancel }: { onDone: () => void; on
   const step = 'flex gap-2 text-[12.5px] text-ink-2'
   return (
     <div className="mt-1 flex flex-col gap-2.5 rounded-xl border border-accent/40 bg-accent-soft/40 p-3.5">
-      <div className="text-[13.5px] font-semibold text-ink">{T('Habilitar la conexión con Meta (una sola vez, para todo Tably)', 'Enable the Meta connection (once, for all of Tably)')}</div>
+      <div className="text-[13.5px] font-semibold text-ink">{T('Habilitar la conexión con Meta (una sola vez, para todo Muse Team)', 'Enable the Meta connection (once, for all of Muse Team)')}</div>
       <ol className="flex flex-col gap-1.5">
         <li className={step}><b>1.</b><span>{T('Entrá a ', 'Go to ')}<a href="https://developers.facebook.com/apps/" target="_blank" rel="noreferrer" className="text-accent underline">developers.facebook.com/apps</a>{T(' y creá una app de tipo «Empresa» (o abrí la que ya tengas).', ' and create a «Business» app (or open the one you have).')}</span></li>
         <li className={step}><b>2.</b><span>{T('Agregale «Inicio de sesión con Facebook para empresas», «API de marketing» e «API de Instagram». En Inicio de sesión → Configuración, pegá esta dirección en «URI de redireccionamiento de OAuth válidos»:', 'Add «Facebook Login for Business», «Marketing API» and «Instagram API». In Login → Settings, paste this address under «Valid OAuth redirect URIs»:')}</span></li>

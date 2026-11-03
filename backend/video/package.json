@@ -1,7 +1,7 @@
 {
   "name": "tably-ads-video",
   "private": true,
-  "description": "Tably's ad videos: a Remotion composition driven by the ad script the team writes (backend/app/ads.py renders it with render.mjs)",
+  "description": "Muse Team's ad videos: a Remotion composition driven by the ad script the team writes (backend/app/ads.py renders it with render.mjs)",
   "type": "module",
   "scripts": {
     "studio": "remotion studio src/index.ts",

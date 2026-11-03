@@ -29,7 +29,7 @@ function preview(t: Tpl, en: boolean, summary: AppSummary, screens: AppScreen[],
     ? screens.map((x, i) => ({ src: x.url, kind: x.kind, ratio: x.ratio, bg: x.bg, caption: s.captions[i % s.captions.length] }))
     : []
   return {
-    format: 'vertical', name: summary?.name || 'Turnera Luna', url: 'tu-app.tably.app', font: look.font ?? 'grotesk', palette: look.palette ?? appPalette ?? PALETTE,
+    format: 'vertical', name: summary?.name || 'Turnera Luna', url: 'tu-app.museteam.app', font: look.font ?? 'grotesk', palette: look.palette ?? appPalette ?? PALETTE,
     template: { id: t.id, scenes: t.scenes, style: { ...t.style, ...(look.palette ? { theme: look.theme ?? 'auto' } : {}), ...(look.theme ? { theme: look.theme } : {}), ...(look.bg ? { bg: look.bg } : {}), ...(look.fx ? { fx: look.fx } : {}), ...(look.font ? { font: look.font } : {}) } } as TemplateSpec,
     labels: { before: en ? 'Before' : 'Antes', after: en ? 'Now' : 'Ahora', pov: 'POV:', stop: en ? 'Stop' : 'Basta de', notes: en ? 'Notes' : 'Notas', now: en ? 'now' : 'ahora', chat: en ? 'Sam' : 'Caro' },
     hook: summary?.one_liner && summary.one_liner.length <= 60 ? summary.one_liner : s.hook, emphasis: summary?.one_liner ? '' : s.emphasis, sub: s.sub,

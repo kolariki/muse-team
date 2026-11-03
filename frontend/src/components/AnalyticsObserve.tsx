@@ -77,10 +77,10 @@ export function ErrorsTab({ app, days }: { app: AnalyticsApp; days: number }) {
         <Tile label={T('Errores distintos', 'Distinct errors')} value={d.issues.length} />
         <Tile label={T('Abiertos', 'Open')} value={openN} warn={openN > 0} />
         <Tile label={T('Veces en el período', 'Times in the period')} value={total} />
-        <Tile label={T('Arreglados por Tably', 'Fixed by Tably')} value={d.issues.filter((x) => x.status === 'fixed').length} />
+        <Tile label={T('Arreglados por Muse Team', 'Fixed by Muse Team')} value={d.issues.filter((x) => x.status === 'fixed').length} />
       </div>
       <div className="panel mt-4 rounded-2xl">
-        {d.issues.length === 0 && <div className="px-5 py-10 text-center text-[13px] text-ink-3">{T('Sin errores en este período. Tably vigila el servidor y los navegadores de tus usuarios: si aparece uno, lo ves acá y el constructor lo arregla.', 'No errors in this period. Tably watches the server and your users’ browsers: if one shows up you see it here and the builder fixes it.')}</div>}
+        {d.issues.length === 0 && <div className="px-5 py-10 text-center text-[13px] text-ink-3">{T('Sin errores en este período. Muse Team vigila el servidor y los navegadores de tus usuarios: si aparece uno, lo ves acá y el constructor lo arregla.', 'No errors in this period. Muse Team watches the server and your users’ browsers: if one shows up you see it here and the builder fixes it.')}</div>}
         {d.issues.map((e) => {
           const [label, cls] = STATUS()[e.status] ?? [e.status, 'border-line bg-surface text-ink-3']
           const isOpen = open === e.id
@@ -169,7 +169,7 @@ export function AiTab({ app, days }: { app: AnalyticsApp; days: number }) {
       {k.calls === 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent-soft/40 px-4 py-3 text-[13px] text-ink-2">
           <Bot size={16} className="shrink-0 text-accent" />
-          <span className="min-w-[min(100%,220px)] flex-1">{T('Todavía no llegó ninguna llamada de IA. Si tu app usa OpenAI, Claude u otro modelo, el constructor la conecta para ver acá cuánto cuesta cada función, los tokens, la demora y los errores.', 'No AI call has arrived yet. If your app uses OpenAI, Claude or another model, the builder wires it so you see here what each feature costs, the tokens, latency and errors.')}</span>
+          <span className="min-w-[min(100%,220px)] flex-1">{T('Todavía no llegó ninguna llamada de IA. Si tu app usa Muse, el constructor la conecta para ver acá cuánto cuesta cada función, los tokens, la demora y los errores.', 'No AI call has arrived yet. If your app uses Muse, the builder wires it so you see here what each feature costs, the tokens, latency and errors.')}</span>
           {app.session_id && <button onClick={ask} disabled={asking} className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-50">{asking ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />} {T('Conectar las llamadas de IA', 'Wire the AI calls')}</button>}
         </div>
       )}
@@ -253,7 +253,7 @@ export function ExperimentsTab({ app, days }: { app: AnalyticsApp; days: number 
       {app.session_id && (
         <div className="panel rounded-2xl p-5">
           <div className="flex items-center gap-2 text-[13.5px] font-semibold text-ink"><FlaskConical size={15} className="text-accent" /> {T('Probar una idea nueva', 'Test a new idea')}</div>
-          <p className="mt-1 text-[12.5px] text-ink-3">{T('Contá qué querés comparar y qué tiene que pasar para que gane. La mitad de las visitas ve la versión actual y la otra mitad la nueva; Tably cuenta cuál convierte más.', 'Say what you want to compare and what has to happen for it to win. Half the visitors see the current version and half the new one; Tably counts which converts more.')}</p>
+          <p className="mt-1 text-[12.5px] text-ink-3">{T('Contá qué querés comparar y qué tiene que pasar para que gane. La mitad de las visitas ve la versión actual y la otra mitad la nueva; Muse Team cuenta cuál convierte más.', 'Say what you want to compare and what has to happen for it to win. Half the visitors see the current version and half the new one; Muse Team counts which converts more.')}</p>
           <div className="mt-3 flex gap-2">
             <input value={idea} onChange={(e) => setIdea(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && ask()} placeholder={T('Ej.: el botón «Reservar» en verde y arriba de todo, ¿reservan más?', 'E.g.: the «Book» button green and on top, do more people book?')} className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-paper px-3 text-[13px] outline-none focus:border-accent" />
             <button onClick={ask} disabled={asking || !idea.trim()} className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-accent px-4 text-[13px] font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-40">{asking ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {T('Armar el experimento', 'Set it up')}</button>

@@ -59,12 +59,12 @@ const BUILD_STEPS: { key: string; label: string; label_en: string; detail: strin
 const SCENES = [
   { key: 'idea', label: 'Contás tu idea', label_en: 'You tell your idea', desc: 'Escribís qué querés construir con tus palabras y adjuntás documentos, una carpeta o un proyecto existente.', desc_en: 'You write what you want to build in your own words and attach documents, a folder or an existing project.', dur: 7200 },
   { key: 'prompt', label: 'Prompt engineering', label_en: 'Prompt engineering', desc: 'Una IA lee lo que adjuntaste, te hace las preguntas que faltan y convierte tu texto en un brief completo para el equipo.', desc_en: 'An AI reads what you attached, asks the missing questions and turns your text into a complete brief for the team.', dur: 8800 },
-  { key: 'team', label: 'Elegís el equipo y las IAs', label_en: 'You pick the team and the AIs', desc: 'Un rol por tarjeta: CEO, CTO, ingeniería, producto, diseño y QA, cada uno con la IA, el prompt y las skills que quieras.', desc_en: 'One role per card: CEO, CTO, engineering, product, design and QA, each with the AI, prompt and skills you want.', dur: 7000 },
+  { key: 'team', label: 'Elegís el equipo', label_en: 'You pick the team', desc: 'Un rol por tarjeta: CEO, CTO, ingeniería, producto, diseño y QA, cada uno con su modelo Muse, su prompt y las skills que quieras.', desc_en: 'One role per card: CEO, CTO, engineering, product, design and QA, each with its Muse model, prompt and skills you want.', dur: 7000 },
   { key: 'refs', label: 'Referentes e ingeniería inversa', label_en: 'References and reverse engineering', desc: 'Cargás apps parecidas para que el equipo las estudie y, si querés, activás la ingeniería inversa para entender cómo están hechas.', desc_en: 'You add similar apps for the team to study and, if you want, turn on reverse engineering to understand how they are built.', dur: 7600 },
   { key: 'arena', label: 'El equipo debate', label_en: 'The team debates', desc: 'Los roles discuten en vivo producto, stack y alcance, se pasan la palabra y cierran decisiones con un responsable por cada paso.', desc_en: 'The roles debate product, stack and scope live, hand the floor to each other and close decisions with an owner for every step.', dur: TURNS.length * 2600 + 600 },
-  { key: 'build', label: 'Diseñan, construyen y revisan', label_en: 'They design, build and review', desc: 'Benchmark de referentes, diseño que aprobás, código con Claude Code, pulido visual y revisión del consejo hasta que la app está lista.', desc_en: 'Reference benchmark, a design you approve, code with Claude Code, visual polish and council review until the app is ready.', dur: 12600 },
-  { key: 'deploy', label: 'La publicás con un clic', label_en: 'You publish it in one click', desc: 'Terminada la construcción, la publicás desde Tably Cloud: base de datos, HTTPS y dominio incluidos, con una URL pública que abre desde cualquier lugar.', desc_en: 'Once the build is done, you publish it from Tably Cloud: database, HTTPS and domain included, with a public URL that opens from anywhere.', dur: 10500 },
-  { key: 'analytics', label: 'Medís quién la usa', label_en: 'You measure who uses it', desc: 'Cada app publicada trae Tably Analytics: visitas, páginas, eventos y errores reales, sin cookies ni datos personales.', desc_en: 'Every published app comes with Tably Analytics: real visits, pages, events and errors, with no cookies or personal data.', dur: 9000 },
+  { key: 'build', label: 'Diseñan, construyen y revisan', label_en: 'They design, build and review', desc: 'Benchmark de referentes, diseño que aprobás, código con Muse Code, pulido visual y revisión del consejo hasta que la app está lista.', desc_en: 'Reference benchmark, a design you approve, code with Muse Code, visual polish and council review until the app is ready.', dur: 12600 },
+  { key: 'deploy', label: 'La publicás con un clic', label_en: 'You publish it in one click', desc: 'Terminada la construcción, la publicás desde Muse Cloud: base de datos, HTTPS y dominio incluidos, con una URL pública que abre desde cualquier lugar.', desc_en: 'Once the build is done, you publish it from Muse Cloud: database, HTTPS and domain included, with a public URL that opens from anywhere.', dur: 10500 },
+  { key: 'analytics', label: 'Medís quién la usa', label_en: 'You measure who uses it', desc: 'Cada app publicada trae Muse Team Analytics: visitas, páginas, eventos y errores reales, sin cookies ni datos personales.', desc_en: 'Every published app comes with Muse Team Analytics: real visits, pages, events and errors, with no cookies or personal data.', dur: 9000 },
   { key: 'ads', label: 'Creás los anuncios', label_en: 'You create the ads', desc: 'Muse mira tu app, resume qué hace y propone 5 plantillas; cinco agentes arman el video con los colores de la app y queda listo para Meta Ads.', desc_en: 'Muse looks at your app, sums up what it does and suggests 5 templates; five agents make the video in the app’s colours, ready for Meta Ads.', dur: 10000 },
   { key: 'metaads', label: 'Conectás tu Meta Ads', label_en: 'You connect your Meta Ads', desc: 'La IA lee tu cuenta y te muestra los números que importan, qué funciona y qué cambiar. Con un botón pausás, eliminás o movés presupuesto.', desc_en: 'The AI reads your account and shows you the numbers that matter, what works and what to change. One button pauses, deletes or moves budget.', dur: 11000 },
   { key: 'market', label: 'La vendés en el marketplace', label_en: 'You sell it on the marketplace', desc: 'Publicás la app con su nivel, sus visitas reales y un precio; el comprador te escribe y se la transferís desde el constructor.', desc_en: 'You list the app with its level, real visits and a price; the buyer writes to you and you transfer it from the builder.', dur: 9500 },
@@ -122,8 +122,8 @@ export default function Landing({ onLogin, onSignup }: { onLogin: () => void; on
       <div className="relative z-10">
       {/* header */}
       <header className="sticky top-0 z-20 flex items-center gap-2 px-3 h-14 border-b border-line bg-paper/80 backdrop-blur sm:gap-3 sm:px-6">
-        <img data-brand-icon src="/icon.svg?v=2" alt="" aria-hidden className="h-7 w-7 shrink-0 rounded-lg shadow-sm" draggable={false} />
-        <span className="serif hidden whitespace-nowrap text-lg min-[480px]:inline"><span data-brand-text>Tably</span> <em data-brand-text className="text-accent">Team</em></span>
+        <img data-brand-icon src="/icon.svg?v=3" alt="" aria-hidden className="h-7 w-7 shrink-0 rounded-lg shadow-sm" draggable={false} />
+        <span className="serif hidden whitespace-nowrap text-lg min-[480px]:inline"><span data-brand-text>Muse</span> <em data-brand-text className="text-accent">Team</em></span>
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           <ThemeSwitch className="h-8" auto={false} />
           <LangSwitch className="sm:mr-1" />
@@ -136,7 +136,7 @@ export default function Landing({ onLogin, onSignup }: { onLogin: () => void; on
 
       {/* hero */}
       <section className="relative max-w-[1400px] mx-auto px-6 pt-16 pb-10 grid lg:grid-cols-[minmax(min(100%,520px),1fr)_1.3fr] gap-10 items-center">
-        {/* the logos that fly in and fuse into "Tably" (positioned by lib/anim.ts) */}
+        {/* the logos that fly in and fuse into "Muse Team" (positioned by lib/anim.ts) */}
         <div data-fuse-layer className="pointer-events-none absolute inset-0 z-20" aria-hidden>
           {PROVIDERS_ALL.map(([id]) => (
             <span key={id} data-fuse-logo className="absolute left-0 top-0 flex h-14 w-14 items-center justify-center rounded-full border border-line bg-surface opacity-0 shadow-[0_14px_30px_-10px_rgba(30,38,34,.5)]"><ProviderLogo provider={id} size={28} /></span>
@@ -147,7 +147,7 @@ export default function Landing({ onLogin, onSignup }: { onLogin: () => void; on
         <div>
           <div data-hero-kicker className="text-xs uppercase tracking-[0.5em] text-accent">{T('tu equipo que diseña y construye', 'your team that designs and builds')}</div>
           <h1 key={lang} data-hero-title className="mt-3 text-[44px] leading-[0.98] min-[420px]:text-5xl sm:text-6xl md:text-7xl md:leading-[0.95] tracking-tight opacity-0">
-            {T('Escribí tu idea.', 'Write your idea.')} <em data-hero-word className="text-accent">Tably</em> {T('la construye.', 'builds it.')}
+            {T('Escribí tu idea.', 'Write your idea.')} <em data-hero-word className="text-accent">Muse Team</em> {T('la construye.', 'builds it.')}
           </h1>
           <p data-hero-copy className="mt-5 text-lg text-ink-2 leading-relaxed max-w-lg">
             {T('Describís la app que querés y Muse, el modelo de Meta, ocupa cada rol: CEO, CTO, ingeniería, producto, diseño y QA. El equipo debate tu idea, estudia apps de referencia, diseña las pantallas, escribe el código con Muse Code y lo revisa antes de entregarte un producto listo para correr. Vos aprobás cada paso.', 'Describe the app you want and Muse, Meta\'s model, takes every role: CEO, CTO, engineering, product, design and QA. The team debates your idea, studies reference apps, designs the screens, writes the code with Muse Code and reviews it before handing you a product ready to run. You approve every step.')}
@@ -295,9 +295,9 @@ function Resources() {
 /** The "made with" seal: the TT mark and the name, bottom-right, linking to the site. */
 export function MadeWith() {  // on a phone it would sit on top of the content (inputs, buttons): desktop only
   return (
-    <a href="https://tablyteam.com" target="_blank" rel="noreferrer" className="fixed bottom-4 right-4 z-30 hidden items-center gap-2 rounded-full border border-line bg-surface/90 py-1.5 pl-1.5 pr-3.5 text-[12px] text-ink-2 shadow-md backdrop-blur transition hover:border-accent hover:text-ink sm:flex">
-      <img src="/icon.svg?v=2" alt="" aria-hidden className="h-5 w-5 rounded-md" draggable={false} />
-      <span>Made with <b className="font-semibold text-ink">Tably Team</b></span>
+    <a href="/" target="_blank" rel="noreferrer" className="fixed bottom-4 right-4 z-30 hidden items-center gap-2 rounded-full border border-line bg-surface/90 py-1.5 pl-1.5 pr-3.5 text-[12px] text-ink-2 shadow-md backdrop-blur transition hover:border-accent hover:text-ink sm:flex">
+      <img src="/icon.svg?v=3" alt="" aria-hidden className="h-5 w-5 rounded-md" draggable={false} />
+      <span>Made with <b className="font-semibold text-ink">Muse Team</b></span>
     </a>
   )
 }
@@ -325,7 +325,7 @@ function Demo({ clock }: { clock: ReturnType<typeof useClock> }) {
     <div className="panel overflow-hidden rounded-3xl shadow-xl">
       <div className="flex items-center gap-2 px-4 h-10 border-b border-line bg-surface-2">
         <span className="w-2.5 h-2.5 rounded-full bg-[#E6A19A]" /><span className="w-2.5 h-2.5 rounded-full bg-[#E9C97A]" /><span className="w-2.5 h-2.5 rounded-full bg-[#9FCDA8]" />
-        <span className="ml-3 text-[11px] font-mono text-ink-3">tablyteam · {T('app del clima', 'weather app')}</span>
+        <span className="ml-3 text-[11px] font-mono text-ink-3">museteam · {T('app del clima', 'weather app')}</span>
         <span className={`ml-auto flex items-center gap-1.5 text-[11px] font-bold ${clock.paused ? 'text-ink-3' : 'text-danger'}`}><span className={`w-1.5 h-1.5 rounded-full ${clock.paused ? 'bg-ink-3' : 'bg-danger animate-pulse'}`} /> {clock.paused ? T('EN PAUSA', 'PAUSED') : T('EN VIVO', 'LIVE')}</span>
       </div>
       {/* what is happening on screen, with ‹ › to go back or skip ahead */}
@@ -930,7 +930,7 @@ function SceneBuild({ t }: { t: number }) {
   )
 }
 
-/* 7 · publish: one click on Tably Cloud, the deploy runs and the app gets a public URL that opens from anywhere */
+/* 7 · publish: one click on Muse Cloud, the deploy runs and the app gets a public URL that opens from anywhere */
 const DEPLOY_STEPS: [string, string][] = [
   ['Empaqueta la v1 aprobada', 'Packs the approved v1'],
   ['Base de datos y auth si los necesita', 'Database and auth when needed'],
@@ -946,14 +946,14 @@ function SceneDeploy({ t }: { t: number }) {
   const STEP = 1100
   const done = clicked ? Math.min(DEPLOY_STEPS.length, Math.floor((t - 1300) / STEP) + 1) : 0
   const live = done >= DEPLOY_STEPS.length
-  const url = 'https://paraguas.tablyteam.app'
+  const url = 'https://paraguas.museteam.app'
   const typed = live ? url.slice(0, Math.floor(ease((t - 6800) / 900) * url.length)) : ''
   const open = t > 7900
   return (
     <motion.div {...sceneProps}>
       <div className="grid h-full grid-cols-[1.1fr_1fr] gap-5">
         <div className="min-w-0">
-          <Label>Tably Cloud · {T('publicar', 'publish')}</Label>
+          <Label>Muse Cloud · {T('publicar', 'publish')}</Label>
           <div data-r className={`mt-2 flex h-9 items-center justify-center gap-2 rounded-xl text-[13px] font-semibold shadow-md transition-colors ${live ? 'bg-ink text-paper' : 'bg-accent text-white'}`}>
             {live ? `● ${T('En línea', 'Live')} · v1` : clicked ? T('Publicando…', 'Publishing…') : `⬆ ${T('Publicar ahora', 'Publish now')}`}
           </div>
@@ -1008,7 +1008,7 @@ function SceneDeploy({ t }: { t: number }) {
   )
 }
 
-/* 8 · Tably Analytics: the snippet goes in, real visits arrive, the app reaches level 2 (measured) */
+/* 8 · Muse Team Analytics: the snippet goes in, real visits arrive, the app reaches level 2 (measured) */
 const VISITS = [12, 18, 15, 26, 31, 28, 40, 46, 39, 58, 64, 71, 83, 96]
 function SceneAnalytics({ t }: { t: number }) {
   const T = useT()
@@ -1026,9 +1026,9 @@ function SceneAnalytics({ t }: { t: number }) {
     <motion.div {...sceneProps}>
       <div className="grid h-full grid-cols-[1.35fr_1fr] gap-5">
         <div className="min-w-0">
-          <Label>Tably Analytics · {T('app del clima', 'weather app')}</Label>
+          <Label>Muse Team Analytics · {T('app del clima', 'weather app')}</Label>
           <div data-r className={`mt-2 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 font-mono text-[10.5px] transition-colors ${installed ? 'border-accent/40 bg-accent-soft/60 text-ink-2' : 'border-dashed border-line text-ink-3'}`}>
-            <span className="truncate">{'<script src="tablyteam.com/a.js" defer>'}</span>
+            <span className="truncate">{'<script src="museteam.app/a.js" defer>'}</span>
             <span className="ml-auto shrink-0 font-sans text-[10.5px] font-semibold text-accent">{installed ? T('instalado ✓', 'installed ✓') : '…'}</span>
           </div>
           <div data-r className="mt-3 grid grid-cols-3 gap-2">
@@ -1234,7 +1234,7 @@ function SceneMarket({ t }: { t: number }) {
               <div className="min-w-0">
                 <div className="flex items-center gap-1 text-[11px] font-bold" style={{ color: LV[3] }}>🏆 {T('Nivel 3 · Visible', 'Level 3 · Visible')}</div>
                 <div className="serif mt-0.5 text-[22px] leading-tight">¿Llevo paraguas?</div>
-                <div className="font-mono text-[11px] text-ink-3">paraguas.tablyteam.app ↗</div>
+                <div className="font-mono text-[11px] text-ink-3">paraguas.museteam.app ↗</div>
               </div>
               <div className="text-right">
                 <div className="font-mono text-[18px] font-semibold">USD 1.500</div>

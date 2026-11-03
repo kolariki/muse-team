@@ -113,8 +113,8 @@ export default function Login({ onAuthed, onBack, initialMode = 'login' }: { onA
       <div className="hidden md:contents"><TeamBackdrop blur={9} opacity={0.5} /></div>
       <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-line bg-paper px-4 sm:gap-3 sm:bg-paper/80 sm:px-6 sm:backdrop-blur">
         <button type="button" onClick={onBack} className="flex items-center gap-3 rounded-lg transition hover:opacity-80" title={T('Volver a la presentación', 'Back to the intro')}>
-          <img src="/icon.svg?v=2" alt="" aria-hidden className="h-7 w-7 rounded-lg shadow-sm" draggable={false} />
-          <span className="serif text-lg max-[380px]:hidden">Tably <em className="text-accent">Team</em></span>
+          <img src="/icon.svg?v=3" alt="" aria-hidden className="h-7 w-7 rounded-lg shadow-sm" draggable={false} />
+          <span className="serif text-lg max-[380px]:hidden">Muse <em className="text-accent">Team</em></span>
         </button>
         <ThemeSwitch className="ml-auto h-8" auto={false} />
         <LangSwitch />
@@ -124,7 +124,7 @@ export default function Login({ onAuthed, onBack, initialMode = 'login' }: { onA
         <div>
           <div className="text-xs uppercase tracking-[0.5em] text-accent">{T('tu equipo que diseña y construye', 'your team that designs and builds')}</div>
           <h1 className="mt-2 text-5xl tracking-tight sm:text-6xl md:text-7xl">
-            Tably <em className="text-accent">Team</em>
+            Muse <em className="text-accent">Team</em>
           </h1>
           <MuseBadge big className="mt-4" />
           <p className="mt-4 text-ink-2 text-lg leading-relaxed max-w-md">

@@ -4,7 +4,7 @@ Two pieces:
 - the delivery contract: the builder writes `.tably/entrega.md` before coding — every screen, endpoint, the data, the
   accounts, payments, emails and integrations the product needs — as a `- [ ]` checklist, and ticks each item only when
   it works end to end;
-- the delivery check, when the builder says it is done: Tably reads the code against the brief (a product with users
+- the delivery check, when the builder says it is done: Muse Team reads the code against the brief (a product with users
   needs a backend, a database and real accounts; payments and emails when it charges or notifies; no TODOs or filler;
   the contract fully ticked; README, .env.example and tests) and, if something is missing, sends the builder back to
   complete it before the user gets the delivery.
@@ -117,7 +117,7 @@ def check(files: dict[str, str], brief: str, title: str = "") -> dict:
 
 def prompt(result: dict) -> str:
     gaps = "\n".join(f"- {g}" for g in result["gaps"])
-    return ("VERIFICACIÓN DE ENTREGA: Tably revisó el proyecto contra el brief y la primera entrega todavía NO está completa. "
+    return ("VERIFICACIÓN DE ENTREGA: Muse Team revisó el proyecto contra el brief y la primera entrega todavía NO está completa. "
             "La primera entrega tiene que tener TODO lo que el usuario pidió funcionando de punta a punta. Completá esto (código real, nada de placeholders):\n"
             f"{gaps}\n\nDespués corré el build y los tests y arreglá lo que falle, actualizá {CONTRACT} tildando solo lo que funciona de verdad, "
             "y emití <done> con qué quedó y cómo verificarlo.")
@@ -125,7 +125,7 @@ def prompt(result: dict) -> str:
 
 CONTRACT_RULE = (f"- Contrato de entrega: en la primera etapa, antes de programar, escribí `{CONTRACT}` con TODO lo que el producto tiene que hacer según el brief "
                  "(cada pantalla, cada endpoint, los datos, las cuentas, los pagos, los emails y las integraciones) como checklist `- [ ] …`. Tildá cada ítem "
-                 "(`- [x]`) recién cuando funciona de punta a punta. No emitas <done> con ítems sin tildar: Tably lo verifica y te devuelve lo que falte.\n"
+                 "(`- [x]`) recién cuando funciona de punta a punta. No emitas <done> con ítems sin tildar: Muse Team lo verifica y te devuelve lo que falte.\n"
                  "- Primera entrega completa: es TODO lo que el usuario pidió, funcionando. Si el producto guarda datos o tiene usuarios es full-stack: frontend + "
                  "backend con su API + base de datos con migraciones + cuentas reales (registro, login, logout, sesión, recuperar contraseña, contraseñas con hash) y "
                  "permisos; si cobra, el cobro con su webhook; si avisa, los emails. Nada de «en una próxima versión» ni pantallas con datos de ejemplo en lugar de la API.\n")

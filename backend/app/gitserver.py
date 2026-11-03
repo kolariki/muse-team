@@ -1,4 +1,4 @@
-"""Tably Git: one bare repository per build, served over HTTP with the account token, movable to GitHub.
+"""Muse Team Git: one bare repository per build, served over HTTP with the account token, movable to GitHub.
 
 The build's working folder already gets a commit + tag per version (versions.git_commit). This module keeps a bare
 mirror of it under data/git/<user>/<build>.git so the user can clone it from any machine:
@@ -31,7 +31,7 @@ log = logging.getLogger("arena.git")
 GIT_ROOT = Path(env("ARENA_GIT_DIR", str(DATA_DIR.parent / "git")))
 GIT_ROOT.mkdir(parents=True, exist_ok=True)
 GIT = shutil.which("git")
-ENV = {"GIT_AUTHOR_NAME": "Tably Team", "GIT_AUTHOR_EMAIL": "team@tablyteam.com", "GIT_COMMITTER_NAME": "Tably Team", "GIT_COMMITTER_EMAIL": "team@tablyteam.com",
+ENV = {"GIT_AUTHOR_NAME": "Muse Team", "GIT_AUTHOR_EMAIL": "team@tablyteam.com", "GIT_COMMITTER_NAME": "Muse Team", "GIT_COMMITTER_EMAIL": "team@tablyteam.com",
        "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin", "HOME": os.environ.get("HOME", "/tmp")}
 
 
@@ -189,7 +189,7 @@ def push_github(user_id: str, build_id: str, token: str, name: str, private: boo
     login = me["login"]
     code, repo = _gh("GET", f"https://api.github.com/repos/{login}/{name}", token)
     if code == 404:
-        code, repo = _gh("POST", "https://api.github.com/user/repos", token, {"name": name, "private": private, "description": "Construido con Tably Team", "auto_init": False})
+        code, repo = _gh("POST", "https://api.github.com/user/repos", token, {"name": name, "private": private, "description": "Construido con Muse Team", "auto_init": False})
         if code not in (200, 201):
             return {"ok": False, "url": None, "error": f"GitHub no dejó crear el repo: {repo.get('message') or code}"}
     elif code != 200:

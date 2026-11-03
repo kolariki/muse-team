@@ -1,11 +1,11 @@
 """Growth levels: the strict ladder every project climbs, step by step, and what the team is held to.
 
 Level 1 · En línea     — built from the brief, approved by the council and published on a public URL. From here it can be listed on the marketplace.
-Level 2 · Medido       — Tably Analytics in the app and real visits coming in.
+Level 2 · Medido       — Muse Team Analytics in the app and real visits coming in.
 Level 3 · Visible      — SEO: titles, descriptions, social cards, robots/sitemap, icons.
 Level 4 · Monetizado   — payments, pricing, legal pages.
 
-Each level is a list of checks evaluated on the real project (files, council verdict, Tably Cloud record, analytics hits).
+Each level is a list of checks evaluated on the real project (files, council verdict, Muse Cloud record, analytics hits).
 The % is how much of the *next* level is done. The council and the builder get the pending checks of the level the project is
 climbing and must treat them as blocking: nothing else ships before them.
 
@@ -53,8 +53,8 @@ LEVELS: list[dict[str, Any]] = [
     },
     {
         "n": 2, "id": "measured", "label": "Medido", "label_en": "Measured",
-        "goal": "Sabés cuánta gente entra, qué hace y qué falla: Tably Analytics en la app y visitas reales.",
-        "goal_en": "You know how many people come in, what they do and what breaks: Tably Analytics in the app and real visits.",
+        "goal": "Sabés cuánta gente entra, qué hace y qué falla: Muse Team Analytics en la app y visitas reales.",
+        "goal_en": "You know how many people come in, what they do and what breaks: Muse Team Analytics in the app and real visits.",
         "unlocks": "El marketplace muestra tus visitas reales.", "unlocks_en": "The marketplace shows your real visits.",
     },
     {
@@ -72,16 +72,16 @@ LEVELS: list[dict[str, Any]] = [
 ]
 MAX_LEVEL = len(LEVELS)
 
-# the checks per level. `who`: team (the builder/council can do it in code) | user (an action in Tably) | world (comes from real usage)
+# the checks per level. `who`: team (the builder/council can do it in code) | user (an action in Muse Team) | world (comes from real usage)
 CHECKS: dict[int, list[dict[str, str]]] = {
     1: [
         {"id": "built", "who": "team", "label": "Construida completa según el brief (todas las etapas, sin placeholders)", "label_en": "Built in full from the brief (every stage, no placeholders)"},
         {"id": "readme", "who": "team", "label": "README.md con cómo instalar, configurar y correr", "label_en": "README.md with how to install, configure and run"},
         {"id": "approved", "who": "team", "label": "Aprobada por el consejo (sin bloqueantes pendientes)", "label_en": "Approved by the council (no blocking items left)"},
-        {"id": "published", "who": "user", "label": "Publicada en una URL pública (Tably Cloud)", "label_en": "Published on a public URL (Tably Cloud)"},
+        {"id": "published", "who": "user", "label": "Publicada en una URL pública (Muse Cloud)", "label_en": "Published on a public URL (Muse Cloud)"},
     ],
     2: [
-        {"id": "analytics", "who": "team", "label": "Tably Analytics instalado: el snippet `/a.js` con `data-site` en cada página", "label_en": "Tably Analytics installed: the `/a.js` snippet with `data-site` on every page"},
+        {"id": "analytics", "who": "team", "label": "Muse Team Analytics instalado: el snippet `/a.js` con `data-site` en cada página", "label_en": "Muse Team Analytics installed: the `/a.js` snippet with `data-site` on every page"},
         {"id": "events", "who": "team", "label": "Eventos de las acciones clave (`tably.track('nombre')` o `data-track`), al menos 3", "label_en": "Events on the key actions (`tably.track('name')` or `data-track`), at least 3"},
         {"id": "republished", "who": "user", "label": "Versión con analytics publicada", "label_en": "The version with analytics is published"},
         {"id": "visits", "who": "world", "label": "Visitas reales recibidas (al menos 10 páginas vistas)", "label_en": "Real visits received (at least 10 page views)"},
@@ -170,12 +170,12 @@ def _check(level: int, cid: str, b, files: dict[str, str], app: dict | None, hit
             return live, (app or {}).get("url") if live else None
     if level == 2:
         if cid == "analytics":
-            # the snippet only counts when it reports to THIS installation (one built on another Tably, e.g. a local one
+            # the snippet only counts when it reports to THIS installation (one built on another Muse Team, e.g. a local one
             # pointing at localhost, sends its visits somewhere this dashboard never sees)
             base = re.escape(collector_url())
             ok = _all_pages(pages, rf"<script[^>]+src=[\"']{base}/a\.js[\"'][^>]*data-site=|data-site=[\"'][^\"']+[\"'][^>]*src=[\"']{base}/a\.js") or _any(code, rf"{base}/a\.js[\"'][^>]*data-site=")
             if not ok and _any(code, r"/a\.js[\"'][^>]*data-site="):
-                return False, "el snippet apunta a otro Tably: hay que actualizarlo"
+                return False, "el snippet apunta a otro Muse Team: hay que actualizarlo"
             return ok, "snippet /a.js" if ok else None
         if cid == "events":
             n = sum(len(re.findall(r"tably\.track\(\s*[\"'][^\"']+[\"']|data-track=[\"'][^\"']+[\"']", c)) for c in code.values())
@@ -220,7 +220,7 @@ def _check(level: int, cid: str, b, files: dict[str, str], app: dict | None, hit
 
 
 def collector_url() -> str:
-    """Where this installation receives analytics (the same base Tably Cloud uses)."""
+    """Where this installation receives analytics (the same base Muse Cloud uses)."""
     return (env("TABLY_CLOUD_URL") or "http://localhost:8000").rstrip("/")
 
 
@@ -298,7 +298,7 @@ def team_block(ev: dict, slug: str | None, public_url: str) -> str:
         f"\n\nNIVELES DE CRECIMIENTO (el equipo los sigue A RAJATABLA, en orden; no se pasa de nivel sin cumplir TODO el anterior): {ladder}.\n"
         f"NIVEL ACTUAL DEL PROYECTO: {ev['level']} de {MAX_LEVEL}. ESTA RONDA TRABAJA PARA EL NIVEL {nxt} · {lv['label']} ({lv['goal']}) — {lv['pct']}% cumplido.\n"
         + (("YA CUMPLIDO: " + "; ".join(c["label"] for c in done) + ".\n") if done else "")
-        + "PENDIENTE PARA SUBIR DE NIVEL (en este orden; lo marcado [team] lo resuelve el constructor y es BLOQUEANTE para el consejo; [usuario] lo hace el usuario en Tably con un clic; [mundo] llega con el uso real):\n"
+        + "PENDIENTE PARA SUBIR DE NIVEL (en este orden; lo marcado [team] lo resuelve el constructor y es BLOQUEANTE para el consejo; [usuario] lo hace el usuario en Muse Team con un clic; [mundo] llega con el uso real):\n"
         + "\n".join(lines)
         + how
         + "\nREGLA: nada que no sea de este nivel entra como bloqueante. Mejoras de otros niveles solo como [mejora], y nunca a costa de los pendientes de arriba."
@@ -428,7 +428,7 @@ def refresh_level(user_id: str, build_id: str, level: int) -> None:
 
 
 def transfer(listing: dict, new_user_id: str, workdir_root: Path) -> dict:
-    """Ownership transfer: the saved session, brief, build, versions and git-less workdir move to the new owner; the Tably Cloud app
+    """Ownership transfer: the saved session, brief, build, versions and git-less workdir move to the new owner; the Muse Cloud app
     and the listing follow. The public URL does not change."""
     old, sid, bid = listing["user_id"], listing["session_id"], listing["build_id"]
     src, dst = user_dir(old), user_dir(new_user_id)

@@ -1,9 +1,9 @@
-# Política de privacidad de Tably Team
+# Política de privacidad de Muse Team
 
 Última actualización: 3 de noviembre de 2026
 
 ## 1. Quiénes somos
-Tably Team (tablyteam.com) es un producto de THE ELEVUM GROUP S.A.S., sociedad constituida en la provincia de Mendoza, Argentina. Para cualquier consulta sobre tus datos escribinos a soporte@tablyteam.com.
+Muse Team es un producto de THE ELEVUM GROUP S.A.S., sociedad constituida en la provincia de Mendoza, Argentina. Para cualquier consulta sobre tus datos escribinos a soporte@tablyteam.com.
 
 ## 2. Qué datos guardamos
 - **Tu cuenta:** nombre, email, teléfono si lo cargás, foto si la subís y tu contraseña, guardada de forma que no podemos leerla.
@@ -25,17 +25,17 @@ Solo con los proveedores necesarios para prestar el servicio:
 - **Stripe:** pagos, si se habilitan.
 - **Google y Meta:** cuando conectás esas cuentas.
 - **Meta, para publicidad:** solo si aceptás las cookies de publicidad, recibe las visitas a nuestro sitio y el aviso de que creaste una cuenta o hiciste un pedido. No le enviamos tu nombre ni tu email.
-- **Los developers de Tably:** ven tu ticket cuando pedís su ayuda.
+- **Los developers de Muse Team:** ven tu ticket cuando pedís su ayuda.
 
 Estos proveedores pueden tratar datos fuera de tu país.
 
 ## 5. Tus apps y sus visitantes
-Si publicás una app con Tably Analytics, registramos las visitas y acciones de sus visitantes, y los datos de personas que tu app nos envíe, para mostrártelos a vos. Sobre esos datos vos decidís y sos responsable frente a tus visitantes.
+Si publicás una app con Muse Team Analytics, registramos las visitas y acciones de sus visitantes, y los datos de personas que tu app nos envíe, para mostrártelos a vos. Sobre esos datos vos decidís y sos responsable frente a tus visitantes.
 
 ## 6. Almacenamiento en tu navegador
 Usamos el almacenamiento del navegador para mantener tu sesión y tus preferencias, como el idioma y el tema, y una cookie técnica para abrir las apps que corrés dentro de la plataforma. Estas son necesarias y están siempre activas.
 
-Si las aceptás, también usamos las cookies del píxel de Meta para medir nuestros anuncios y que Meta los muestre a personas parecidas a quienes usan Tably. Podés rechazarlas en el aviso al entrar o cambiar tu elección en **Mi perfil**.
+Si las aceptás, también usamos las cookies del píxel de Meta para medir nuestros anuncios y que Meta los muestre a personas parecidas a quienes usan Muse Team. Podés rechazarlas en el aviso al entrar o cambiar tu elección en **Mi perfil**.
 
 ## 7. Cuánto tiempo los guardamos
 Mientras tengas tu cuenta. Si la eliminás, borramos tus datos, salvo los registros de lo que pagaste, que conservamos sin tu ticket, notas ni contacto, por obligaciones contables.
@@ -47,7 +47,7 @@ Podés ver y corregir tus datos y **eliminar tu cuenta** en **Mi perfil**, y exp
 Ciframos tus claves, protegemos las conexiones con HTTPS y limitamos los intentos de acceso. Ningún sistema es infalible: si hubiera un incidente que te afecte, te avisaremos.
 
 ## 10. Menores
-Tably Team no está dirigido a menores de edad.
+Muse Team no está dirigido a menores de edad.
 
 ## 11. Cambios
 Si cambiamos esta política, publicamos la nueva versión acá y te avisamos si el cambio es importante.
