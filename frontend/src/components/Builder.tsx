@@ -240,7 +240,7 @@ export default function Builder({ onBack, onHome }: { onBack: () => void; onHome
       {/* top bar */}
       <div className="relative z-[60] flex h-14 shrink-0 items-center gap-2 border-b border-line bg-surface/90 px-2 backdrop-blur sm:h-16 sm:gap-3 sm:px-4">
         <button onClick={onHome ?? onBack} className="flex shrink-0 items-center rounded-lg transition hover:opacity-80" title={T('Tably Team · ir al inicio', 'Tably Team · go home')}>
-          <img src="/icon.svg" alt="Tably Team" className="h-8 w-8 rounded-xl shadow-sm sm:h-9 sm:w-9" draggable={false} />
+          <img src="/icon.svg?v=2" alt="Tably Team" className="h-8 w-8 rounded-xl shadow-sm sm:h-9 sm:w-9" draggable={false} />
         </button>
         <button onClick={onHome ?? onBack} className={`${HBTN} hidden px-3 sm:flex`} title={T('Ir al inicio: tus proyectos y experimentos', 'Go home: your projects and experiments')}><Home size={14} /> {T('Inicio', 'Home')}</button>
         <button onClick={onBack} className={`${HBTN} px-2.5 sm:px-3`} title={T('Volver al consejo de este proyecto', 'Back to this project\u2019s council')} aria-label={T('Consejo', 'Council')}><ArrowLeft size={14} /> <span className="hidden sm:inline">{T('Consejo', 'Council')}</span></button>
@@ -312,7 +312,7 @@ export default function Builder({ onBack, onHome }: { onBack: () => void; onHome
         <div className={`flex min-h-0 min-w-0 flex-1 flex-col border-r border-line transition-opacity duration-300 ${(paneFull || phone) && b.paneOpen ? 'pointer-events-none opacity-0' : ''}`}>
           <div
             ref={chatRef}
-            className="flex-1 overflow-y-auto scroll-thin space-y-4 px-2.5 py-4 sm:px-5 sm:py-5 [&>*]:mx-auto [&>*]:w-full [&>*]:max-w-[900px]"
+            className="flex-1 overflow-y-auto scroll-thin space-y-4 px-2.5 py-4 sm:px-5 sm:py-5 [&>*]:mx-auto [&>*]:w-full lg:[&>*]:max-w-[80vw]"
             onClick={(e) => {
               const chip = (e.target as HTMLElement).closest('code[data-path]') as HTMLElement | null
               const path = chip?.getAttribute('data-path')
@@ -415,7 +415,7 @@ export default function Builder({ onBack, onHome }: { onBack: () => void; onHome
               <ReviewLauncher team={b.team} onStart={() => setCouncilOpen('launch')} onEdit={() => setCouncilOpen('edit')} />
             )}
             {b.pendingCouncil && !b.liveTurn && (
-              <button onClick={() => useArena.getState().set({ pendingLive: b.pendingCouncil! })} className="w-full rounded-2xl border-2 border-gold bg-gold/10 px-4 py-3 text-left transition hover:brightness-95">
+              <button onClick={() => useArena.getState().set({ pendingLive: b.pendingCouncil! })} className="block w-full rounded-2xl border-2 border-gold bg-gold/10 px-4 py-3 text-left transition hover:brightness-95">
                 <div className="flex items-center gap-2 font-semibold"><Gavel size={18} className="text-gold" /> {T('El consejo ya dio su veredicto', 'The council has given its verdict')}{b.versions.length ? ` ${T('sobre', 'on')} v${b.versions.length}` : ''}</div>
                 <div className="mt-0.5 text-[12.5px] text-ink-2">{T('Mirá la lista de cambios y decidí si construir con ellos o no →', 'Check the list of changes and decide whether to build with them or not →')}</div>
               </button>
@@ -455,7 +455,7 @@ export default function Builder({ onBack, onHome }: { onBack: () => void; onHome
             )}
             {b.status === 'completed' && !b.liveTurn && Object.keys(b.files).length > 0 && <SavingsCard />}
           </div>
-          <div className="border-t border-line bg-surface p-3 [&>*]:mx-auto [&>*]:max-w-[900px]">
+          <div className="border-t border-line bg-surface p-3 [&>*]:mx-auto lg:[&>*]:max-w-[80vw]">
             {/* quick actions: the full visual-polish checklist is one click (the server expands "pulido visual" into it) */}
             {b.id && !running && (
               <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&>*]:shrink-0">
@@ -886,7 +886,7 @@ function AppNotice({ c }: { c: ChatItem }) {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`mx-auto flex w-full max-w-3xl flex-wrap gap-3 rounded-2xl border-2 px-4 py-3 ${tone.box}`}>
       <span className="mt-0.5 shrink-0">{tone.icon}</span>
-      <div className="min-w-0 flex-1 basis-[220px]">
+      <div className="min-w-[min(100%,220px)] flex-1 basis-[220px]">
         <div className="text-[10.5px] font-bold uppercase tracking-[0.2em] text-ink-3">Tably · {tone.label}</div>
         <div className="mt-0.5 text-[14.5px] font-medium text-ink">{c.text}</div>
         {c.checks && c.checks.length > 0 && (

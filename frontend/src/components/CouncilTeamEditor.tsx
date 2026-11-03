@@ -9,6 +9,7 @@ import { pick as pickLang, tr, useLang, useT } from '../lib/i18n'
 import ModelSelect from './ModelSelect'
 import ProviderLogo, { LogoWatermark } from './ProviderLogo'
 import { toast } from './Toast'
+import { useAiConnect } from './AiConnect'
 
 /** Who sits at the council: add or remove roles, change the company/model or the name. Saved on the build. */
 export default function CouncilTeamEditor({ onSaved }: { onSaved?: (team: TeamMember[]) => void }) {
@@ -25,6 +26,7 @@ export default function CouncilTeamEditor({ onSaved }: { onSaved?: (team: TeamMe
     api.roles().then(setRoles).catch(() => {})
   }, [])
   const usable = providers.filter((p) => p.configured && p.id !== 'mock')
+  const ai = useAiConnect(providers, (np) => setProviders((ps) => ps.map((x) => (x.id === np.id ? np : x))))
   const dirty = JSON.stringify(draft.map(({ id, name, role, provider, model }) => ({ id, name, role, provider, model }))) !== JSON.stringify(b.team.map(({ id, name, role, provider, model }) => ({ id, name, role, provider, model })))
   const update = (i: number, patch: Partial<TeamMember>) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, ...patch } : x)))
   const roleLabel = (id: string | null) => { const r = roles.roles.find((x) => x.id === id); return r ? pickLang(r, 'label') : id ?? '' }
@@ -75,9 +77,12 @@ export default function CouncilTeamEditor({ onSaved }: { onSaved?: (team: TeamMe
                     <optgroup key={g} label={lang === 'en' ? roles.groups_en?.[gi] ?? g : g}>{roles.roles.filter((x) => x.group === g && x.id !== 'custom').map((x) => <option key={x.id} value={x.id}>{pickLang(x, 'label')}</option>)}</optgroup>
                   ))}
                 </select>
-                <select className={input} value={a.provider} onChange={(e) => { const np = providers.find((x) => x.id === e.target.value); if (np) update(i, { provider: np.id, model: np.default_model }) }}>
-                  {(usable.some((p) => p.id === a.provider) ? usable : [...usable, ...providers.filter((p) => p.id === a.provider)]).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                <select className={input} value={a.provider} onChange={(e) => { if (ai.ask(e.target.value, (np) => update(i, { provider: np.id, model: np.default_model }))) return; const np = providers.find((x) => x.id === e.target.value); if (np) update(i, { provider: np.id, model: np.default_model }) }}>
+                  {usable.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                  {a.provider === 'mock' && <option value="mock">{T('Simulado (sin API)', 'Simulated (no API)')}</option>}
+                  {ai.options}
                 </select>
+                {ai.dialog}
                 <ModelSelect provider={a.provider} value={a.model} onChange={(m) => update(i, { model: m })} className="text-xs" />
                 <button type="button" onClick={() => setDraft((d) => d.filter((_, j) => j !== i))} disabled={draft.length <= 2} className="rounded-md p-1 text-ink-3 transition hover:bg-danger/10 hover:text-danger disabled:opacity-20" title={T('Sacar del consejo', 'Remove from the council')}><Trash2 size={15} /></button>
               </div>

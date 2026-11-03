@@ -128,6 +128,7 @@ def remove(user_id: str, slug: str) -> None:
         c.execute("DELETE FROM analytics_sites WHERE user_id = ? AND slug = ?", (user_id, slug))
         c.execute("DELETE FROM analytics_hits WHERE site = ?", (slug,))
         c.execute("DELETE FROM analytics_people WHERE site = ?", (slug,))
+        c.execute("DELETE FROM analytics_person_ai WHERE site = ?", (slug,))
 
 
 def as_app(site: dict) -> dict:

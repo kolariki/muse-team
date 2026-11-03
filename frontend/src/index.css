@@ -172,6 +172,23 @@ input[type="color"] { border: 1px solid var(--color-line); padding: 2px; }
 @keyframes muse-spin { to { --muse-angle: 360deg; } }
 @media (prefers-reduced-motion: reduce) { .muse-ring::before, .muse-ring::after { animation: none; } }
 
+/* The two ways in (LaneCards): a bright light travelling around each card, so it is clear one has to be chosen. */
+@property --lane-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.lane-ring { position: relative; border-radius: 1.5rem; isolation: isolate; }
+.lane-ring::before, .lane-ring::after { content: ""; position: absolute; border-radius: inherit; pointer-events: none; animation: lane-spin 4s linear infinite;
+  background: conic-gradient(from var(--lane-angle), transparent 0deg, transparent 240deg, color-mix(in srgb, var(--color-accent) 35%, transparent) 290deg, var(--color-accent) 340deg, #fff 352deg, var(--color-accent) 360deg); }
+.lane-ring::before { inset: -2px; z-index: 2; padding: 2px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.lane-ring::after { inset: -5px; z-index: -1; opacity: .55; filter: blur(10px); }
+.lane-ring-pill { border-radius: 999px; }
+/* The product tour: the mark around the section being explained. */
+.tour-ring { box-shadow: 0 0 0 2px var(--color-accent), 0 0 18px 2px color-mix(in srgb, var(--color-accent) 55%, transparent); animation: tour-pulse 1.8s ease-in-out infinite; }
+@keyframes tour-pulse { 50% { box-shadow: 0 0 0 3px var(--color-accent), 0 0 28px 6px color-mix(in srgb, var(--color-accent) 40%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .tour-ring { animation: none; } }
+.lane-ring:nth-child(2)::before, .lane-ring:nth-child(2)::after { animation-delay: -2s; }
+@keyframes lane-spin { to { --lane-angle: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .lane-ring::before, .lane-ring::after { animation: none; } }
+
 
 /* ============================================================================================================
    New identity, tried in development only (see lib/look.ts): «Equipo» everywhere, the dark «Taller» in the builder.
@@ -210,7 +227,7 @@ input[type="color"] { border: 1px solid var(--color-line); padding: 2px; }
   --color-paper: #182230;
   --color-surface: #1E2938;
   --color-surface-2: #22313F;
-  --color-line: #2E3A4C;
+  --color-line: #434E5E;  /* a subtle white edge: cards must read on the dark background */
   --color-ink: #E9EDF2;
   --color-ink-2: #C9D2DC;
   --color-ink-3: #A9B4C2;
@@ -272,3 +289,6 @@ input[type="color"] { border: 1px solid var(--color-line); padding: 2px; }
   .md pre { max-width: 100%; }
   .md { overflow-wrap: anywhere; }
 }
+
+/* a black symbol on the dark theme (but not on the white circle some buttons put behind the logo) */
+.look-taller :not(.bg-white) > .logo-mono { filter: invert(1); }

@@ -3,13 +3,13 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Check, FileText, FolderOpen, FolderPlus, Loader2, Maximize2, Paperclip, Pencil, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
 import { marked } from 'marked'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import FieldTitle from './FieldTitle'
 import { createPortal } from 'react-dom'
 import { intake as intakeApi, type IntakeQuestion, type IntakeState } from '../lib/api'
 import { brandTheme } from '../lib/brand'
 import { fmtUsd } from '../lib/parse'
 import type { Provider } from '../types'
-import ModelSelect from './ModelSelect'
-import { MUSE_PROMPT_RECO } from '../lib/muse'
+import AiPicker from './AiPicker'
 import ProviderLogo from './ProviderLogo'
 import { toast } from './Toast'
 import { tr, useT } from '../lib/i18n'
@@ -18,6 +18,7 @@ interface Props {
   idea: string
   onIdea: (text: string) => void
   providers: Provider[]
+  onConnected?: (p: Provider) => void
   /** The generated Markdown prompt (and the attached material as context) is handed to the council config. */
   onPrompt: (markdown: string, context: string | null) => void
   /** Whether a generated prompt is currently what the council will debate. */
@@ -34,7 +35,7 @@ const fmtSize = (n: number) => (n > 1_000_000 ? `${(n / 1_000_000).toFixed(1)} M
  * "Qué querés construir" + attachments + «Generar prompt engineering a mi texto»: the analyst model reads everything,
  * shows what it is doing live, asks what it needs, and hands a Markdown brief to the council.
  */
-export default function Intake({ idea, onIdea, providers, onPrompt, promptActive, onDiscardPrompt, team, onRolePrompts }: Props) {
+export default function Intake({ idea, onIdea, providers, onConnected, onPrompt, promptActive, onDiscardPrompt, team, onRolePrompts }: Props) {
   const T = useT()
   const [st, setSt] = useState<IntakeState | null>(null)
   const [provider, setProvider] = useState<string>('')
@@ -69,15 +70,6 @@ export default function Intake({ idea, onIdea, providers, onPrompt, promptActive
   const dirRef = useRef<HTMLInputElement>(null)
   const closeWs = useRef<() => void>(() => {})
   const liveRef = useRef<HTMLDivElement>(null) // the live-analysis panel, scrolled into view when work starts
-
-  const usable = providers.filter((p) => p.configured)
-  useEffect(() => {
-    if (!provider && usable.length) {
-      const first = usable.find((p) => p.id !== 'mock') ?? usable[0]
-      setProvider(first.id)
-      setModel(first.default_model)
-    }
-  }, [usable, provider])
 
   const ensure = async () => {
     if (st) return st
@@ -182,7 +174,7 @@ export default function Intake({ idea, onIdea, providers, onPrompt, promptActive
 
   const run = async (addition = '') => {
     if (!idea.trim()) return toast.error(tr('Escribí qué querés construir', 'Write what you want to build'))
-    if (!provider) return toast.error(tr('Conectá al menos una IA para analizar tu texto', 'Connect at least one AI to analyse your text'))
+    if (!provider) return toast.error(tr('Elegí una IA en la lista para analizar tu texto', 'Pick an AI from the list to analyse your text'))
     try {
       const s = await ensure()
       setReading([])
@@ -229,8 +221,8 @@ export default function Intake({ idea, onIdea, providers, onPrompt, promptActive
     <div className="space-y-3">
       {/* what the user wants — replaced by the generated prompt once there is one */}
       {!(st?.status === 'done' && st.prompt && promptActive) && (
-      <label className="block">
-        <span className="text-xs uppercase tracking-widest text-ink-3">{T('Qué querés construir', 'What do you want to build')}</span>
+      <label data-tour="idea" className="block">
+        <FieldTitle title={T('Qué querés construir', 'What do you want to build')} sub={T('Contalo con tus palabras: para quién es y qué tiene que hacer.', 'Tell it in your own words: who it is for and what it must do.')} />
         <textarea
           className="mt-1 h-32 w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none transition focus:border-accent"
           value={idea}
@@ -242,7 +234,7 @@ export default function Intake({ idea, onIdea, providers, onPrompt, promptActive
       )}
 
       {/* attachments */}
-      <div className="rounded-xl border border-dashed border-line bg-surface/60 p-3">
+      <div data-tour="attach" className="rounded-xl border border-dashed border-line bg-surface/60 p-3">
         <div className="flex flex-wrap items-center gap-2 text-[12px]">
           <span className="text-ink-3"><Paperclip size={13} className="inline align-[-2px]" />{T(' Adjuntá lo que ayude a entender el proyecto:', ' Attach whatever helps understand the project:')}</span>
           <button type="button" disabled={uploading || busy} onClick={() => fileRef.current?.click()} className="flex items-center gap-1 rounded-lg border border-line bg-surface px-2 py-1 hover:border-accent/50 disabled:opacity-50"><FileText size={12} />{T(' documentos', ' documents')}</button>
@@ -276,27 +268,15 @@ export default function Intake({ idea, onIdea, providers, onPrompt, promptActive
 
       {/* generate */}
       {!busy && !waiting && !(st?.status === 'done' && st.prompt && promptActive) && (
-        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-          <button type="button" onClick={() => run()} disabled={!idea.trim() || !provider || uploading} style={{ background: theme.accent }} className="flex max-w-full shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-40">
+        <div className="flex flex-wrap items-center gap-2">
+          <button data-tour="prompt" type="button" onClick={() => run()} disabled={!idea.trim() || !provider || uploading} style={{ background: theme.accent }} className="flex max-w-full shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-40">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white"><ProviderLogo provider={provider} size={15} /></span>
             {promptActive ? tr('Regenerar prompt engineering', 'Regenerate prompt engineering') : tr('Generar prompt engineering a mi texto', 'Prompt-engineer my text')}
           </button>
-          {usable.length > 0 ? (
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-[12px] text-ink-3 sm:flex-nowrap">
-              <span className="shrink-0">{T('con', 'with')}</span>
-              <select value={provider} onChange={(e) => { const p = usable.find((x) => x.id === e.target.value)!; setProvider(p.id); setModel(p.default_model) }} className="min-w-0 max-w-[150px] truncate rounded-lg border border-line bg-surface px-2 py-1 text-[12px] text-ink outline-none">
-                {usable.map((p) => <option key={p.id} value={p.id}>{p.label.split(' · ')[0]}</option>)}
-              </select>
-              <div className="min-w-0 flex-1 max-w-[190px]"><ModelSelect provider={provider} value={model} onChange={setModel} className="text-[11px] py-1" /></div>
-              {provider === 'meta' && (model === MUSE_PROMPT_RECO.model ? (
-                <span className="shrink-0 rounded-full border border-[#BBD5FA] bg-[#EEF5FF] px-2 py-0.5 text-[10.5px] font-semibold text-[#0B2E66]" title={T(MUSE_PROMPT_RECO.why, MUSE_PROMPT_RECO.why_en)}>✓ {T('Muse recomendado', 'Muse recommended')}</span>
-              ) : (
-                <button type="button" onClick={() => setModel(MUSE_PROMPT_RECO.model)} className="shrink-0 rounded-full border border-dashed border-[#BBD5FA] px-2 py-0.5 text-[10.5px] text-[#0064E0] transition hover:bg-[#EEF5FF]" title={T(MUSE_PROMPT_RECO.why, MUSE_PROMPT_RECO.why_en)}>{T('Recomendado', 'Recommended')}: {MUSE_PROMPT_RECO.model}</button>
-              ))}
-            </div>
-          ) : (
-            <span className="text-[12px] text-gold">{T('Conectá una IA arriba para poder analizar tu texto.', 'Connect an AI above to analyse your text.')}</span>
-          )}
+          <div className="flex min-w-[min(100%,260px)] flex-1 flex-wrap items-center gap-1.5 text-[12px] text-ink-3">
+            <span className="shrink-0">{T('con', 'with')}</span>
+            <AiPicker provider={provider} model={model} simulated onChange={(p, m) => { setProvider(p); setModel(m) }} onConnected={onConnected} className="flex-1" />
+          </div>
         </div>
       )}
 
@@ -426,10 +406,7 @@ export default function Intake({ idea, onIdea, providers, onPrompt, promptActive
                 <button type="button" onClick={() => run()} className="flex items-center gap-1 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-[12px] text-ink-2 hover:text-ink" title={T('Volver a analizar desde cero con el texto y adjuntos actuales', 'Analyse again from scratch with the current text and attachments')}><RotateCcw size={12} />{T(' desde cero', ' from scratch')}</button>
                 <div className="flex items-center gap-1.5 text-[12px] text-ink-3">
                   {T('con', 'with')}
-                  <select value={provider} onChange={(e) => { const p = usable.find((x) => x.id === e.target.value)!; setProvider(p.id); setModel(p.default_model) }} className="rounded-lg border border-line bg-surface px-2 py-1 text-[12px] text-ink outline-none">
-                    {usable.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-                  </select>
-                  <div className="w-44"><ModelSelect provider={provider} value={model} onChange={setModel} className="text-[11px] py-1" /></div>
+                  <AiPicker provider={provider} model={model} simulated onChange={(p, m) => { setProvider(p); setModel(m) }} onConnected={onConnected} />
                 </div>
               </div>
             </div>
@@ -488,6 +465,6 @@ function ModelsHint({ providers }: { providers: Provider[] }) {
   const T = useT()
   const n = providers.filter((p) => p.configured && p.id !== 'mock').length
   if (n) return null
-  return <div className="text-[11px] text-ink-4">{T('El análisis usa una de tus API keys. Con solo «Simulado» el prompt es un ejemplo de prueba.', 'The analysis uses one of your API keys. With only “Simulated” the prompt is a sample.')}</div>
+  return <div className="text-[11px] text-ink-4">{T('Elegí en la lista la IA que prefieras. Con «Simulado» el prompt es un ejemplo de prueba.', 'Pick the AI you prefer from the list. With “Simulated” the prompt is a sample.')}</div>
 }
 

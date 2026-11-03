@@ -76,18 +76,41 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
     <IconContext.Provider value={{ weight: 'duotone' }}>
     <div className="min-h-full bg-paper">
       <div className="w-full px-4 py-5 sm:px-8 sm:py-8 2xl:px-12">
-        <PageHeader onBack={onBack} kicker="Meta Ads" title={T('Tu cuenta de Meta Ads, leída por la IA', 'Your Meta Ads account, read by the AI')}
-          subtitle={T('Conectá tu cuenta publicitaria. Tably lee tus campañas, ve qué anuncios, públicos y ubicaciones te traen resultados al menor costo, y arma los anuncios nuevos con los videos que hiciste en «Crear anuncio», listos para publicar en pausa.', 'Connect your ad account. Tably reads your campaigns, sees which ads, audiences and placements bring results at the lowest cost, and builds new ads with the videos you made in «Create ad», ready to publish paused.')} />
+        <PageHeader onBack={onBack} kicker="Meta Ads" title={b && b.meta.open === false ? T('Próximamente: todos tus anuncios, en Tably', 'Coming soon: all your ads, in Tably') : T('Tu cuenta de Meta Ads, leída por la IA', 'Your Meta Ads account, read by the AI')}
+          subtitle={b && b.meta.open === false ? T('Vas a poder manejar todos tus anuncios desde nuestra plataforma, con nuestra IA guiándote paso a paso.', 'You will be able to manage all your ads from our platform, with our AI guiding you step by step.') : T('Conectá tu cuenta publicitaria. Tably lee tus campañas, ve qué anuncios, públicos y ubicaciones te traen resultados al menor costo, y arma los anuncios nuevos con los videos que hiciste en «Crear anuncio», listos para publicar en pausa.', 'Connect your ad account. Tably reads your campaigns, sees which ads, audiences and placements bring results at the lowest cost, and builds new ads with the videos you made in «Create ad», ready to publish paused.')} />
 
         {!b ? (failed ? (
           <div className={`${CARD} mt-5 flex flex-wrap items-center gap-3 text-[13.5px] text-ink-2`}><AlertTriangle size={18} className="text-danger" /><span className="min-w-[min(100%,260px)] flex-1">{T('No pude leer Meta Ads', 'Could not read Meta Ads')}: {failed}</span><button onClick={load} className={PILL}><RefreshCw size={14} /> {T('Reintentar', 'Retry')}</button></div>
-        ) : <PageLoader caption={T('Leyendo tu cuenta de Meta Ads…', 'Reading your Meta Ads account…')} />) : (
+        ) : <PageLoader caption={T('Leyendo tu cuenta de Meta Ads…', 'Reading your Meta Ads account…')} />) : b.meta.open === false ? (
+          <section className={`${CARD} relative mt-5 overflow-hidden !p-6 sm:!p-10`}>
+            <img src="/logos/meta-ads.svg" alt="" aria-hidden draggable={false} className="pointer-events-none absolute right-[5%] top-3 hidden w-[300px] select-none opacity-[0.16] blur-[1px] lg:block" />
+            <div className="relative">
+              <span className="inline-flex rounded-full border border-accent/40 bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent">{T('Próximamente', 'Coming soon')}</span>
+              <h2 className="mt-4 max-w-[760px] font-sans text-[26px] font-semibold leading-tight tracking-tight text-ink sm:text-[32px]">{T('Tu IA para vender más con tus anuncios', 'Your AI to sell more with your ads')}</h2>
+              <p className="mt-3 max-w-[720px] text-[15px] leading-relaxed text-ink-2">{T('Conectá tu cuenta y manejá todo desde Tably. La IA lee tus resultados y te guía en cada decisión, sin que tengas que ser experto en publicidad.', 'Connect your account and manage everything from Tably. The AI reads your results and guides every decision, with no need to be an advertising expert.')}</p>
+              <div className="mt-8 grid gap-x-8 gap-y-6 border-t border-line pt-6 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                  [T('Todo en un solo lugar', 'Everything in one place'), T('Tus campañas, anuncios y resultados, sin saltar entre pantallas.', 'Your campaigns, ads and results, without jumping between screens.')],
+                  [T('Qué mejorar', 'What to improve'), T('Recomendaciones claras para cada campaña, explicadas simple.', 'Clear recommendations for each campaign, explained simply.')],
+                  [T('Cómo convertir', 'How to convert'), T('Dónde conviene poner tu presupuesto para conseguir más ventas.', 'Where to put your budget to get more sales.')],
+                  [T('Embudos de venta', 'Sales funnels'), T('Armados con tu IA, desde el primer anuncio hasta la venta.', 'Built with your AI, from the first ad to the sale.')],
+                ].map(([title, text]) => (
+                  <div key={title}>
+                    <h3 className="font-sans text-[15px] font-semibold text-ink">{title}</h3>
+                    <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-2">{text}</p>
+                  </div>
+                ))}
+              </div>
+              <button type="button" disabled className="mt-8 h-11 cursor-not-allowed rounded-full border border-line bg-surface-2 px-6 text-[14px] font-semibold text-ink-3">{T('Disponible próximamente', 'Available soon')}</button>
+            </div>
+          </section>
+        ) : (
           <div className="mt-5 flex flex-col gap-4">
             {/* 1. the connection */}
-            <section className={CARD}>
+            <section data-tour="metaads" className={CARD}>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-surface shadow-sm"><ProviderLogo provider="meta" size={22} /></span>
-                <span className="min-w-0 flex-1">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-surface shadow-sm"><ProviderLogo provider="meta-ads" size={22} /></span>
+                <span className="min-w-[min(100%,220px)] flex-1">
                   <span className="block text-[15px] font-bold text-ink">{connected ? T('Meta Ads conectado', 'Meta Ads connected') : T('Conectá tu cuenta de Meta Ads', 'Connect your Meta Ads account')}{connected && b.meta.account ? <span className="font-normal text-ink-3"> · {b.meta.account}</span> : null}</span>
                   <span className="block text-[12.5px] text-ink-3">{!b.meta.ready ? T('La conexión con Meta todavía no está habilitada en esta instalación.', 'The Meta connection is not enabled on this install yet.') : connected ? T('Tably solo lee tus números y crea anuncios en pausa: nada se gasta hasta que vos los actives.', 'Tably only reads your numbers and creates paused ads: nothing is spent until you turn them on.') : b.meta.expired ? T('La conexión venció (dura unos 60 días).', 'The connection expired (it lasts about 60 days).') : T('Una sola vez. Se abre Meta para que elijas la cuenta y das permiso.', 'Just once. Meta opens so you pick the account and allow it.')}</span>
                 </span>
@@ -117,10 +140,10 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
 
             {/* 2. what the account says */}
             {b.totals && an && (
-              <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(30,38,34,.04),0_12px_32px_-18px_rgba(30,38,34,.25)]">
+              <section data-tour="diagnosis" className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(30,38,34,.04),0_12px_32px_-18px_rgba(30,38,34,.25)]">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-gradient-to-r from-accent-soft/70 via-surface to-surface px-5 py-4">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-white shadow-sm"><Sparkles size={17} /></span>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-[min(100%,220px)] flex-1">
                     <h3 className="text-[16px] font-bold tracking-tight text-ink">{T('Diagnóstico de tu cuenta', 'Your account diagnosis')}</h3>
                     <p className="text-[12px] text-ink-3">{b.account?.name} · {b.period}</p>
                   </div>
@@ -181,7 +204,7 @@ export default function MetaAdsPage({ onBack }: { onBack: () => void }) {
 
             {/* 3. the ads, made from the studio videos */}
             {an && (
-              <section className="flex flex-col gap-3">
+              <section data-tour="newads" className="flex flex-col gap-3">
                 <h3 className="text-[15px] font-bold text-ink">{T('Tus anuncios nuevos', 'Your new ads')}<span className="ml-2 text-[12px] font-normal text-ink-3">{T('con los videos de «Crear anuncio»', 'with your «Create ad» videos')}</span></h3>
                 {!an.ads.length && (
                   <div className={`${CARD} flex flex-wrap items-center gap-3 text-[13.5px] text-ink-2`}>

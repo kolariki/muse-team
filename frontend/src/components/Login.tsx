@@ -8,6 +8,8 @@ import LangSwitch from './LangSwitch'
 import ThemeSwitch from './ThemeSwitch'
 import { MuseBadge } from './Landing'
 import { MadeWith } from './Landing'
+import LegalModal, { type LegalDoc } from './LegalModal'
+import { trackEvent } from '../lib/tracking'
 
 export default function Login({ onAuthed, onBack, initialMode = 'login' }: { onAuthed: (u: User) => void; onBack: () => void; initialMode?: 'login' | 'register' }) {
   const T = useT()
@@ -24,6 +26,9 @@ export default function Login({ onAuthed, onBack, initialMode = 'login' }: { onA
   const [verify, setVerify] = useState<{ email: string; devCode?: string } | null>(null)
   const [code, setCode] = useState('')
   const [resent, setResent] = useState(false)
+  const [forgot, setForgot] = useState(false)
+  const [accepted, setAccepted] = useState(false)
+  const [legal, setLegal] = useState<LegalDoc | null>(null)
 
   useEffect(() => {
     api.authConfig().then((c) => setAllowSignup(c.allow_signup)).catch(() => {})
@@ -44,11 +49,12 @@ export default function Login({ onAuthed, onBack, initialMode = 'login' }: { onA
         auth.set(r.token)
         onAuthed(r.user)
       } else {
-        const r = await api.register(email, password, name || undefined)
+        const r = await api.register(email, password, name || undefined, accepted)
         if (r.pending || !r.token) {
           setVerify({ email: r.email ?? email, devCode: r.dev_code })
           setCode('')
         } else {
+          trackEvent('CompleteRegistration')
           auth.set(r.token)
           onAuthed(r.user)
         }
@@ -77,6 +83,7 @@ export default function Login({ onAuthed, onBack, initialMode = 'login' }: { onA
     setError(null)
     try {
       const r = await api.verifyEmail(verify.email, code)
+      trackEvent('CompleteRegistration')
       auth.set(r.token)
       onAuthed(r.user)
     } catch (err) {
@@ -106,7 +113,7 @@ export default function Login({ onAuthed, onBack, initialMode = 'login' }: { onA
       <div className="hidden md:contents"><TeamBackdrop blur={9} opacity={0.5} /></div>
       <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-line bg-paper px-4 sm:gap-3 sm:bg-paper/80 sm:px-6 sm:backdrop-blur">
         <button type="button" onClick={onBack} className="flex items-center gap-3 rounded-lg transition hover:opacity-80" title={T('Volver a la presentación', 'Back to the intro')}>
-          <img src="/icon.svg" alt="" aria-hidden className="h-7 w-7 rounded-lg shadow-sm" draggable={false} />
+          <img src="/icon.svg?v=2" alt="" aria-hidden className="h-7 w-7 rounded-lg shadow-sm" draggable={false} />
           <span className="serif text-lg max-[380px]:hidden">Tably <em className="text-accent">Team</em></span>
         </button>
         <ThemeSwitch className="ml-auto h-8" auto={false} />
@@ -125,7 +132,9 @@ export default function Login({ onAuthed, onBack, initialMode = 'login' }: { onA
           </p>
         </div>
 
-        {verify ? (
+        {forgot ? (
+          <ForgotPassword initialEmail={email} input={input} onBack={() => setForgot(false)} onDone={(token, user) => { auth.set(token); onAuthed(user) }} />
+        ) : verify ? (
           <form onSubmit={submitCode} className="panel w-full rounded-3xl p-6 sm:p-9">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent"><MailCheck size={22} /></div>
             <h2 className="mt-5 text-3xl">{T('Verificá tu email', 'Verify your email')}</h2>
@@ -176,15 +185,102 @@ export default function Login({ onAuthed, onBack, initialMode = 'login' }: { onA
               </div>
             )}
           </div>
+          {mode === 'register' && (
+            <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-[13px] leading-snug text-ink-2">
+              <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent)]" />
+              <span>{T('Acepto los', 'I accept the')} <button type="button" onClick={() => setLegal('terms')} className="text-accent underline underline-offset-2">{T('términos y condiciones', 'terms and conditions')}</button> {T('y la', 'and the')} <button type="button" onClick={() => setLegal('privacy')} className="text-accent underline underline-offset-2">{T('política de privacidad', 'privacy policy')}</button></span>
+            </label>
+          )}
           {error && <div className="mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
-          <button disabled={busy} className="mt-5 w-full rounded-xl bg-accent text-white py-3 font-semibold hover:brightness-110 transition disabled:opacity-50">
+          <button disabled={busy || (mode === 'register' && !accepted)} className="mt-5 w-full rounded-xl bg-accent text-white py-3 font-semibold hover:brightness-110 transition disabled:opacity-50">
             {busy ? '…' : mode === 'login' ? T('Entrar', 'Enter') : T('Crear cuenta', 'Create account')}
           </button>
+          {mode === 'login' && <button type="button" onClick={() => { setError(null); setForgot(true) }} className="mt-4 block w-full text-center text-sm text-accent hover:underline">{T('¿Olvidaste tu contraseña?', 'Forgot your password?')}</button>}
         </form>
         )}
       </motion.div>
       </div>
       <MadeWith />
+      {legal && <LegalModal doc={legal} onClose={() => setLegal(null)} />}
     </div>
+  )
+}
+
+/** Three steps: the email, the code that goes there, and only then the new password. */
+function ForgotPassword({ initialEmail, input, onBack, onDone }: { initialEmail: string; input: string; onBack: () => void; onDone: (token: string, user: User) => void }) {
+  const T = useT()
+  const [step, setStep] = useState<'email' | 'code' | 'password'>('email')
+  const [email, setEmail] = useState(initialEmail)
+  const [code, setCode] = useState('')
+  const [devCode, setDevCode] = useState<string | undefined>()
+  const [password, setPassword] = useState('')
+  const [password2, setPassword2] = useState('')
+  const [showPw, setShowPw] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [resent, setResent] = useState(false)
+  const run = async (job: () => Promise<void>) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await job()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  const send = async () => {
+    const r = await api.forgotPassword(email)
+    setDevCode(r.dev_code)
+  }
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (step === 'email') run(async () => { await send(); setCode(''); setStep('code') })
+    else if (step === 'code') run(async () => { await api.forgotCheck(email, code); setStep('password') })
+    else run(async () => {
+      if (password !== password2) throw new Error(T('Las contraseñas no coinciden', 'The passwords do not match'))
+      const r = await api.forgotReset(email, code, password)
+      onDone(r.token, r.user)
+    })
+  }
+  const action = 'mt-5 w-full rounded-xl bg-accent text-white py-3 font-semibold hover:brightness-110 transition disabled:opacity-50'
+  return (
+    <form onSubmit={submit} className="panel w-full rounded-3xl p-6 sm:p-9">
+      {step === 'email' && (
+        <>
+          <h2 className="text-3xl">{T('Recuperá tu contraseña', 'Recover your password')}</h2>
+          <p className="mt-1 text-sm text-ink-3">{T('Escribí el email de tu cuenta y te mandamos un código.', 'Enter your account email and we will send you a code.')}</p>
+          <input autoFocus className={`${input} mt-5`} type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+        </>
+      )}
+      {step === 'code' && (
+        <>
+          <h2 className="text-3xl">{T('Revisá tu email', 'Check your email')}</h2>
+          <p className="mt-1 text-sm text-ink-3">{T('Si hay una cuenta con', 'If there is an account with')} <b className="text-ink">{email}</b>, {T('te llega un código de 6 dígitos. Vence en 15 minutos.', 'a 6-digit code is on its way. It expires in 15 minutes.')}</p>
+          {devCode && <div className="mt-3 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2 text-[12.5px] text-ink-2">{T('Modo local sin servidor de correo: tu código es', 'Local mode without a mail server: your code is')} <b className="font-mono">{devCode}</b></div>}
+          <input autoFocus inputMode="numeric" pattern="[0-9]*" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" autoComplete="one-time-code" className={`${input} mt-5 text-center font-mono text-[28px] tracking-[0.5em]`} />
+        </>
+      )}
+      {step === 'password' && (
+        <>
+          <h2 className="text-3xl">{T('Elegí tu contraseña nueva', 'Choose your new password')}</h2>
+          <p className="mt-1 text-sm text-ink-3">{T('Al guardarla entrás a tu cuenta y se cierran las sesiones abiertas en otros dispositivos.', 'Saving it signs you in and closes sessions on other devices.')}</p>
+          <div className="mt-5 space-y-3">
+            <div className="relative">
+              <input autoFocus className={`${input} pr-16`} type={showPw ? 'text' : 'password'} placeholder={T('Contraseña nueva (8 o más)', 'New password (8 or more)')} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required minLength={8} />
+              <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-[12.5px] text-ink-3 hover:text-ink">{showPw ? T('Ocultar', 'Hide') : T('Ver', 'Show')}</button>
+            </div>
+            <input className={input} type={showPw ? 'text' : 'password'} placeholder={T('Repetí la contraseña', 'Repeat the password')} value={password2} onChange={(e) => setPassword2(e.target.value)} autoComplete="new-password" required minLength={8} />
+          </div>
+        </>
+      )}
+      {error && <div className="mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+      <button disabled={busy || (step === 'code' && code.length < 6)} className={action}>{busy ? '…' : step === 'email' ? T('Mandarme el código', 'Send me the code') : step === 'code' ? T('Seguir', 'Continue') : T('Guardar y entrar', 'Save and sign in')}</button>
+      <div className="mt-4 flex items-center justify-between text-sm">
+        {step === 'code' ? <button type="button" onClick={() => run(async () => { await send(); setResent(true); setTimeout(() => setResent(false), 4000) })} className="text-accent hover:underline">{resent ? T('Código reenviado ✓', 'Code resent ✓') : T('Reenviar código', 'Resend code')}</button> : <span />}
+        <button type="button" onClick={onBack} className="text-ink-3 hover:text-ink">{T('Volver a iniciar sesión', 'Back to sign in')}</button>
+      </div>
+    </form>
   )
 }

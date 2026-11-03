@@ -10,9 +10,10 @@ import { agentMap, useAgentColor, useArena } from '../store'
 import type { AgentConfig, Provider, Role, Stance } from '../types'
 import ModelSelect from './ModelSelect'
 import PersonaField from './PersonaField'
-import ProviderLogo, { logoUrl } from './ProviderLogo'
+import ProviderLogo, { isMonoLogo, logoUrl } from './ProviderLogo'
 import SkillPicker from './SkillPicker'
 import { toast } from './Toast'
+import { useAiConnect } from './AiConnect'
 
 let providersCache: Provider[] | null = null
 let rolesCache: { groups: string[]; groups_en?: string[]; roles: Role[] } | null = null
@@ -39,6 +40,7 @@ export default function AgentDrawer() {
   const agent = agentId ? agentMap(config)[agentId] : undefined
 
   const [providers, setProviders] = useState<Provider[]>(providersCache ?? [])
+  const ai = useAiConnect(providers, (np) => setProviders((ps) => (providersCache = ps.map((x) => (x.id === np.id ? np : x)))))
   const [roles, setRoles] = useState(rolesCache)
   const [draft, setDraft] = useState<AgentConfig | null>(null)
   const [saving, setSaving] = useState(false)
@@ -141,7 +143,7 @@ export default function AgentDrawer() {
         {/* the company's logo as a big faint watermark behind everything, like the role cards on the home */}
         {logoUrl(agent.wanted_provider ?? agent.provider) && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden" aria-hidden>
-            <img src={logoUrl(agent.wanted_provider ?? agent.provider)!} alt="" draggable={false} className="select-none" style={{ width: '72%', maxWidth: 330, opacity: 0.13, filter: 'saturate(0.9)' }} />
+            <img src={logoUrl(agent.wanted_provider ?? agent.provider)!} alt="" draggable={false} className={`select-none ${isMonoLogo(agent.wanted_provider ?? agent.provider) ? 'logo-mono' : ''}`} style={{ width: '72%', maxWidth: 330, opacity: 0.13, filter: isMonoLogo(agent.wanted_provider ?? agent.provider) ? undefined : 'saturate(0.9)' }} />
           </div>
         )}
         {/* header in the company's colours */}
@@ -187,9 +189,11 @@ export default function AgentDrawer() {
               <input className={`${input} mt-0.5`} style={{ borderColor: `color-mix(in srgb, ${theme.accent} 53%, transparent)` }} value={draft.name} disabled={running} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
             <div className="grid grid-cols-2 gap-2">
               <label className="block"><span className="text-[10px] uppercase tracking-widest text-ink-3">{T('Empresa', 'Company')}</span>
-                <select className={`${input} mt-0.5`} style={{ borderColor: `color-mix(in srgb, ${theme.accent} 53%, transparent)` }} value={draft.provider} onChange={(e) => { const np = providers.find((x) => x.id === e.target.value); if (np) setDraft({ ...draft, provider: np.id, model: np.default_model, wanted_provider: undefined }) }}>
-                  {providers.map((x) => <option key={x.id} value={x.id} disabled={!x.configured && x.id !== 'mock'}>{x.id === 'mock' ? T('Simulado (sin API)', 'Simulated (no API)') : x.label}{x.configured || x.id === 'mock' ? '' : T(' (sin key)', ' (no key)')}</option>)}
-                </select></label>
+                <select className={`${input} mt-0.5`} style={{ borderColor: `color-mix(in srgb, ${theme.accent} 53%, transparent)` }} value={draft.provider} onChange={(e) => { if (ai.ask(e.target.value, (np) => setDraft({ ...draft, provider: np.id, model: np.default_model, wanted_provider: undefined }))) return; const np = providers.find((x) => x.id === e.target.value); if (np) setDraft({ ...draft, provider: np.id, model: np.default_model, wanted_provider: undefined }) }}>
+                  {providers.filter((x) => x.configured || x.id === 'mock').map((x) => <option key={x.id} value={x.id}>{x.id === 'mock' ? T('Simulado (sin API)', 'Simulated (no API)') : x.label}</option>)}
+                  {ai.options}
+                </select>
+                {ai.dialog}</label>
               <label className="block"><span className="text-[10px] uppercase tracking-widest text-ink-3">{T('Modelo', 'Model')}</span>
                 <div className="mt-0.5"><ModelSelect provider={draft.provider} value={draft.model} onChange={(m) => setDraft({ ...draft, model: m })} enabled={!!providers.find((x) => x.id === draft.provider)?.configured} className="text-[12px] py-1.5" /></div></label>
             </div>

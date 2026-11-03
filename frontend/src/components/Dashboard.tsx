@@ -114,7 +114,7 @@ export default function Dashboard({ onOpen, onCouncil, onReplay, onAudit, refres
   if (!data) return null
 
   return (
-    <section id="projects" className="mt-10 scroll-mt-4">
+    <section id="projects" data-tour="projects" className="mt-10 scroll-mt-4">
       {dialog}
       <div className="grid gap-3 md:grid-cols-2">
         <div className="panel rounded-2xl p-4">

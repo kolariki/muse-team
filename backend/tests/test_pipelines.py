@@ -34,7 +34,7 @@ def test_estimate_cost_is_positive_and_per_agent():
 
 @pytest.mark.parametrize("rounds", [0, 2])
 def test_build_pipeline_with_optional_review(rounds):
-    b = Build(USER, BuildRequest(session_id="s", provider="mock", model="mock-1", review_rounds=rounds, council=False), MOCK, "# brief", "Demo", _team(), {"mock": MOCK})
+    b = Build(USER, BuildRequest(session_id="s", provider="mock", model="mock-1", review_rounds=rounds, council=False, design_review=False), MOCK, "# brief", "Demo", _team(), {"mock": MOCK})
     asyncio.run(b.pipeline())
     assert b.preview_html is not None and "README.md" in b.files
     assert b.status == ("approved" if rounds else "completed")
@@ -42,7 +42,7 @@ def test_build_pipeline_with_optional_review(rounds):
 
 def test_audit_then_apply_improvements():
     async def main():
-        b = Build(USER, BuildRequest(session_id="s", provider="mock", model="mock-1", council=False), MOCK, "# audit", "MiApp", _team(), {"mock": MOCK})
+        b = Build(USER, BuildRequest(session_id="s", provider="mock", model="mock-1", council=False, design_review=False), MOCK, "# audit", "MiApp", _team(), {"mock": MOCK})
         b.files = {"README.md": "# x\n"}
         b.status = "completed"
         await b.pipeline_audit()
@@ -92,7 +92,7 @@ def test_council_review_runs_in_the_arena_and_feeds_the_builder():
     """build → council session (mode review, same arena) → council.verdict with changes → apply → builder runs again."""
     from app import orchestrator as orch
 
-    b = Build(USER, BuildRequest(session_id="s3", provider="mock", model="mock-1", review_rounds=1, council=True), MOCK, "# brief", "Demo", _team(), {"mock": MOCK})
+    b = Build(USER, BuildRequest(session_id="s3", provider="mock", model="mock-1", review_rounds=1, council=True, design_review=False), MOCK, "# brief", "Demo", _team(), {"mock": MOCK})
 
     async def go():
         await b.pipeline()

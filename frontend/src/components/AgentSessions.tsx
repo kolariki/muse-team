@@ -273,7 +273,7 @@ export default function AgentSessions({ onBack }: { onBack: () => void }) {
           <div className="text-[10.5px] uppercase tracking-[0.3em] text-accent">{T('Tus IAs', 'Your AIs')}</div>
           <div className="text-[17px] leading-tight">{T('Proyectos y conversaciones', 'Projects and conversations')}</div>
         </div>
-        <div className="ml-auto flex items-center rounded-full border border-line bg-paper p-1 shadow-sm">
+        <div data-tour="engines" className="ml-auto flex items-center rounded-full border border-line bg-paper p-1 shadow-sm">
           {ENGINES.map((e) => (
             <button key={e} onClick={() => { setEngine(e); setSel(null) }} className={`flex h-8 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition ${engine === e ? 'bg-accent text-white shadow-sm' : 'text-ink-2 hover:text-ink'}`}>
               <ProviderLogo provider={LOGO[e]} size={14} className={engine === e ? 'brightness-[3]' : ''} /> {NAME[e]}
@@ -283,7 +283,7 @@ export default function AgentSessions({ onBack }: { onBack: () => void }) {
       </div>
       <div className="flex min-h-0 flex-1">
         {/* sidebar */}
-        <aside className={`flex w-full shrink-0 flex-col border-r border-line bg-surface md:w-[340px] ${sel ? 'hidden md:flex' : ''}`}>
+        <aside data-tour="sessions" className={`flex w-full shrink-0 flex-col border-r border-line bg-surface md:w-[340px] ${sel ? 'hidden md:flex' : ''}`}>
           <div className="border-b border-line p-3">
             <label className="flex h-9 items-center gap-2 rounded-full border border-line bg-paper px-3 text-[13px]"><Search size={13} className="text-ink-3" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={T('Buscar conversación o proyecto…', 'Search conversation or project…')} className="w-full bg-transparent outline-none placeholder:text-ink-4" /></label>
             <div className="mt-2 px-1 text-[11px] text-ink-3">{list ? `${list.count} ${T('conversaciones', 'conversations')} · ${list.projects.length} ${T('proyectos', 'projects')}` : ' '}</div>
@@ -326,7 +326,7 @@ export default function AgentSessions({ onBack }: { onBack: () => void }) {
           </div>
         </aside>
         {/* conversation */}
-        <main className={`flex min-h-0 min-w-0 flex-1 flex-col ${sel ? '' : 'hidden md:flex'}`}>
+        <main data-tour="conversation" className={`flex min-h-0 min-w-0 flex-1 flex-col ${sel ? '' : 'hidden md:flex'}`}>
           {sel ? (
             <Conversation engine={engine} id={sel.id} onClose={() => setSel(null)} />
           ) : (

@@ -77,8 +77,8 @@ export default function Settings({ onBack }: { onBack: () => void }) {
           </span>
         </div>
         {error && <div className="mt-4 text-danger text-sm">{error}</div>}
-        <SubscriptionPanel />
-        <div className="mt-10">
+        <div data-tour="subscription"><SubscriptionPanel /></div>
+        <div data-tour="keys" className="mt-10">
           <div className="text-xs uppercase tracking-[0.3em] text-ink-3">API keys</div>
           <h2 className="text-3xl mt-1">{MUSE_FIRST ? T('Muse, el motor de Tably', 'Muse, the engine of Tably') : T('Modelos por API, para los debates', 'API models, for the debates')}</h2>
           <p className="mt-1 text-[13px] text-ink-2">{T('Los agentes del equipo (CEO, CTO, QA…) hablan por API y cada proveedor factura por uso. Cargá solo los que quieras usar.', 'The team agents (CEO, CTO, QA…) talk through APIs and each provider bills per use. Add only the ones you want to use.')}</p>
@@ -108,7 +108,7 @@ export default function Settings({ onBack }: { onBack: () => void }) {
         <section className="mt-8">
           <h2 className="text-2xl">{T('Tus cuentas conectadas', 'Your connected accounts')}</h2>
           <p className="mt-1 mb-3 text-[13px] text-ink-2">{T('Tus apps leen estos datos a través de Tably (por ejemplo tu panel personal con tu agenda), nunca con tu contraseña. Podés desconectarlas cuando quieras.', 'Your apps read this data through Tably (for example your personal panel with your calendar), never with your password. Disconnect them anytime.')}</p>
-          <Connections />
+          <div data-tour="connections"><Connections /></div>
           <GoogleAppSettings />
         </section>
         <DeploySettings />

@@ -194,7 +194,7 @@ export function ExternalSetup({ a, onChange }: { a: AnalyticsApp; onChange: () =
         </div>}
       </div>}
       <div className={`${a.installed ? '' : 'mt-3 border-t border-line pt-3'} flex flex-wrap items-center gap-2`}>
-        <span className="min-w-0 flex-1 text-ink-3">{a.installed ? T('Sitio conectado: las visitas llegan desde tu hosting.', 'Site connected: visits arrive from your host.') : T('¿Ya lo instalaste?', 'Installed it already?')}</span>
+        <span className="min-w-[min(100%,220px)] flex-1 text-ink-3">{a.installed ? T('Sitio conectado: las visitas llegan desde tu hosting.', 'Site connected: visits arrive from your host.') : T('¿Ya lo instalaste?', 'Installed it already?')}</span>
         {!a.installed && <button onClick={check} disabled={busy === 'check'} className={PRIMARY}>{busy === 'check' ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} {T('Comprobar', 'Check')}</button>}
         <button onClick={remove} disabled={busy === 'del'} className={PILL}><Trash2 size={13} /> {T('Desconectar', 'Disconnect')}</button>
       </div>

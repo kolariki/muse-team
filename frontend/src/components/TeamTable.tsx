@@ -34,7 +34,7 @@ export default function TeamTable() {
 
   // a new account has no employees yet: the roles a first project brings, so the table is never empty
   const starter = ([['product-manager', 'Producto', 'Product'], ['product-designer', 'Diseño', 'Design'], ['head-engineering', 'Ingeniería', 'Engineering'], ['growth', 'Crecimiento', 'Growth'], ['qa', 'QA', 'QA']] as const)
-    .map(([role, es, en]) => ({ id: role, key: role, role, name: es, role_label: es, role_label_en: en, provider: 'meta', projects: 0, lessons: 0, last_used: 0 }) as unknown as Employee)
+    .map(([role, es, en]) => ({ id: role, key: role, role, name: es, role_label: es, role_label_en: en, projects: 0, lessons: 0, last_used: 0 }) as unknown as Employee)
   const team = [...(list?.length ? list : starter)]
     .sort((a, b) => (ORDER.indexOf(a.role ?? '') + 1 || 99) - (ORDER.indexOf(b.role ?? '') + 1 || 99) || b.last_used - a.last_used)
     .slice(0, 5)
@@ -66,7 +66,7 @@ export default function TeamTable() {
           <h2 id="team-table" className="text-[28px] leading-none sm:text-[34px]">{T('Tu equipo', 'Your team')}</h2>
           <p className="mt-2 max-w-[640px] text-[15px] text-ink-2">{T('Discuten tu idea, la diseñan, la programan y se revisan entre ellos. Vos les hablás como a un equipo y decidís.', 'They debate your idea, design it, code it and review each other. You talk to them like a team and you decide.')}</p>
         </div>
-        <button onClick={() => open()} className="h-10 rounded-full border border-line bg-surface px-4 text-[13.5px] font-semibold text-ink transition hover:border-accent hover:text-accent">{T('Ver y editar mi equipo', 'See and edit my team')}</button>
+        <span className="lane-ring lane-ring-pill inline-flex shrink-0"><button onClick={() => open()} className="h-10 rounded-full border border-line bg-surface px-4 text-[13.5px] font-semibold text-ink transition hover:border-accent hover:text-accent">{T('Ver y editar mi equipo', 'See and edit my team')}</button></span>
       </div>
       <div className="mt-5 grid grid-cols-2 gap-2.5 sm:gap-3 sm:[grid-template-columns:repeat(auto-fill,minmax(190px,1fr))]">
         {team.map((e, i) => {

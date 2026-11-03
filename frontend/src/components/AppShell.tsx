@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { BarChart3, Clapperboard, FolderOpen, Gavel, Home, LayoutGrid, LogOut, Medal, Megaphone, MessagesSquare, Settings2, Store, Ticket, Users, X } from 'lucide-react'
+import { BarChart3, Clapperboard, FolderOpen, Gavel, Home, LayoutGrid, LogOut, Medal, Megaphone, MessagesSquare, Settings2, ShieldCheck, Store, Ticket, Users, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import type { User } from '../lib/api'
+import { api, type User } from '../lib/api'
 import { TICKETS_ENABLED } from '../lib/flags'
 import { setLang, useLang, useT } from '../lib/i18n'
 import { loadMyPhoto, useMyPhoto } from '../lib/myPhoto'
 import { useArena } from '../store'
+import ProductTour, { TourButton } from './ProductTour'
 import { openTeam } from './TeamMemory'
 import ThemeSwitch from './ThemeSwitch'
 
@@ -25,7 +26,7 @@ const toProjects = () => {
   window.setTimeout(scroll, 60)
 }
 
-function groups(): { es: string; en: string; items: Item[] }[] {
+function groups(admin: boolean): { es: string; en: string; items: Item[] }[] {
   return [
     { es: 'Construir', en: 'Build', items: [
       { id: 'home', icon: <Home size={18} />, es: 'Inicio', en: 'Home', view: 'setup', go: go('setup'), hint_es: 'Tu tablero: la idea nueva, tus proyectos y cómo vienen', hint_en: 'Your dashboard: a new idea, your projects and how they are doing' },
@@ -37,7 +38,7 @@ function groups(): { es: string; en: string; items: Item[] }[] {
     { es: 'Crecer', en: 'Grow', items: [
       { id: 'analytics', icon: <BarChart3 size={18} />, es: 'Analíticas', en: 'Analytics', view: 'analytics', go: go('analytics'), hint_es: 'Visitas, eventos y errores reales de tus apps publicadas', hint_en: 'Real visits, events and errors of your published apps' },
       { id: 'studio', icon: <Clapperboard size={18} />, es: 'Crear anuncio', en: 'Create ad', view: 'studio', go: go('studio'), hint_es: 'Subí videos e imágenes y el equipo arma un anuncio listo para Meta', hint_en: 'Upload videos and images and the team makes an ad ready for Meta' },
-      { id: 'metaads', icon: <Megaphone size={18} />, es: 'Meta Ads', en: 'Meta Ads', view: 'metaads', go: go('metaads'), hint_es: 'Conectá tu cuenta: la IA la lee y arma tus anuncios con tus videos', hint_en: 'Connect your account: the AI reads it and builds your ads with your videos' },
+      { id: 'metaads', icon: <Megaphone size={18} />, es: 'Meta Ads', en: 'Meta Ads', view: 'metaads', go: go('metaads'), hint_es: 'Conectá tu cuenta: la IA la lee y arma tus anuncios', hint_en: 'Connect your account: the AI reads it and builds your ads' },
       { id: 'adtier', icon: <Medal size={18} />, es: 'AdTier', en: 'AdTier', view: 'adtier', go: go('adtier'), hint_es: 'Reels y anuncios que te sirven, rankeados, con su plantilla', hint_en: 'Reels and ads that fit you, ranked, with their template' },
       { id: 'market', icon: <Store size={18} />, es: 'Marketplace', en: 'Marketplace', view: 'market', go: go('market'), hint_es: 'Apps hechas con Tably en venta', hint_en: 'Apps built with Tably for sale' },
     ] },
@@ -45,6 +46,9 @@ function groups(): { es: string; en: string; items: Item[] }[] {
       { id: 'team', icon: <Users size={18} />, es: 'Mi equipo', en: 'My team', view: 'team', go: () => openTeam(), hint_es: 'Tus roles: su conocimiento, lo que aprendieron y su puntaje', hint_en: 'Your roles: their knowledge, what they learned and their score' },
       { id: 'settings', icon: <Settings2 size={18} />, es: 'Modelos y claves', en: 'Models and keys', view: 'settings', go: go('settings'), hint_es: 'Conectá tus IAs, modelos por defecto, deploy y trazas', hint_en: 'Connect your AIs, default models, deploy and tracing' },
     ] },
+    ...(admin ? [{ es: 'Operación', en: 'Operations', items: [
+      { id: 'backoffice', icon: <ShieldCheck size={18} />, es: 'Backoffice', en: 'Backoffice', view: 'backoffice' as View, go: go('backoffice'), hint_es: 'Usuarios, cuentas, tickets, emails, pagos y apps de toda la plataforma', hint_en: 'Users, accounts, tickets, emails, payments and apps across the platform' },
+    ] }] : []),
   ]
 }
 
@@ -56,7 +60,9 @@ export default function AppShell({ user, onLogout, children }: { user: User; onL
   const photo = useMyPhoto((s) => s.url)
   useEffect(() => { loadMyPhoto() }, [])
   useEffect(() => { setMore(false) }, [view])
-  const gs = groups()
+  const [admin, setAdmin] = useState(false)
+  useEffect(() => { api.adminAccess().then((a) => setAdmin(a.admin)).catch(() => {}) }, [])
+  const gs = groups(admin)
   const all = gs.flatMap((g) => g.items)
   const active = (it: Item) => !!it.view && it.view === view
   const avatar = photo ? <img src={photo} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" /> : <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-[13px] font-semibold uppercase text-white">{user.name.slice(0, 1)}</span>
@@ -67,7 +73,7 @@ export default function AppShell({ user, onLogout, children }: { user: User; onL
     <div className="flex h-[100dvh] w-full overflow-hidden">
       <aside className="hidden h-full shrink-0 flex-col border-r border-line bg-surface/80 backdrop-blur md:flex md:w-[68px] lg:w-[232px]">
         <button onClick={go('setup')} className="flex h-16 shrink-0 items-center gap-2.5 px-4 lg:px-5" aria-label={T('Inicio', 'Home')}>
-          <img src="/icon.svg" alt="" aria-hidden className="h-9 w-9 shrink-0 rounded-xl shadow-sm" draggable={false} />
+          <img src="/icon.svg?v=2" alt="" aria-hidden className="h-9 w-9 shrink-0 rounded-xl shadow-sm" draggable={false} />
           <span className="serif hidden text-xl lg:inline">Tably <em className="text-accent">Team</em></span>
         </button>
         <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2.5 pb-3 scroll-thin lg:px-3">
@@ -76,7 +82,7 @@ export default function AppShell({ user, onLogout, children }: { user: User; onL
               <div className="mb-1 hidden px-2.5 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-ink-4 lg:block">{T(g.es, g.en)}</div>
               <div className="flex flex-col gap-0.5">
                 {g.items.map((it) => (
-                  <button key={it.id} onClick={it.go} title={T(it.hint_es, it.hint_en)} aria-label={T(it.es, it.en)} aria-current={active(it) ? 'page' : undefined}
+                  <button key={it.id} data-tour-nav={it.id} onClick={it.go} title={T(it.hint_es, it.hint_en)} aria-label={T(it.es, it.en)} aria-current={active(it) ? 'page' : undefined}
                     className={`flex h-10 items-center gap-3 rounded-xl px-3 text-[13.5px] transition md:justify-center lg:justify-start ${active(it) ? 'bg-accent-soft font-semibold text-accent' : 'text-ink-2 hover:bg-surface-2 hover:text-ink'}`}>
                     <span className="shrink-0">{it.icon}</span><span className="hidden truncate lg:inline">{T(it.es, it.en)}</span>
                   </button>
@@ -86,16 +92,20 @@ export default function AppShell({ user, onLogout, children }: { user: User; onL
           ))}
         </nav>
         <div className="flex shrink-0 flex-col gap-2 border-t border-line p-2.5 lg:p-3">
+          <TourButton />
           <div className="hidden items-center gap-2 lg:flex"><ThemeSwitch /><Lang /></div>
           <div className="flex items-center gap-2 rounded-xl px-1 py-1 md:justify-center lg:justify-start">
-            {avatar}
-            <span className="hidden min-w-0 flex-1 truncate text-[13px] font-medium text-ink lg:block">{user.name}</span>
+            <button onClick={go('profile')} title={T('Mi perfil', 'My profile')} className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg p-0.5 text-left transition hover:bg-accent-soft md:justify-center lg:justify-start ${view === 'profile' ? 'bg-accent-soft' : ''}`}>
+              {avatar}
+              <span className="hidden min-w-0 flex-1 truncate text-[13px] font-medium text-ink lg:block">{user.name}</span>
+            </button>
             <button onClick={onLogout} className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-3 transition hover:bg-danger/10 hover:text-danger lg:flex" title={T('Cerrar sesión', 'Log out')} aria-label={T('Cerrar sesión', 'Log out')}><LogOut size={15} /></button>
           </div>
         </div>
       </aside>
 
       <main className="relative h-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden pb-[64px] scroll-thin md:pb-0">{children}</main>
+      <ProductTour userId={user.id} />
 
       {/* phone: the four places people go most, and «Más» for the rest */}
       <nav className="fixed inset-x-0 bottom-0 z-[70] flex h-[64px] items-stretch border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
@@ -113,7 +123,7 @@ export default function AppShell({ user, onLogout, children }: { user: User; onL
           <motion.div className="fixed inset-0 z-[80] flex items-end bg-black/50 md:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMore(false)}>
             <motion.div initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }} onClick={(e) => e.stopPropagation()} className="max-h-[85dvh] w-full overflow-y-auto rounded-t-3xl border-t border-line bg-paper p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <div className="flex items-center gap-2.5">
-                {avatar}<span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{user.name}</span>
+                <button onClick={go('profile')} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">{avatar}<span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{user.name}</span></button>
                 <button onClick={() => setMore(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-ink-2" aria-label={T('Cerrar', 'Close')}><X size={16} /></button>
               </div>
               {gs.map((g) => (

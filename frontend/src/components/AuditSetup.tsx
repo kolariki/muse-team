@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api, type EngineStatus } from '../lib/api'
 import { PALETTE, brandTheme } from '../lib/brand'
 import type { AgentConfig, Provider, Role } from '../types'
+import { useAiConnect } from './AiConnect'
 import ModelSelect from './ModelSelect'
 import ProviderLogo, { BrandLogoRow, BrandStripes, LogoWatermark } from './ProviderLogo'
 import PersonaField from './PersonaField'
@@ -39,6 +40,7 @@ export default function AuditSetup({ onBack, onStart }: Props) {
   const [suggesting, setSuggesting] = useState(false)
   const [providers, setProviders] = useState<Provider[]>([])
   const [engines, setEngines] = useState<EngineStatus[]>([])
+  const ai = useAiConnect(providers, (np) => setProviders((ps) => ps.map((x) => (x.id === np.id ? np : x))))
   const [roles, setRoles] = useState<{ groups: string[]; groups_en?: string[]; roles: Role[] }>({ groups: [], roles: [] })
   const [provider, setProvider] = useState('')
   const [model, setModel] = useState('')
@@ -164,6 +166,7 @@ export default function AuditSetup({ onBack, onStart }: Props) {
             <div className="absolute inset-0 bg-surface/35" aria-hidden />
             <div className="relative space-y-4">
             <div
+              data-tour="audit"
               onDragOver={(e) => {
                 e.preventDefault()
                 setDrag(true)
@@ -220,6 +223,7 @@ export default function AuditSetup({ onBack, onStart }: Props) {
                 value={provider}
                 onChange={(e) => {
                   const id = e.target.value
+                  if (ai.ask(id, (np) => { setProvider(np.id); setModel(np.default_model) })) return
                   if (engines.find((x) => x.id === id)) {
                     setProvider(id)
                     setModel('default')
@@ -238,7 +242,9 @@ export default function AuditSetup({ onBack, onStart }: Props) {
                 <optgroup label={T('Por API', 'Via API')}>
                   {providers.filter((p) => p.configured).map((p) => <option key={p.id} value={p.id}>{p.id === 'mock' ? T('Simulado (sin API)', 'Simulated (no API)') : p.label}</option>)}
                 </optgroup>
+                {ai.options}
               </select>
+              {ai.dialog}
               {isEngine ? (
                 <p className="mt-1.5 text-[12px] text-ink-3">{T('Con un agente local,', 'With a local agent,')} <b>{T('todos', 'all')}</b> {T('los roles auditan leyendo tu carpeta directamente, sin API.', 'roles audit by reading your folder directly, without the API.')}</p>
               ) : (
@@ -252,7 +258,7 @@ export default function AuditSetup({ onBack, onStart }: Props) {
             </div>
           </div>
 
-          <div className="panel rounded-2xl p-5">
+          <div data-tour="audit-team" className="panel rounded-2xl p-5">
             <div className="flex items-center">
               <span className="text-xs uppercase tracking-widest text-ink-3">{T('Equipo auditor', 'Audit team')} <span className="ml-1 rounded-full border border-line bg-surface px-1.5 py-0.5 text-[10px] text-ink-2">{team.length}/8</span></span>
               <button
@@ -314,8 +320,9 @@ export default function AuditSetup({ onBack, onStart }: Props) {
                       </select>
                       {!isEngine && (
                         <>
-                          <select className={input} value={a.provider} onChange={(e) => { const np = providers.find((x) => x.id === e.target.value)!; updateAgent(i, { provider: np.id, model: np.default_model }) }}>
+                          <select className={input} value={a.provider} onChange={(e) => { if (ai.ask(e.target.value, (np) => updateAgent(i, { provider: np.id, model: np.default_model }))) return; const np = providers.find((x) => x.id === e.target.value)!; updateAgent(i, { provider: np.id, model: np.default_model }) }}>
                             {providers.filter((p) => p.configured).map((p) => <option key={p.id} value={p.id}>{p.id === 'mock' ? T('Simulado (sin API)', 'Simulated (no API)') : p.label}</option>)}
+                            {ai.options}
                           </select>
                           <ModelSelect provider={a.provider} value={a.model} onChange={(m) => updateAgent(i, { model: m })} className="text-xs" />
                         </>

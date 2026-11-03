@@ -16,3 +16,6 @@ backend/data/
 !.env.example
 frontend/.env*
 .claude/launch.json
+
+# generated when rendering the marketing videos
+backend/video/build-*/

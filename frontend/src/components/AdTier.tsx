@@ -67,7 +67,7 @@ export default function AdTier({ onBack }: { onBack: () => void }) {
           subtitle={T('Cada video tiene un tier S/A/B/C por evidencia (premios, performance) y un score de IA, y está descompuesto en una plantilla que podés copiar: hook, estructura por segundos y CTA.', 'Each video has an S/A/B/C tier from evidence (awards, performance) and an AI score, broken down into a template you can copy: hook, structure by the second and CTA.')}
           right={<span className="flex items-center gap-1.5 text-[12px] text-ink-3"><Medal size={14} className="text-accent" /> {T(`${total} videos publicados`, `${total} published videos`)}</span>} />
 
-        <div className="mt-4 flex flex-wrap gap-1.5 border-b border-line pb-3">
+        <div data-tour="adtier" className="mt-4 flex flex-wrap gap-1.5 border-b border-line pb-3">
           {tabs.map(([k, es, e2]) => <button key={k} onClick={() => setTab(k)} className={`rounded-full px-3.5 py-1.5 text-[13px] ${tab === k ? 'bg-ink text-paper font-semibold' : 'text-ink-2 hover:bg-surface-2'}`}>{T(es, e2)}</button>)}
         </div>
 
@@ -464,7 +464,7 @@ function ForYou({ onOpen }: { onOpen: (id: string) => void }) {
       {!home.model && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#C28A12]/40 bg-[#C28A12]/10 px-3 py-2.5 text-[13px] text-ink-2">
           <AlertTriangle size={15} className="text-[#C28A12]" />
-          <span className="min-w-0 flex-1">{T('Sin la clave de Meta Muse el perfil sale solo de tus respuestas y los anuncios que encontremos no se pueden analizar.', 'Without the Meta Muse key the profile comes only from your answers and the ads we find cannot be analysed.')}</span>
+          <span className="min-w-[min(100%,220px)] flex-1">{T('Sin la clave de Meta Muse el perfil sale solo de tus respuestas y los anuncios que encontremos no se pueden analizar.', 'Without the Meta Muse key the profile comes only from your answers and the ads we find cannot be analysed.')}</span>
           <button onClick={() => useArena.getState().set({ view: 'settings' })} className={PILL}><KeyRound size={14} /> {T('Agregar clave', 'Add key')}</button>
         </div>
       )}
@@ -602,7 +602,7 @@ function ProfileView({ id, home, onOpen, onDeleted }: { id: string; home: ForYou
       <div className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-widest text-accent">{m.profile.source === 'tably' ? T('Perfil armado desde tu proyecto en Tably', 'Profile built from your Tably project') : T('Perfil de tu negocio', 'Your business profile')}</div>
+            <div data-tour="profile" className="text-[11px] uppercase tracking-widest text-accent">{m.profile.source === 'tably' ? T('Perfil armado desde tu proyecto en Tably', 'Profile built from your Tably project') : T('Perfil de tu negocio', 'Your business profile')}</div>
             <h3 className="mt-0.5 text-[20px] font-bold leading-tight text-ink">{p.name}</h3>
             {p.summary && <p className="mt-1 max-w-[760px] text-[13.5px] text-ink-2">{p.summary}</p>}
           </div>
@@ -749,6 +749,7 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
   // what an account that Meta did not let us read needs now (the note was written when it was read; Meta may be on since)
   const act = (n: NonNullable<typeof p.notes>[number]) => {
     if (n.via === n.platform || !['instagram', 'facebook'].includes(n.platform)) return null
+    if (meta?.open === false) return null
     if (!meta?.ready) return 'enable_meta'
     return !meta.connected || (n.platform === 'instagram' && !meta.instagram) ? 'connect_meta' : null
   }
@@ -756,7 +757,7 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
     <section className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h4 className="flex items-center gap-1.5 text-[15px] font-bold text-ink"><Sparkles size={15} className="text-accent" /> {T('5 reels para hacer', '5 reels to make')}</h4>
+          <h4 data-tour="reels" className="flex items-center gap-1.5 text-[15px] font-bold text-ink"><Sparkles size={15} className="text-accent" /> {T('5 reels para hacer', '5 reels to make')}</h4>
           <p className="text-[12.5px] text-ink-3">{T('Pegá cuentas que te gusten o subí reels de otras marcas: miramos qué les funciona y te escribimos 5 reels para tu negocio, con gancho, tomas, texto en pantalla y cierre.', 'Paste accounts you like or upload reels from other brands: we see what works for them and write 5 reels for your business, with hook, shots, on-screen text and close.')}</p>
         </div>
         {!open && <button onClick={() => setOpen(true)} className={PILL}><Link2 size={14} /> {p.accounts?.length ? T('Cambiar cuentas', 'Change accounts') : T('Agregar cuentas', 'Add accounts')}</button>}
@@ -812,10 +813,10 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
           {p.notes.map((n) => (
             <div key={n.account} className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px] ${n.count ? 'border-line text-ink-2' : 'border-[#C28A12]/40 bg-[#C28A12]/10 text-ink-2'}`}>
               <span className="font-semibold text-ink">@{n.handle}</span>
-              <span className="min-w-0 flex-1">
+              <span className="min-w-[min(100%,220px)] flex-1">
                 {n.count ? T(`${n.count} reels leídos de ${PLATFORM_LABEL[n.via ?? ''] ?? n.via}`, `${n.count} reels read from ${PLATFORM_LABEL[n.via ?? ''] ?? n.via}`) : ''}
                 {n.count && n.via !== n.platform ? T(` (en ${PLATFORM_LABEL[n.platform]} no se pudo: ${n.problem ?? 'sin reels públicos'})`, ` (${PLATFORM_LABEL[n.platform]} could not be read: ${n.problem ?? 'no public reels'})`) : ''}
-                {!n.count && n.problem}
+                {!n.count && (act(n) === 'connect_meta' ? T('Para leer sus reels de Instagram, conectá tu cuenta de Meta una vez. Si la marca tiene TikTok o YouTube, también podés pegar ese link.', 'To read its Instagram reels, connect your Meta account once. If the brand has TikTok or YouTube, you can paste that link too.') : n.problem)}
               </span>
               {act(n) === 'connect_meta' && <button onClick={connect} className={PRIMARY}><Link2 size={14} /> {T('Conectar Meta', 'Connect Meta')}</button>}
               {act(n) === 'enable_meta' && meta?.admin && !setup && <button onClick={() => setSetup(true)} className={PRIMARY}><KeyRound size={14} /> {T('Habilitar Meta', 'Enable Meta')}</button>}
@@ -854,7 +855,7 @@ function ReelIdeas({ m, home, onChange }: { m: ForYouMatches; home: ForYouHome; 
         return (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-[#C28A12]/40 bg-[#C28A12]/10 px-3 py-2 text-[12.5px] text-ink-2">
             <AlertTriangle size={14} className="shrink-0 text-[#C28A12]" />
-            <span className="min-w-0 flex-1">{read.length
+            <span className="min-w-[min(100%,220px)] flex-1">{read.length
               ? T(`Estas ideas salen de ${read.join(' y ')}. De ${missed.join(', ')} no pudimos leer nada, así que no las inspiró.`, `These ideas come from ${read.join(' and ')}. Nothing could be read from ${missed.join(', ')}, so it did not inspire them.`)
               : T(`Estas ideas salen de tu rubro (anuncios que encontramos para tu perfil), no de ${missed.join(', ')}: no pudimos leer sus reels.`, `These ideas come from your sector (ads we found for your profile), not from ${missed.join(', ')}: we could not read their reels.`)}</span>
             <button onClick={() => setOpen(true)} className={PILL}><Link2 size={14} /> {T('Pegar su TikTok o YouTube', 'Paste their TikTok or YouTube')}</button>

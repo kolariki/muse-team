@@ -42,10 +42,10 @@ export default function AnalyticsPage({ onBack }: { onBack: () => void }) {
         )}
         {error && <div className="mt-6 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-[13px] text-danger">{error}</div>}
         <AnimatePresence>{!data && !error && <HomeLoader key="loader" caption={T('Midiendo tus apps…', 'Measuring your apps…')} />}</AnimatePresence>
-        {data && !openApp && <div className="mt-6 flex flex-wrap items-center gap-3"><ConnectSite onDone={() => reload()} /></div>}
+        {data && !openApp && <div data-tour="analytics" className="mt-6 flex flex-wrap items-center gap-3"><ConnectSite onDone={() => reload()} /></div>}
         {data && !data.apps.length && <div className="mt-6 rounded-2xl border border-dashed border-line px-6 py-12 text-center text-[14px] text-ink-3">{T('Todavía no hay apps acá. Publicá una con Tably Cloud o conectá un sitio que ya tengas online (en tu GitHub y tu hosting).', 'No apps here yet. Publish one with Tably Cloud or connect a site you already have online (on your GitHub and host).')}</div>}
         {openApp ? <div className="mt-8"><AnalyticsDetail app={openApp} onBack={() => setOpen(null)} /></div>
-          : <div className="mt-8 space-y-5">{data?.apps.map((a) => <AppCard key={a.slug} a={a} onDetail={() => setOpen(a.slug)} onChange={reload} />)}</div>}
+          : <div data-tour="apps" className="mt-8 space-y-5">{data?.apps.map((a) => <AppCard key={a.slug} a={a} onDetail={() => setOpen(a.slug)} onChange={reload} />)}</div>}
       </div>
     </div>
   )
@@ -96,7 +96,7 @@ function AppCard({ a, onDetail, onChange }: { a: AnalyticsApp; onDetail: () => v
   return (
     <div className="panel rounded-2xl p-5">
       <div className="flex flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[min(100%,220px)] flex-1">
           <div className="serif truncate text-[20px] leading-tight">{a.title}</div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[12px] text-ink-3">
             {a.url ? <a href={a.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-accent hover:underline">{a.url.replace(/^https?:\/\//, '')} <ExternalLink size={11} /></a> : <span>{T('sin URL', 'no URL')}</span>}
@@ -108,7 +108,7 @@ function AppCard({ a, onDetail, onChange }: { a: AnalyticsApp; onDetail: () => v
       </div>
       {a.needs_republish && (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent-soft/40 px-3.5 py-2.5 text-[12.5px] text-ink-2">
-          <span className="min-w-0 flex-1">{a.status === 'building' || a.status === 'deploying' ? T('Publicando la versión con analíticas… en unos minutos empiezan a llegar las visitas.', 'Publishing the version with analytics… visits start coming in within a few minutes.') : T('Las analíticas ya están instaladas en el proyecto, pero la versión en línea es anterior. Publicala para empezar a medir.', 'Analytics are already installed in the project, but the version online is older. Publish it to start measuring.')}</span>
+          <span className="min-w-[min(100%,220px)] flex-1">{a.status === 'building' || a.status === 'deploying' ? T('Publicando la versión con analíticas… en unos minutos empiezan a llegar las visitas.', 'Publishing the version with analytics… visits start coming in within a few minutes.') : T('Las analíticas ya están instaladas en el proyecto, pero la versión en línea es anterior. Publicala para empezar a medir.', 'Analytics are already installed in the project, but the version online is older. Publish it to start measuring.')}</span>
           {a.session_id && a.status !== 'building' && a.status !== 'deploying' && (
             <button onClick={publish} disabled={publishing} className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50">
               {publishing ? <Loader2 size={13} className="animate-spin" /> : <CloudUpload size={13} />} {T('Publicar ahora', 'Publish now')}
@@ -119,7 +119,7 @@ function AppCard({ a, onDetail, onChange }: { a: AnalyticsApp; onDetail: () => v
       {a.external && <ExternalSetup a={a} onChange={onChange} />}
       {!a.installed && !a.external && (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent-soft/40 px-3.5 py-2.5 text-[12.5px] text-ink-2">
-          <span className="min-w-0 flex-1">{T('Esta app todavía no tiene las analíticas instaladas, así que no registra visitas. Un clic y el equipo las instala; después la publicás de nuevo.', 'This app does not have analytics installed yet, so it records no visits. One click and the team installs them; then you publish it again.')}</span>
+          <span className="min-w-[min(100%,220px)] flex-1">{T('Esta app todavía no tiene las analíticas instaladas, así que no registra visitas. Un clic y el equipo las instala; después la publicás de nuevo.', 'This app does not have analytics installed yet, so it records no visits. One click and the team installs them; then you publish it again.')}</span>
           {a.session_id && (
             <button onClick={install} disabled={installing} className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50">
               {installing ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />} {T('Instalar analíticas', 'Install analytics')}

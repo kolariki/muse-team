@@ -64,7 +64,7 @@ PROVIDERS: dict[str, ProviderSpec] = {
         ProviderSpec("kimi", "Moonshot · Kimi", "#1F3A68", "KIMI_API_KEY", env("KIMI_BASE_URL", "https://api.moonshot.ai/v1"), "kimi-k2.6"),
         ProviderSpec("mistral", "Mistral", "#AD7D1A", "MISTRAL_API_KEY", "https://api.mistral.ai/v1", "mistral-medium-latest"),
         ProviderSpec("openrouter", "OpenRouter", "#1689A8", "OPENROUTER_API_KEY", "https://openrouter.ai/api/v1", "qwen/qwen3-235b-a22b"),
-        ProviderSpec("baseten", "Baseten · open models", "#2E7D5B", "BASETEN_API_KEY", "https://inference.baseten.co/v1", "zai-org/GLM-5.3"),
+        ProviderSpec("baseten", "Baseten · open models", "#111111", "BASETEN_API_KEY", "https://inference.baseten.co/v1", "zai-org/GLM-5.3"),
         ProviderSpec("ollama", "Ollama (local)", "#6E8226", None, None, "llama3.2"),
         ProviderSpec("mock", "Simulado (sin API)", "#8A9299", None, None, "mock-1", "mock"),
     ]

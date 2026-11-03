@@ -165,7 +165,7 @@ function AppCard({ data, onData, screens }: { data: AdsPayload; onData: (d: AdsP
     <div className="mt-4 rounded-xl border border-line bg-surface-2/50 p-3 sm:p-4">
       <div className="flex flex-wrap items-center gap-2">
         <ScanSearch size={16} className="text-accent" />
-        <span className="min-w-0 flex-1 text-[14px] font-bold text-ink">{T('Lo que entendimos de tu app', 'What we understood of your app')}</span>
+        <span className="min-w-[min(100%,220px)] flex-1 text-[14px] font-bold text-ink">{T('Lo que entendimos de tu app', 'What we understood of your app')}</span>
         {app.status === 'ready' && !editing && <button onClick={() => { setV(s); setEditing(true) }} className={PILL}><Pencil size={13} /> {T('Corregir', 'Correct')}</button>}
         {!ANALYZING.includes(app.status) && app.status !== 'none' && <button onClick={again} className={PILL}><RefreshCw size={13} /> {T('Volver a analizar', 'Analyse again')}</button>}
       </div>
@@ -249,7 +249,7 @@ function AdCard({ ad, data, onData, reload }: { ad: Ad; data: AdsPayload; onData
     <section className={CARD}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Megaphone size={15} className="text-accent" />
-        <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-ink">{s?.angle || s?.hook || T('Anuncio nuevo', 'New ad')}</span>
+        <span className="min-w-[min(100%,220px)] flex-1 truncate text-[14px] font-bold text-ink">{s?.angle || s?.hook || T('Anuncio nuevo', 'New ad')}</span>
         {ad.template && <span className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-ink-3">{tplName(ad.template, T('es', 'en') === 'en')}</span>}
         <span className="text-[11.5px] text-ink-3">{new Date(ad.created * 1000).toLocaleString(T('es-AR', 'en-US'), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
         {sure ? (
@@ -266,7 +266,7 @@ function AdCard({ ad, data, onData, reload }: { ad: Ad; data: AdsPayload; onData
       {WORKING.includes(ad.status) ? <Progress ad={ad} /> : ad.status === 'error' ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-danger/30 bg-danger/5 px-3 py-2.5">
           <AlertTriangle size={15} className="shrink-0 text-danger" />
-          <span className="min-w-0 flex-1 text-[13px] text-ink-2">{ad.error || T('No se pudo hacer el anuncio.', 'The ad could not be made.')}</span>
+          <span className="min-w-[min(100%,220px)] flex-1 text-[13px] text-ink-2">{ad.error || T('No se pudo hacer el anuncio.', 'The ad could not be made.')}</span>
           <button onClick={() => act(() => api.adsRetry(sid, bid, ad.id), T('No se pudo reintentar', 'Could not retry'))} className={PILL}><RefreshCw size={14} /> {T('Reintentar', 'Retry')}</button>
         </div>
       ) : s && (
@@ -378,9 +378,11 @@ function MetaBlock({ ad, data, publishing, setPublishing, onData, reload }: { ad
     <div className="mt-4 rounded-xl border border-line px-3 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0082FB]/12 text-[#0082FB]"><Megaphone size={14} /></span>
-        <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-ink">Meta Ads{meta.connected && meta.account ? <span className="font-normal text-ink-3"> · {meta.account}</span> : null}</span>
+        <span className="min-w-[min(100%,220px)] flex-1 text-[13.5px] font-semibold text-ink">Meta Ads{meta.connected && meta.account ? <span className="font-normal text-ink-3"> · {meta.account}</span> : null}</span>
         {m?.status === 'done' && m.manager_url ? (
           <a href={m.manager_url} target="_blank" rel="noreferrer" className={PILL}><ExternalLink size={14} /> {T('Abrir en el Administrador de anuncios', 'Open in Ads Manager')}</a>
+        ) : meta.open === false ? (
+          <button type="button" disabled className="h-9 cursor-not-allowed rounded-full border border-line bg-surface-2 px-4 text-[13px] font-semibold text-ink-3">{T('Próximamente', 'Coming soon')}</button>
         ) : !meta.ready ? (
           <a href="https://adsmanager.facebook.com/" target="_blank" rel="noreferrer" className={PILL}><ExternalLink size={14} /> {T('Abrir el Administrador de anuncios', 'Open Ads Manager')}</a>
         ) : !meta.connected || meta.expired ? (
@@ -390,7 +392,8 @@ function MetaBlock({ ad, data, publishing, setPublishing, onData, reload }: { ad
         ) : null}
       </div>
       <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">
-        {m?.status === 'done' ? T('La campaña quedó creada en pausa con los dos videos. Revisala y activala en el Administrador de anuncios: hasta que la actives no se gasta nada.', 'The campaign was created paused with both videos. Review it and turn it on in Ads Manager: nothing is spent until you do.')
+        {meta.open === false ? T('Próximamente vas a poder publicar y manejar tus anuncios desde Tably, con nuestra IA guiándote. Por ahora bajá el video y subilo en tu Administrador de anuncios.', 'Soon you will be able to publish and manage your ads from Tably, with our AI guiding you. For now, download the video and upload it in your Ads Manager.')
+          : m?.status === 'done' ? T('La campaña quedó creada en pausa con los dos videos. Revisala y activala en el Administrador de anuncios: hasta que la actives no se gasta nada.', 'The campaign was created paused with both videos. Review it and turn it on in Ads Manager: nothing is spent until you do.')
           : m?.status === 'publishing' ? <span className="flex items-center gap-1.5 text-ink-2"><Loader2 size={13} className="animate-spin text-accent" /> {m.step}</span>
           : m?.status === 'error' ? <span className="text-danger">{m.error}</span>
           : !meta.ready ? T('Publicar directo desde Tably se habilita cuando Meta apruebe la app de Tably. Mientras, descargá los videos y subilos en el Administrador de anuncios: el texto de arriba ya está listo para copiar.', 'Publishing straight from Tably turns on once Meta approves the Tably app. Meanwhile, download the videos and upload them in Ads Manager: the copy above is ready to paste.')

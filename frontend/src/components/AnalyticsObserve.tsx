@@ -169,7 +169,7 @@ export function AiTab({ app, days }: { app: AnalyticsApp; days: number }) {
       {k.calls === 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent-soft/40 px-4 py-3 text-[13px] text-ink-2">
           <Bot size={16} className="shrink-0 text-accent" />
-          <span className="min-w-0 flex-1">{T('Todavía no llegó ninguna llamada de IA. Si tu app usa OpenAI, Claude u otro modelo, el constructor la conecta para ver acá cuánto cuesta cada función, los tokens, la demora y los errores.', 'No AI call has arrived yet. If your app uses OpenAI, Claude or another model, the builder wires it so you see here what each feature costs, the tokens, latency and errors.')}</span>
+          <span className="min-w-[min(100%,220px)] flex-1">{T('Todavía no llegó ninguna llamada de IA. Si tu app usa OpenAI, Claude u otro modelo, el constructor la conecta para ver acá cuánto cuesta cada función, los tokens, la demora y los errores.', 'No AI call has arrived yet. If your app uses OpenAI, Claude or another model, the builder wires it so you see here what each feature costs, the tokens, latency and errors.')}</span>
           {app.session_id && <button onClick={ask} disabled={asking} className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12.5px] font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-50">{asking ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />} {T('Conectar las llamadas de IA', 'Wire the AI calls')}</button>}
         </div>
       )}

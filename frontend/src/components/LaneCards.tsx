@@ -146,7 +146,8 @@ export default function LaneCards({ onPick }: { onPick: (lane: Lane) => void }) 
   return (
     <div className="mt-10 grid gap-5 md:grid-cols-2">
       {cards.map((c) => (
-        <button key={c.id} type="button" onClick={() => onPick(c.id)} className="lane-card group panel relative isolate flex min-h-[372px] flex-col items-start overflow-hidden rounded-3xl p-7 text-left transition hover:border-accent">
+        <div key={c.id} className="lane-ring">
+        <button type="button" onClick={() => onPick(c.id)} className="lane-card group panel relative isolate flex h-full min-h-[372px] w-full flex-col items-start overflow-hidden rounded-3xl p-7 text-left transition hover:border-accent">
           <Circuit lane={c.id} />
           <div className="relative z-10 flex flex-col items-start gap-3">
             <span className="rounded-full border border-line bg-surface/90 px-2.5 py-0.5 text-[11px] uppercase tracking-[0.2em] text-ink-3">{c.tag}</span>
@@ -155,6 +156,7 @@ export default function LaneCards({ onPick }: { onPick: (lane: Lane) => void }) 
           </div>
           <span className="absolute bottom-6 right-6 z-10 inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-[13px] font-semibold text-white shadow-sm transition group-hover:brightness-110">{T('Elegir', 'Choose')} <Play size={13} /></span>
         </button>
+        </div>
       ))}
     </div>
   )

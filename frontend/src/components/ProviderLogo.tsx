@@ -7,7 +7,12 @@ const HAS_LOGO = new Set(['meta', 'anthropic', 'openai', 'deepseek', 'gemini', '
 
 const ALIAS: Record<string, string> = { 'claude-code': 'anthropic', codex: 'openai', 'muse-code': 'meta' }
 
-const HAS_SVG = new Set(['github', 'cloudflare', 'notion'])
+const HAS_SVG = new Set(['github', 'cloudflare', 'notion', 'baseten', 'meta-ads'])
+
+/** A single black symbol: on the dark theme it goes white (see .logo-mono). */
+const MONO = new Set(['baseten', 'github', 'openai', 'xai', 'openrouter', 'ollama', 'vercel', 'railway'])
+
+export const isMonoLogo = (provider?: string | null) => !!provider && MONO.has(ALIAS[provider] ?? provider)
 
 export const logoUrl = (provider?: string | null) => {
   const p = provider ? ALIAS[provider] ?? provider : null
@@ -23,7 +28,7 @@ export default function ProviderLogo({ provider, size = 20, className = '' }: { 
       </span>
     )
   }
-  return <img src={url} alt={provider ?? ''} width={size} height={size} draggable={false} className={`inline-block object-contain select-none ${className}`} style={{ width: size, height: size }} />
+  return <img src={url} alt={provider ?? ''} width={size} height={size} draggable={false} className={`inline-block object-contain select-none ${isMonoLogo(provider) ? 'logo-mono' : ''} ${className}`} style={{ width: size, height: size }} />
 }
 
 /** Big, very light company logo used as a card background. */
@@ -36,8 +41,8 @@ export function LogoWatermark({ provider, opacity = 0.07 }: { provider?: string 
       alt=""
       aria-hidden
       draggable={false}
-      className="pointer-events-none select-none absolute -right-[12%] -bottom-[22%] w-[68%] max-w-[260px] rotate-[-8deg]"
-      style={{ opacity, filter: 'saturate(0.85)' }}
+      className={`pointer-events-none select-none absolute -right-[12%] -bottom-[22%] w-[68%] max-w-[260px] rotate-[-8deg] ${isMonoLogo(provider) ? 'logo-mono' : ''}`}
+      style={{ opacity, filter: isMonoLogo(provider) ? undefined : 'saturate(0.85)' }}
     />
   )
 }
@@ -80,14 +85,14 @@ export function BrandLogoRow({ providers, align = 'center', compact = false }: {
           // one line per band (logo + share), for short rows such as the project list
           return (
             <div key={`${p}-${i}`} className="flex-1 min-w-0 flex items-center justify-center gap-2 select-none">
-              {url && <img src={url} alt="" draggable={false} style={{ width: 30, height: 30, objectFit: 'contain', opacity: 0.3 }} />}
+              {url && <img src={url} alt="" draggable={false} className={isMonoLogo(p) ? 'logo-mono' : ''} style={{ width: 30, height: 30, objectFit: 'contain', opacity: 0.3 }} />}
               <div className="font-mono leading-none font-semibold" style={{ fontSize: 15, color: t.ink, opacity: 0.28 }}>{pct}%</div>
             </div>
           )
         }
         return (
           <div key={`${p}-${i}`} className={`flex-1 min-w-0 flex flex-col items-center gap-1 select-none ${align === 'start' ? 'justify-start pt-1' : 'justify-center'}`}>
-            {url && <img src={url} alt="" draggable={false} style={{ width: logo, height: logo, objectFit: 'contain', opacity: 0.26 }} />}
+            {url && <img src={url} alt="" draggable={false} className={isMonoLogo(p) ? 'logo-mono' : ''} style={{ width: logo, height: logo, objectFit: 'contain', opacity: 0.26 }} />}
             <div className="font-mono leading-none font-semibold" style={{ fontSize: n > 6 ? 14 : 20, color: t.ink, opacity: 0.22 }}>{pct}%</div>
             {model && model.startsWith('muse-') && <div className="whitespace-nowrap font-semibold" style={{ fontSize: n > 6 ? 9 : 11, color: t.ink, opacity: 0.45 }}>{museLabel(model)}</div>}
             <div className="uppercase tracking-[0.2em] whitespace-nowrap" style={{ fontSize: n > 6 ? 7 : 9, color: t.ink, opacity: 0.35 }}>{count} de {total}</div>

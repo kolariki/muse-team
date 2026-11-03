@@ -9,6 +9,7 @@ import PersonaField from './PersonaField'
 import ProviderLogo from './ProviderLogo'
 import SkillPicker from './SkillPicker'
 import { toast } from './Toast'
+import { useAiConnect } from './AiConnect'
 
 let providersCache: Provider[] | null = null
 let rolesCache: { groups: string[]; groups_en?: string[]; roles: Role[] } | null = null
@@ -22,6 +23,7 @@ export default function TeamEditor({ sessionId, onSaved }: { sessionId: string; 
   const lang = useLang()
   const [agents, setAgents] = useState<AgentConfig[] | null>(null)
   const [providers, setProviders] = useState<Provider[]>(providersCache ?? [])
+  const ai = useAiConnect(providers, (np) => setProviders((ps) => (providersCache = ps.map((x) => (x.id === np.id ? np : x)))))
   const [roles, setRoles] = useState(rolesCache)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -75,9 +77,11 @@ export default function TeamEditor({ sessionId, onSaved }: { sessionId: string; 
               <div className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-1.5">
                 <ProviderLogo provider={a.wanted_provider ?? a.provider} size={20} />
                 <input className={input} value={a.name} onChange={(e) => update(i, { name: e.target.value })} placeholder={T('nombre', 'name')} />
-                <select className={input} value={a.provider} onChange={(e) => { const np = providers.find((x) => x.id === e.target.value); if (np) update(i, { provider: np.id, model: np.default_model, wanted_provider: undefined }) }}>
-                  {providers.map((x) => <option key={x.id} value={x.id} disabled={!x.configured && x.id !== 'mock'}>{x.id === 'mock' ? T('Simulado (sin API)', 'Simulated (no API)') : x.label}{x.configured || x.id === 'mock' ? '' : T(' (sin key)', ' (no key)')}</option>)}
+                <select className={input} value={a.provider} onChange={(e) => { if (ai.ask(e.target.value, (np) => update(i, { provider: np.id, model: np.default_model, wanted_provider: undefined }))) return; const np = providers.find((x) => x.id === e.target.value); if (np) update(i, { provider: np.id, model: np.default_model, wanted_provider: undefined }) }}>
+                  {providers.filter((x) => x.configured || x.id === 'mock').map((x) => <option key={x.id} value={x.id}>{x.id === 'mock' ? T('Simulado (sin API)', 'Simulated (no API)') : x.label}</option>)}
+                  {ai.options}
                 </select>
+                {ai.dialog}
                 <button type="button" onClick={() => remove(i)} disabled={agents.length <= 2} className="text-ink-3 hover:text-danger disabled:opacity-20" title={T('Quitar rol', 'Remove role')}><Trash2 size={14} /></button>
               </div>
               <div className="mt-1.5 grid grid-cols-2 gap-1.5">

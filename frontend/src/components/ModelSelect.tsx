@@ -82,7 +82,7 @@ export default function ModelSelect({ provider, value, onChange, enabled = true,
             !loading &&
             options.map((m) => (
               <option key={m} value={m}>
-                {m}
+                {m === 'default' ? T('modelo por defecto', 'default model') : m}
                 {list.length && !list.includes(m) ? T(' (no está en la lista)', ' (not in the list)') : ''}
               </option>
             ))}

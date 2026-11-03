@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import AsyncIterator, Awaitable, Callable
 
@@ -128,6 +129,11 @@ def _en(st: dict) -> dict:
     st["hint_en"] = h
     st["label_en"] = (st.get("label") or "").replace("tu suscripción", "your subscription")
     return st
+
+
+def engine_models(engine: str) -> list[str]:
+    """What can be chosen in a picker; any other id can be typed. Codex lists none: it uses what the user's plan has."""
+    return {"claude-code": ["default", "opus", "sonnet", "haiku"], "muse-code": ["default", "muse-wonder-1.0", "muse-spark-1.3"]}.get(engine, ["default"])
 
 
 def engine_status(user_id: str | None = None) -> list[dict]:
@@ -612,6 +618,24 @@ async def run_muse_code(prompt: str, cwd: Path, *, system: str | None = None, co
 async def run_engine(engine: str, prompt: str, cwd: Path, **kw) -> dict:
     fn = run_claude_code if engine == "claude-code" else run_muse_code if engine == "muse-code" else run_codex
     return await fn(prompt, cwd, **kw)
+
+
+async def ask_engine(user_id: str, engine: str, system: str, prompt: str, model: str | None = None, on_text=None) -> dict:
+    """One text answer from a local CLI agent, in an empty folder and without write tools: the subscription used as a plain model."""
+    if not next((e["ok"] for e in engine_status(user_id) if e["id"] == engine), False):
+        raise ValueError(f"{ENGINES[engine]['label']}: no está disponible en esta máquina")
+    USER_ENV.set(user_claude_env(user_id))
+
+    async def on_event(kind: str, **data) -> None:
+        if kind in ("text_delta", "text") and on_text and data.get("text"):
+            on_text(data["text"])
+
+    pick = model if model and model != "default" else ENGINES[engine].get("default_model")
+    with tempfile.TemporaryDirectory(prefix="tably-ask-") as tmp:
+        res = await run_engine(engine, prompt, Path(tmp), system=system, read_only=True, max_turns=3, model=pick, on_event=on_event)
+    if res.get("is_error") and not (res.get("text") or "").strip():
+        raise ValueError(res.get("error") or f"{ENGINES[engine]['label']} no respondió")
+    return res
 
 
 async def _call(fn: Emit, kind: str, **data) -> None:

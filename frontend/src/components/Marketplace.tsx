@@ -27,7 +27,7 @@ export default function Marketplace({ onBack }: { onBack: () => void }) {
           right={<span className="flex items-center gap-1.5 text-[12px] text-ink-3"><Store size={14} className="text-accent" /> {T('nivel 1 o más', 'level 1 or more')}</span>}
         />
         {data && (
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div data-tour="market" className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {data.levels.map((l) => (
               <div key={l.n} className="rounded-xl border px-3 py-2" style={{ borderColor: `${LEVEL_COLORS[l.n]}55`, background: `${LEVEL_COLORS[l.n]}10` }}>
                 <div className="flex items-center gap-1 text-[11px] font-bold" style={{ color: LEVEL_COLORS[l.n] }}><Trophy size={11} /> {T('Nivel', 'Level')} {l.n} · {en ? l.label_en : l.label}</div>
@@ -39,7 +39,7 @@ export default function Marketplace({ onBack }: { onBack: () => void }) {
         {err && <div className="mt-6 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{err}</div>}
         <AnimatePresence>{!data && !err && <HomeLoader key="loader" caption={T('Abriendo el marketplace…', 'Opening the marketplace…')} />}</AnimatePresence>
         {data && data.listings.length === 0 && (
-          <div className="mt-10 rounded-2xl border border-dashed border-line bg-surface px-6 py-10 text-center text-sm text-ink-2">
+          <div data-tour="market-list" className="mt-10 rounded-2xl border border-dashed border-line bg-surface px-6 py-10 text-center text-sm text-ink-2">
             {T('Todavía no hay apps en venta. La primera que llegue al nivel 1 aparece acá.', 'No apps for sale yet. The first one to reach level 1 shows up here.')}
           </div>
         )}

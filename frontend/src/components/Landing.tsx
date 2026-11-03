@@ -66,6 +66,7 @@ const SCENES = [
   { key: 'deploy', label: 'La publicás con un clic', label_en: 'You publish it in one click', desc: 'Terminada la construcción, la publicás desde Tably Cloud: base de datos, HTTPS y dominio incluidos, con una URL pública que abre desde cualquier lugar.', desc_en: 'Once the build is done, you publish it from Tably Cloud: database, HTTPS and domain included, with a public URL that opens from anywhere.', dur: 10500 },
   { key: 'analytics', label: 'Medís quién la usa', label_en: 'You measure who uses it', desc: 'Cada app publicada trae Tably Analytics: visitas, páginas, eventos y errores reales, sin cookies ni datos personales.', desc_en: 'Every published app comes with Tably Analytics: real visits, pages, events and errors, with no cookies or personal data.', dur: 9000 },
   { key: 'ads', label: 'Creás los anuncios', label_en: 'You create the ads', desc: 'Muse mira tu app, resume qué hace y propone 5 plantillas; cinco agentes arman el video con los colores de la app y queda listo para Meta Ads.', desc_en: 'Muse looks at your app, sums up what it does and suggests 5 templates; five agents make the video in the app’s colours, ready for Meta Ads.', dur: 10000 },
+  { key: 'metaads', label: 'Conectás tu Meta Ads', label_en: 'You connect your Meta Ads', desc: 'La IA lee tu cuenta y te muestra los números que importan, qué funciona y qué cambiar. Con un botón pausás, eliminás o movés presupuesto.', desc_en: 'The AI reads your account and shows you the numbers that matter, what works and what to change. One button pauses, deletes or moves budget.', dur: 11000 },
   { key: 'market', label: 'La vendés en el marketplace', label_en: 'You sell it on the marketplace', desc: 'Publicás la app con su nivel, sus visitas reales y un precio; el comprador te escribe y se la transferís desde el constructor.', desc_en: 'You list the app with its level, real visits and a price; the buyer writes to you and you transfer it from the builder.', dur: 9500 },
   { key: 'audit', label: 'Auditan un proyecto que ya tenés', label_en: 'They audit a project you already have', desc: 'Subís un proyecto existente, elegís qué roles lo revisan y el equipo lo audita desde cada área: hallazgos con archivo y línea, qué está listo y qué falta para producción.', desc_en: 'You upload an existing project, pick which roles review it and the team audits it from every area: findings with file and line, what is ready and what is missing for production.', dur: 11000 },
 ] as const
@@ -111,7 +112,7 @@ export default function Landing({ onLogin, onSignup }: { onLogin: () => void; on
   useGSAP(() => {
     if (!page.current) return
     heroIntro(page.current)
-    scrollReveal(page.current)
+    return scrollReveal(page.current)
   }, { scope: page, dependencies: [lang] })
   return (
     <div ref={page} className="relative h-full overflow-y-auto overflow-x-hidden scroll-thin arena-bg">
@@ -121,7 +122,7 @@ export default function Landing({ onLogin, onSignup }: { onLogin: () => void; on
       <div className="relative z-10">
       {/* header */}
       <header className="sticky top-0 z-20 flex items-center gap-2 px-3 h-14 border-b border-line bg-paper/80 backdrop-blur sm:gap-3 sm:px-6">
-        <img data-brand-icon src="/icon.svg" alt="" aria-hidden className="h-7 w-7 shrink-0 rounded-lg shadow-sm" draggable={false} />
+        <img data-brand-icon src="/icon.svg?v=2" alt="" aria-hidden className="h-7 w-7 shrink-0 rounded-lg shadow-sm" draggable={false} />
         <span className="serif hidden whitespace-nowrap text-lg min-[480px]:inline"><span data-brand-text>Tably</span> <em data-brand-text className="text-accent">Team</em></span>
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           <ThemeSwitch className="h-8" auto={false} />
@@ -183,6 +184,10 @@ export default function Landing({ onLogin, onSignup }: { onLogin: () => void; on
 
       {!HACKATHON_MODE && <Resources />}
       </div>
+      <nav aria-label={T('Legales', 'Legal')} className="flex justify-center gap-5 px-6 pb-6 pt-2 text-[12.5px] text-ink-3">
+        <a href="/privacidad" className="hover:text-ink hover:underline">{T('Privacidad', 'Privacy')}</a>
+        <a href="/terminos" className="hover:text-ink hover:underline">{T('Términos', 'Terms')}</a>
+      </nav>
       <MadeWith />
     </div>
   )
@@ -239,13 +244,12 @@ function Resources() {
   }, [lang])
   if (!posts.length && !faq.length) return null
   return (
-    <section className="max-w-[1400px] mx-auto px-6 pb-24">
+    <section className="max-w-[1400px] mx-auto px-6 pt-24 pb-24">
       {posts.length > 0 && (
         <div data-scroll-reveal>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <div className="text-[11px] uppercase tracking-[0.3em] text-accent">{T('Guías', 'Guides')}</div>
-              <h2 className="serif mt-1 text-[34px] leading-tight">{T('Qué IA elegir, cuánto cuesta y cómo funciona por dentro', 'Which AI to pick, what it costs and how it works inside')}</h2>
+              <h2 className="serif text-[34px] leading-tight">{T('Qué IA elegir, cuánto cuesta y cómo funciona por dentro', 'Which AI to pick, what it costs and how it works inside')}</h2>
             </div>
             <a href={`${prefix}/blog`} className="rounded-full border border-line bg-surface px-4 py-2 text-sm text-ink-2 transition hover:border-accent hover:text-accent">{T('Ver todos los artículos', 'See all articles')} →</a>
           </div>
@@ -292,7 +296,7 @@ function Resources() {
 export function MadeWith() {  // on a phone it would sit on top of the content (inputs, buttons): desktop only
   return (
     <a href="https://tablyteam.com" target="_blank" rel="noreferrer" className="fixed bottom-4 right-4 z-30 hidden items-center gap-2 rounded-full border border-line bg-surface/90 py-1.5 pl-1.5 pr-3.5 text-[12px] text-ink-2 shadow-md backdrop-blur transition hover:border-accent hover:text-ink sm:flex">
-      <img src="/icon.svg" alt="" aria-hidden className="h-5 w-5 rounded-md" draggable={false} />
+      <img src="/icon.svg?v=2" alt="" aria-hidden className="h-5 w-5 rounded-md" draggable={false} />
       <span>Made with <b className="font-semibold text-ink">Tably Team</b></span>
     </a>
   )
@@ -361,6 +365,7 @@ function Demo({ clock }: { clock: ReturnType<typeof useClock> }) {
           {clock.key === 'deploy' && <SceneDeploy key="deploy" t={clock.local} />}
           {clock.key === 'analytics' && <SceneAnalytics key="analytics" t={clock.local} />}
           {clock.key === 'ads' && <SceneAds key="ads" t={clock.local} />}
+          {clock.key === 'metaads' && <SceneMetaAds key="metaads" t={clock.local} />}
           {clock.key === 'market' && <SceneMarket key="market" t={clock.local} />}
           {clock.key === 'audit' && <SceneAudit key="audit" t={clock.local} />}
         </AnimatePresence>
@@ -516,8 +521,7 @@ function ScenePrompt({ t: raw }: { t: number }) {
   return (
     <motion.div {...sceneProps}>
       <div data-r className="flex items-center gap-3">
-        <motion.div animate={{ scale: pressed ? 0.95 : 1 }} className="relative flex items-center gap-2 overflow-hidden rounded-xl px-4 py-2 text-[13.5px] font-semibold text-white shadow-md" style={{ background: 'linear-gradient(100deg,#0064E0,#0082FB 60%,#00A8FF)' }}>
-          <img src="/logos/meta.png" alt="" aria-hidden className="pointer-events-none absolute -right-2 -bottom-3 h-11 w-11 rotate-[-10deg] opacity-25 brightness-[3]" draggable={false} />
+        <motion.div animate={{ scale: pressed ? 0.95 : 1 }} className="relative flex items-center gap-2 overflow-hidden rounded-xl px-4 py-2 text-[13.5px] font-semibold text-white shadow-md" style={{ background: 'linear-gradient(100deg,#B85C38,#D97757 60%,#E8956F)' }}>
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90"><ProviderLogo provider="meta" size={13} /></span> {T('Generar prompt engineering a mi texto', 'Prompt-engineer my text')}
         </motion.div>
         <span className="text-[12px] text-ink-3">{T('con', 'with')} Muse · muse-spark-1.3</span>
@@ -648,8 +652,7 @@ function SceneRefs({ t: raw }: { t: number }) {
         })}
       </div>
       <div className="mt-3 flex items-center justify-end">
-        <motion.div animate={{ scale: launch ? 0.96 : 1 }} className="relative flex items-center gap-2 overflow-hidden rounded-2xl px-5 py-2.5 text-[14px] font-semibold text-white shadow-md" style={{ background: 'linear-gradient(100deg,#0064E0,#0082FB 60%,#00A8FF)' }}>
-          <img src="/logos/meta.png" alt="" aria-hidden className="pointer-events-none absolute -right-3 -bottom-4 h-14 w-14 rotate-[-10deg] opacity-25 brightness-[3]" draggable={false} />
+        <motion.div animate={{ scale: launch ? 0.96 : 1 }} className="relative flex items-center gap-2 overflow-hidden rounded-2xl px-5 py-2.5 text-[14px] font-semibold text-white shadow-md" style={{ background: 'linear-gradient(100deg,#B85C38,#D97757 60%,#E8956F)' }}>
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/90"><ProviderLogo provider="meta" size={13} /></span> {T('Iniciar experimento', 'Start experiment')}
         </motion.div>
       </div>
@@ -1148,7 +1151,7 @@ function SceneAds({ t }: { t: number }) {
           <AnimatePresence>
             {ready && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-2 flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[11.5px] font-semibold text-paper shadow-lg">
-                <ProviderLogo provider="meta" size={13} /> {T('Enviar a Meta Ads · campaña en pausa', 'Send to Meta Ads · paused campaign')}
+                <ProviderLogo provider="meta-ads" size={13} /> {T('Enviar a Meta Ads · campaña en pausa', 'Send to Meta Ads · paused campaign')}
               </motion.div>
             )}
           </AnimatePresence>
@@ -1159,6 +1162,57 @@ function SceneAds({ t }: { t: number }) {
 }
 
 /* 10 · marketplace: the app is listed with its level and real visits, a buyer writes, the owner transfers it */
+/* 10 · Meta Ads: the account connected, its numbers, and each finding with the button that does it. The figures are an example. */
+function SceneMetaAds({ t }: { t: number }) {
+  const T = useT()
+  const connected = t > 900
+  const n = ease((t - 1300) / 1500)
+  const summary = t > 3000
+  const found = [t > 4200, t > 5000, t > 5800]
+  const paused = t > 8000
+  const raised = t > 9400
+  const kpis: [string, string][] = [[T('Invertido', 'Spent'), `$${Math.round(1240 * n).toLocaleString('en-US')}`], [T('Resultados', 'Results'), String(Math.round(86 * n))], [T('Costo por resultado', 'Cost per result'), `$${(14.4 * n).toFixed(1)}`]]
+  const row = (show: boolean, good: boolean, title: string, detail: string, impact: string, action: string, done: boolean, doneText: string) => show && (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-xl border border-line bg-surface py-2 pl-3.5 pr-3">
+      <span className={`absolute inset-y-0 left-0 w-1 ${good ? 'bg-[#2E9E6A]' : 'bg-[#C28A12]'}`} />
+      <div className="flex items-start gap-2">
+        <span className="min-w-0 flex-1 text-[12.5px] font-semibold leading-snug text-ink">{title}</span>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ${good ? 'bg-[#2E9E6A]/12 text-[#2E9E6A]' : 'bg-[#C28A12]/12 text-[#9A6B0A]'}`}>{impact}</span>
+      </div>
+      <p className="mt-0.5 text-[11px] leading-snug text-ink-3">{detail}</p>
+      {action && <div className="mt-1.5">{done ? <span className="text-[11px] font-semibold text-[#2E9E6A]">✓ {doneText}</span> : <span className="inline-block rounded-full bg-accent px-2.5 py-0.5 text-[10.5px] font-semibold text-white">{action}</span>}</div>}
+    </motion.div>
+  )
+  return (
+    <motion.div {...sceneProps}>
+      <div className="grid h-full grid-cols-[1fr_1.15fr] gap-4">
+        <div className="flex min-w-0 flex-col gap-2.5">
+          <div className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+            <ProviderLogo provider="meta-ads" size={18} />
+            <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-ink">Meta Ads</span>
+            {connected ? <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[11px] font-semibold text-[#2E9E6A]">✓ {T('Conectado', 'Connected')}</motion.span> : <span className="rounded-full bg-accent px-2.5 py-0.5 text-[10.5px] font-semibold text-white">{T('Conectar', 'Connect')}</span>}
+          </div>
+          {connected && (
+            <div className="grid grid-cols-3 gap-1.5">
+              {kpis.map(([k, v], i) => <div key={k} className={`rounded-lg border px-2 py-1.5 ${i === 2 ? 'border-accent/40 bg-accent-soft/50' : 'border-line bg-surface'}`}><div className="truncate text-[9.5px] text-ink-3">{k}</div><div className="font-mono text-[14px] font-semibold text-ink">{v}</div></div>)}
+            </div>
+          )}
+          {summary && (
+            <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-lg border-l-4 border-accent bg-accent-soft/40 px-3 py-2 text-[11.5px] leading-relaxed text-ink">
+              {T('El video vertical trae 8 de cada 10 clientes. La imagen de promo gastó $410 sin un solo lead: frenala y pasá ese presupuesto al video.', 'The vertical video brings 8 of every 10 customers. The promo image spent $410 without a single lead: stop it and move that budget to the video.')}
+            </motion.p>
+          )}
+        </div>
+        <div className="flex min-w-0 flex-col gap-2">
+          {row(found[0], false, T('Frená «Promo imagen»', 'Stop «Promo image»'), T('Mucho gasto, cero leads en 30 días.', 'High spend, zero leads in 30 days.'), T('$410 sin leads', '$410, no leads'), T('Pausar anuncio', 'Pause ad'), paused, T('Pausado', 'Paused'))}
+          {row(found[1], true, T('El video en Reels funciona', 'The video on Reels works'), T('El costo más bajo de la cuenta.', 'The lowest cost in the account.'), T('$6,1 por lead', '$6.1 per lead'), T('Subir presupuesto a $30 por día', 'Raise budget to $30 a day'), raised, T('Presupuesto: $30 por día', 'Budget: $30 a day'))}
+          {row(found[2], false, T('Sacá Marketplace', 'Remove Marketplace'), T('Todos los leads vienen de Reels, Stories y Feed.', 'Every lead comes from Reels, Stories and Feed.'), T('$180 sin leads', '$180, no leads'), '', false, '')}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 function SceneMarket({ t }: { t: number }) {
   const T = useT()
   const listed = t > 1200

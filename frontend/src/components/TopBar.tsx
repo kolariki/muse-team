@@ -20,7 +20,7 @@ export default function TopBar({ onNew, onRerun }: { onNew: () => void; onRerun?
 
   return (
     <div className="relative z-[70] flex h-14 shrink-0 items-center gap-2 border-b border-line bg-surface/90 px-2 backdrop-blur sm:h-16 sm:gap-3 sm:px-4">
-      <img src="/icon.svg" alt="Tably Team" title="Tably Team" className="h-9 w-9 shrink-0 rounded-xl shadow-sm" draggable={false} />
+      <img src="/icon.svg?v=2" alt="Tably Team" title="Tably Team" className="h-9 w-9 shrink-0 rounded-xl shadow-sm" draggable={false} />
       <div className="ml-1 flex shrink-0 items-center gap-2 sm:ml-2">
         {s.recording ? null : s.status === 'paused' ? (
           <span className="flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-2.5 py-1 text-[11px] font-bold text-gold">

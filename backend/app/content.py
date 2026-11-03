@@ -24,12 +24,12 @@ def _brand(provider: str | None) -> tuple[str, str]:
     """(logo path, brand color) for the AI an article is about."""
     spec = PROVIDERS.get(provider or "")
     ext = "svg" if provider in ("github", "cloudflare") else "png"
-    return (f"/logos/{provider}.{ext}", spec.color if spec else "#2F6B5D") if provider else ("", "#2F6B5D")
+    return (f"/logos/{provider}.{ext}", spec.color if spec else "#6A4BE8") if provider else ("", "#6A4BE8")
 
 CONTENT_DIR = Path(env("ARENA_CONTENT_DIR", str(Path(__file__).resolve().parents[1] / "content")))
 SITE_URL = (env("ARENA_PUBLIC_URL", "https://tablyteam.com") or "https://tablyteam.com").rstrip("/")
 SITE_NAME = "Tably Team"
-SITE_TAGLINE = "Tu equipo de IA que diseña y construye apps, powered by Muse"
+SITE_TAGLINE = "Tu equipo de IA que diseña y construye apps"
 SITE_DESCRIPTION = ("Tably Team arma un equipo de inteligencias artificiales (CEO, CTO, ingeniería, producto, diseño y QA) que debate tu idea, "
                     "estudia apps de referencia, diseña las pantallas, escribe el código y lo revisa antes de entregarte una app lista para correr.")
 
@@ -171,25 +171,33 @@ def faq(lang: str = "es") -> list[Faq]:
 # ------------------------------------------------------------------ server-rendered pages
 
 _CSS = """
-:root{--paper:#EEF1EF;--surface:#fff;--surface-2:#F5F7F5;--line:#DCE2DE;--ink:#1E2622;--ink-2:#46514B;--ink-3:#717C76;--ink-4:#A2ACA6;--accent:#2F6B5D;--accent-soft:#E2EDE8;--gold:#9C7622}
+:root{--paper:#F6F6FA;--surface:#fff;--surface-2:#F4F3FA;--line:#E4E3EE;--ink:#17172A;--ink-2:#47475C;--ink-3:#73738A;--ink-4:#A6A6B8;--accent:#6A4BE8;--accent-soft:#EEEAFD;--gold:#9C7622}
+html[data-theme=dark]{--paper:#182230;--surface:#1E2938;--surface-2:#22313F;--line:#434E5E;--ink:#E9EDF2;--ink-2:#C9D2DC;--ink-3:#A9B4C2;--ink-4:#7E8A99;--accent:#F5A524;--accent-soft:#3A3322;--gold:#F5C46B;--head-bg:rgba(24,34,48,.8);color-scheme:dark}
+html[data-theme=dark] body{font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;background-image:none}
+html[data-theme=dark] h1{font-weight:700;letter-spacing:-.01em}html[data-theme=dark] h2,html[data-theme=dark] h3{letter-spacing:-.005em}
+html[data-theme=dark] .prose pre{background:#121A26}html[data-theme=dark] .card:hover{box-shadow:none}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;line-height:1.6;font-size:16px;-webkit-font-smoothing:antialiased}
-body::before{content:"";position:fixed;inset:0;z-index:-1;background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:22px 22px;opacity:.55}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Schibsted Grotesk",ui-sans-serif,system-ui,sans-serif;line-height:1.6;font-size:16px;-webkit-font-smoothing:antialiased}
 a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:3px}
-.serif{font-family:"Newsreader",ui-serif,Georgia,serif}
-header.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:0 28px;height:60px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.92);backdrop-filter:saturate(1.3) blur(10px)}
-header.top img{width:30px;height:30px;border-radius:9px;box-shadow:0 1px 2px rgba(0,0,0,.08)}
-header.top .brand{font-family:"Newsreader",serif;font-size:21px;color:var(--ink);text-decoration:none;letter-spacing:-.01em}header.top .brand em{color:var(--accent)}
-header.top nav{margin-left:auto;display:flex;gap:2px;align-items:center}
-header.top nav a{text-decoration:none;color:var(--ink-2);padding:7px 12px;border-radius:999px;font-size:14px;font-weight:500}header.top nav a:hover{color:var(--ink);background:var(--surface-2)}
-header.top nav a.on{color:var(--accent);background:var(--accent-soft)}
-header.top nav a.cta{background:var(--accent);color:#fff;margin-left:6px;padding:8px 16px}header.top nav a.cta:hover{filter:brightness(1.08);background:var(--accent)}
+.serif{font-family:"Schibsted Grotesk",ui-sans-serif,system-ui,sans-serif;font-weight:800;letter-spacing:-.02em}
+header.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:0 24px;height:56px;border-bottom:1px solid var(--line);background:var(--head-bg,rgba(246,246,250,.8));backdrop-filter:blur(10px)}
+header.top img{width:28px;height:28px;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+header.top .brand{font-weight:800;font-size:18px;color:var(--ink);text-decoration:none;letter-spacing:-.02em;white-space:nowrap}header.top .brand em{color:var(--accent)}
+header.top nav{margin-left:auto;display:flex;gap:8px;align-items:center}
+header.top nav>a{text-decoration:none;color:var(--ink-2);padding:6px 12px;border-radius:8px;font-size:14px;white-space:nowrap}header.top nav>a:hover{color:var(--ink)}
+header.top nav>a.on{color:var(--accent);font-weight:600}
+header.top nav>a.cta{background:var(--accent);color:#fff;padding:6px 14px;font-weight:500}header.top nav>a.cta:hover{filter:brightness(1.08)}
+.sw{display:flex;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:2px;height:32px}
+.sw button,.sw a{display:flex;align-items:center;justify-content:center;height:100%;min-width:26px;padding:0 9px;border:0;border-radius:999px;background:none;color:var(--ink-3);font-size:11px;font-weight:600;font-family:inherit;text-decoration:none;cursor:pointer}
+.sw button{padding:0;width:26px}.sw button:hover,.sw a:hover{color:var(--ink)}
+html:not([data-theme=dark]) .sw .t-light,html[data-theme=dark] .sw .t-dark,.sw .on{background:var(--accent);color:#fff}
+.sw svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 @media(max-width:640px){header.top nav a.hide-sm{display:none}}
 main{max-width:1120px;margin:0 auto;padding:48px 28px 72px;min-height:calc(100vh - 60px)}
 .hero{max-width:820px;margin-bottom:28px}
 .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);font-weight:600}
 .eyebrow::before{content:"";width:18px;height:1px;background:var(--accent)}
-h1{font-family:"Newsreader",serif;font-weight:400;font-size:clamp(36px,5vw,56px);line-height:1.04;margin:14px 0 16px;letter-spacing:-.015em}
+h1{font-weight:800;font-size:clamp(36px,5vw,56px);line-height:1.04;margin:14px 0 16px;letter-spacing:-.03em}
 .lede{font-size:19px;line-height:1.55;color:var(--ink-2);max-width:720px;margin:0}
 .meta{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:var(--ink-3);margin:22px 0 0}
 .meta .logo{width:22px;height:22px;border-radius:6px;vertical-align:middle;margin-right:4px}
@@ -204,7 +212,7 @@ a.tag:hover{border-color:var(--accent);color:var(--accent)}
 .card .top{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--ink-3)}
 .card .top img{width:26px;height:26px;border-radius:7px}
 .card .top .kind{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:600}
-.card h2{font-family:"Newsreader",serif;font-weight:400;font-size:23px;line-height:1.18;margin:4px 0 0;letter-spacing:-.01em}
+.card h2{font-weight:700;font-size:23px;line-height:1.18;margin:4px 0 0;letter-spacing:-.01em}
 .card p{margin:0;color:var(--ink-2);font-size:14.5px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .card .foot{margin-top:auto;padding-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--ink-3);border-top:1px solid var(--surface-2)}
 .card .foot .read{color:var(--accent);font-weight:600;white-space:nowrap}
@@ -221,14 +229,14 @@ a.tag:hover{border-color:var(--accent);color:var(--accent)}
 .toc-box .share a{display:inline-block;margin:6px 10px 0 0;color:var(--accent)}
 .prose{max-width:720px;font-size:17.5px;line-height:1.72}
 .prose>p:first-child{font-size:19px;color:var(--ink-2)}
-.prose h2{font-family:"Newsreader",serif;font-weight:400;font-size:31px;line-height:1.15;margin:52px 0 14px;letter-spacing:-.01em}
+.prose h2{font-weight:700;font-size:31px;line-height:1.15;margin:52px 0 14px;letter-spacing:-.01em}
 .prose h2+h3{margin-top:18px}
 .prose h3{font-size:19px;font-weight:600;margin:34px 0 10px}
 .prose p{margin:0 0 18px}.prose ul,.prose ol{padding-left:22px;margin:0 0 18px}.prose li{margin:6px 0}.prose li::marker{color:var(--accent)}
 .prose strong{font-weight:600;color:var(--ink)}
 .prose blockquote{margin:24px 0;padding:16px 22px;border-left:3px solid var(--accent);background:var(--surface);border-radius:0 14px 14px 0;color:var(--ink-2);font-size:17px}
 .prose blockquote p{margin:0}
-.prose code{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.86em;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.prose code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.86em;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
 .prose pre{background:#1E2622;color:#EEF1EF;border-radius:14px;padding:18px 20px;overflow:auto;font-size:13.5px;line-height:1.6;margin:0 0 22px}.prose pre code{background:none;border:0;padding:0;color:inherit}
 .prose table{border-collapse:separate;border-spacing:0;width:100%;margin:0 0 24px;font-size:14.5px;line-height:1.45;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .prose th,.prose td{padding:11px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}.prose th{background:var(--surface-2);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
@@ -250,26 +258,26 @@ a.tag:hover{border-color:var(--accent);color:var(--accent)}
 .search:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .cta-box{margin:64px 0 0;background:var(--ink);color:#fff;border-radius:24px;padding:36px 40px;display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between;position:relative;overflow:clip}
 .cta-box::after{content:"";position:absolute;right:-80px;top:-80px;width:280px;height:280px;border-radius:999px;background:radial-gradient(closest-side,rgba(47,107,93,.7),transparent)}
-.cta-box h3{font-family:"Newsreader",serif;font-weight:400;font-size:30px;margin:0 0 6px;letter-spacing:-.01em}.cta-box p{margin:0;opacity:.8;max-width:520px}
+.cta-box h3{font-weight:700;font-size:30px;margin:0 0 6px;letter-spacing:-.01em}.cta-box p{margin:0;opacity:.8;max-width:520px}
 .cta-box a{position:relative;background:#fff;color:var(--ink);text-decoration:none;font-weight:600;border-radius:999px;padding:13px 24px;white-space:nowrap}
 .cta-box a:hover{background:var(--accent-soft)}
 footer{border-top:1px solid var(--line);background:var(--surface)}
 footer .in{max-width:1120px;margin:0 auto;padding:36px 28px;display:grid;gap:24px;grid-template-columns:1fr;font-size:13.5px;color:var(--ink-3)}
 @media(min-width:760px){footer .in{grid-template-columns:1.4fr 1fr 1fr}}
-footer .brand{font-family:"Newsreader",serif;font-size:20px;color:var(--ink)}footer .brand em{color:var(--accent)}
+footer .brand{font-weight:800;font-size:19px;letter-spacing:-.02em;color:var(--ink)}footer .brand em{color:var(--accent)}
 footer p{margin:8px 0 0;max-width:380px;line-height:1.55}
 footer h4{margin:0 0 10px;font-size:11px;letter-spacing:.25em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
 footer a{display:block;color:var(--ink-2);text-decoration:none;margin:0 0 8px}footer a:hover{color:var(--accent)}
 footer .legal{grid-column:1/-1;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px}
-.more{margin-top:64px;padding-top:40px;border-top:1px solid var(--line)}.more h2{font-family:"Newsreader",serif;font-weight:400;font-size:30px;margin:0 0 18px;letter-spacing:-.01em}
+.more{margin-top:64px;padding-top:40px;border-top:1px solid var(--line)}.more h2{font-weight:700;font-size:30px;margin:0 0 18px;letter-spacing:-.01em}
 .crumbs{font-size:12.5px;color:var(--ink-3);margin-bottom:8px}.crumbs a{color:var(--ink-3);text-decoration:none}.crumbs a:hover{color:var(--accent)}
 .progress{position:fixed;left:0;top:0;height:3px;width:0;background:var(--accent);z-index:6;transition:width .1s linear}
-.card.brand{--brand:#2F6B5D;background:linear-gradient(160deg,var(--surface) 45%,color-mix(in srgb,var(--brand) 14%,var(--surface)))}
+.card.brand{--brand:#6A4BE8;background:linear-gradient(160deg,var(--surface) 45%,color-mix(in srgb,var(--brand) 14%,var(--surface)))}
 .card.brand::before{content:"";position:absolute;right:-30px;top:-30px;width:180px;height:180px;border-radius:999px;background:radial-gradient(closest-side,color-mix(in srgb,var(--brand) 28%,transparent),transparent)}
 .card.brand .wm{position:absolute;right:-18px;bottom:-22px;width:150px;height:150px;opacity:.14;filter:blur(1.5px) saturate(1.2);pointer-events:none;transform:rotate(-8deg)}
 .card.brand:hover .wm{opacity:.22}
 .card.brand>*:not(.wm){position:relative}
-.hero.brand{--brand:#2F6B5D;position:relative;max-width:none;margin:-48px -28px 36px;padding:56px 28px 44px;overflow:hidden;background:linear-gradient(160deg,color-mix(in srgb,var(--brand) 10%,var(--paper)),var(--paper) 70%)}
+.hero.brand{--brand:#6A4BE8;position:relative;max-width:none;margin:-48px -28px 36px;padding:56px 28px 44px;overflow:hidden;background:linear-gradient(160deg,color-mix(in srgb,var(--brand) 10%,var(--paper)),var(--paper) 70%)}
 .hero.brand::before{content:"";position:absolute;right:-120px;top:-160px;width:560px;height:560px;border-radius:999px;background:radial-gradient(closest-side,color-mix(in srgb,var(--brand) 30%,transparent),transparent)}
 .hero.brand .wm{position:absolute;right:4%;top:50%;width:min(34vw,360px);height:min(34vw,360px);transform:translateY(-50%) rotate(-8deg);opacity:.16;filter:blur(2px) saturate(1.2);pointer-events:none}
 .hero.brand>*:not(.wm){position:relative;max-width:760px}
@@ -278,13 +286,20 @@ footer .legal{grid-column:1/-1;padding-top:18px;border-top:1px solid var(--line)
 .cta-box::after{background:radial-gradient(closest-side,rgba(255,255,255,.22),transparent);pointer-events:none;z-index:0}
 .cta-box a{z-index:1}
 .cat{margin:0 0 56px;scroll-margin-top:84px}.cat-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid var(--line)}
-.cat h2{font-family:"Newsreader",serif;font-weight:400;font-size:30px;margin:0;letter-spacing:-.01em}.cat-head p{margin:0;color:var(--ink-3);font-size:14.5px;max-width:640px}
+.cat h2{font-weight:700;font-size:30px;margin:0;letter-spacing:-.01em}.cat-head p{margin:0;color:var(--ink-3);font-size:14.5px;max-width:640px}
 .cta-box a{background:#fff;color:var(--accent)}.cta-box a:hover{background:var(--accent-soft)}
 .cta-box p{opacity:.9}
 """
 
+_THEME_JS = """<script>(function(){var d=document.documentElement,k='tably.theme',t='dark';try{t=localStorage.getItem(k)||'dark'}catch(e){}
+function on(v){if(v==='light'||(v==='auto'&&!matchMedia('(prefers-color-scheme: dark)').matches))d.removeAttribute('data-theme');else d.setAttribute('data-theme','dark')}
+on(t);window.tablyTheme=function(v){try{localStorage.setItem(k,v)}catch(e){}on(v)}})()</script>"""
+_THEME_SWITCH = ('<div class="sw" role="group" aria-label="Theme">'
+                 '<button type="button" class="t-light" aria-label="Light" onclick="tablyTheme(\'light\')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>'
+                 '<button type="button" class="t-dark" aria-label="Dark" onclick="tablyTheme(\'dark\')"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button></div>')
+
 _FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-          '<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">')
+          '<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">')
 
 
 CATEGORY_ORDER = ["Inteligencias artificiales", "Prompt engineering y referencias", "Cómo funciona Tably", "Publicar y móvil", "Costos y seguridad"]
@@ -318,7 +333,7 @@ UI = {
            "min": "min read", "by": "by the team at", "updated": "updated", "all_sections": "← All sections", "topic": "Topic", "in_article": "In this article",
            "share": "Share", "more": "Keep reading", "cta_title": "Try Tably Team with your idea", "cta_text": "Describe what you want to build and watch the team debate it, design it and build it.",
            "cta_btn": "Create a free account", "product": "Product", "resources": "Resources", "legal": "AI provider trademarks belong to their owners.",
-           "footer_text": "An AI team with roles that debates your idea, designs it, builds it and reviews it. You approve every step.", "tagline": "Your AI team that designs and builds apps, powered by Muse",
+           "footer_text": "An AI team with roles that debates your idea, designs it, builds it and reviews it. You approve every step.", "tagline": "Your AI team that designs and builds apps",
            "blog_title": "Blog: guides on AI for building apps", "blog_desc": "In-depth guides on Claude, GPT, Gemini, DeepSeek, Grok, Llama, Kimi, Mistral and more: what each one is good for, how to pick one per role and how Tably Team builds apps with them.",
            "blog_h1": "Guides to building apps with an AI team", "blog_lede": "What each AI does well, how to pick one for each role, what building an app costs and how Tably Team works inside. Written by the team that builds it.",
            "faq_title": "Frequently asked questions", "faq_desc": "Straight answers about Tably Team: what it is, what it costs, which AI fits each role, how the app gets published, where your code lives and how your API keys are protected.",
@@ -370,7 +385,10 @@ def _page(*, lang: str, title: str, description: str, path: str, body: str, ld: 
     app_home = "/" if lang == "es" else "/?lang=en"
     progress = ('<div class="progress" id="progress"></div><script>addEventListener("scroll",()=>{const d=document.documentElement;const p=d.scrollTop/(d.scrollHeight-d.clientHeight||1);document.getElementById("progress").style.width=(p*100)+"%"},{passive:true})</script>'
                 if og_type == "article" else "")
-    switch = (f'<a class="lang" href="{esc(alt)}" hreflang="{u["other_lang"]}" title="{u["other_title"]}" onclick="try{{localStorage.setItem(\'arena.lang\',\'{u["other_lang"]}\')}}catch(e){{}}">{u["other"]}</a>' if has_alt else "")
+    _save = f"try{{localStorage.setItem('arena.lang','{u['other_lang']}')}}catch(e){{}}"
+    _other = f'<a href="{esc(alt)}" hreflang="{u["other_lang"]}" title="{u["other_title"]}" onclick="{_save}">{u["other_lang"]}</a>' if has_alt else ""
+    _mine = f'<a class="on" aria-current="true">{u["lang"]}</a>'
+    switch = _THEME_SWITCH + (f'<div class="sw" role="group" aria-label="Language">{_mine + _other if u["lang"] == "es" else _other + _mine}</div>')
     return f"""<!doctype html>
 <html lang="{u["lang"]}">
 <head>
@@ -391,17 +409,19 @@ def _page(*, lang: str, title: str, description: str, path: str, body: str, ld: 
 <meta name="twitter:title" content="{esc(title)}">
 <meta name="twitter:description" content="{esc(description)}">
 {meta_extra}
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<meta name="theme-color" content="#2F6B5D">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png?v=2">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2">
+<meta name="theme-color" content="#6A4BE8">
 <link rel="alternate" type="application/rss+xml" title="{SITE_NAME} · Blog" href="{SITE_URL}{_prefix(lang)}/blog/feed.xml">
+{_THEME_JS}
 {_FONTS}
 <style>{_CSS}</style>
 <script type="application/ld+json">{ld_json}</script>
 </head>
 <body>
 <header class="top">
-  <img src="/icon.svg" alt="" aria-hidden="true">
+  <img src="/icon.svg?v=2" alt="" aria-hidden="true">
   <a class="brand" href="{app_home}">Tably <em>Team</em></a>
   <nav aria-label="Main">
     {switch}
@@ -518,6 +538,21 @@ def post_html(p: Post) -> str:
           {"@type": "BreadcrumbList", "itemListElement": _crumbs(lang, (u["home"], SITE_URL), (u["blog"], f"{SITE_URL}{pre}/blog"), (p.title, p.url()))}]
     has_alt = post(p.slug, "en" if lang == "es" else "es") is not None
     return _page(lang=lang, title=p.title, description=p.description, path=p.path(), body=body, ld=ld, og_type="article", published=p.date, modified=p.updated, keywords=p.keywords or p.tags, current="blog", has_alt=has_alt)
+
+
+LEGAL = {"privacidad": "Política de privacidad", "terminos": "Términos y condiciones"}
+
+
+def legal_body(doc: str) -> str | None:
+    """The terms or the privacy policy: public pages for whoever needs the link, and what the signup shows in its dialog."""
+    if doc not in LEGAL:
+        return None
+    return _render((CONTENT_DIR / "legal" / f"{doc}.md").read_text(encoding="utf-8"))[0]
+
+
+def legal_html(doc: str) -> str:
+    title = f"{LEGAL[doc]} · Tably Team"
+    return _page(lang="es", title=title, description=f"{LEGAL[doc]} de Tably Team.", path=f"/{doc}", body=f'<article class="article">{legal_body(doc)}</article>', ld=[_org_ld()])
 
 
 def faq_html(lang: str = "es") -> str:

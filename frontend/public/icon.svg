@@ -1,46 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Tably Team · app icon. A pine-green squircle with the TT monogram: two T's side by side, the first white, the
-       second in the team's warm accent, overlapping like two seats at the same table (a T is also a table seen from
-       the side: top + leg). Reads at 16 px (two bold strokes) and at 1024 px (light, depth, overlap). -->
+  <!-- Tably Team · app icon. A white squircle with the TT monogram: two T's side by side, the first black, the second in the
+       brand violet, overlapping like two seats at the same table (a T is also a table seen from the side: top + leg). -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3A7D6D"/>
-      <stop offset="0.55" stop-color="#2F6B5D"/>
-      <stop offset="1" stop-color="#1D4A40"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="t1" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#E4EFEA"/>
-    </linearGradient>
     <linearGradient id="t2" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#F6CFA6"/>
-      <stop offset="1" stop-color="#E9A36E"/>
+      <stop offset="0" stop-color="#8366F2"/>
+      <stop offset="1" stop-color="#5B3BE0"/>
     </linearGradient>
-    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#0B2A23" flood-opacity="0.35"/>
-    </filter>
   </defs>
-
-  <!-- squircle -->
-  <path d="M256 12C60 12 12 60 12 256s48 244 244 244 244-48 244-244S452 12 256 12z" fill="url(#bg)"/>
-  <path d="M256 12C60 12 12 60 12 256s48 244 244 244 244-48 244-244S452 12 256 12z" fill="url(#glow)"/>
-  <path d="M256 30C76 30 30 76 30 256s46 226 226 226 226-46 226-226S436 30 256 30z" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="2"/>
-
-  <!-- the table line both T's stand on -->
-  <rect x="96" y="372" width="320" height="12" rx="6" fill="#FFFFFF" fill-opacity="0.18"/>
-
-  <!-- second T (team), behind, warm -->
-  <g filter="url(#shadow)">
-    <path d="M232 128h190c10 0 18 8 18 18v26c0 10-8 18-18 18h-60v170c0 10-8 18-18 18h-34c-10 0-18-8-18-18V190h-60c-10 0-18-8-18-18v-26c0-10 8-18 18-18z" fill="url(#t2)"/>
-  </g>
-  <!-- first T (tably), in front, white -->
-  <g filter="url(#shadow)">
-    <path d="M90 128h190c10 0 18 8 18 18v26c0 10-8 18-18 18h-60v170c0 10-8 18-18 18h-34c-10 0-18-8-18-18V190H90c-10 0-18-8-18-18v-26c0-10 8-18 18-18z" fill="url(#t1)"/>
-  </g>
-  <!-- a thin green seam where the front T overlaps the back one, so both read as separate letters -->
-  <path d="M232 128h66v62h-60c-10 0-18-8-18-18v-26c0-10 8-18 18-18z" fill="#2F6B5D" fill-opacity="0.22"/>
+  <path d="M256 12C60 12 12 60 12 256s48 244 244 244 244-48 244-244S452 12 256 12z" fill="#FFFFFF" stroke="#E4E4EE" stroke-width="6"/>
+  <!-- second T (team), behind, violet -->
+  <path d="M232 128h190c10 0 18 8 18 18v26c0 10-8 18-18 18h-60v170c0 10-8 18-18 18h-34c-10 0-18-8-18-18V190h-60c-10 0-18-8-18-18v-26c0-10 8-18 18-18z" fill="url(#t2)"/>
+  <!-- first T (tably), in front, black -->
+  <path d="M90 128h190c10 0 18 8 18 18v26c0 10-8 18-18 18h-60v170c0 10-8 18-18 18h-34c-10 0-18-8-18-18V190H90c-10 0-18-8-18-18v-26c0-10 8-18 18-18z" fill="#14141C"/>
 </svg>

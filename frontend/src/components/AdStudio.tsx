@@ -130,7 +130,7 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
 
         <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
           {/* the user's ads */}
-          <aside className="flex flex-col gap-2">
+          <aside data-tour="studio-ads" className="flex flex-col gap-2">
             <button onClick={fresh} className={`${PILL} justify-center`}><Plus size={14} /> {T('Anuncio nuevo', 'New ad')}</button>
             {(list?.projects ?? []).map((p) => (
               <button key={p.id} onClick={() => open(p.id)} className={`flex items-center gap-2.5 rounded-xl border p-2 text-left transition ${cur?.id === p.id ? 'border-accent bg-accent-soft' : 'border-line bg-surface hover:border-accent/60'}`}>
@@ -148,7 +148,7 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
           <main className="flex min-w-0 flex-col gap-4">
             {/* what to advertise + the material */}
             <section className={CARD}>
-              <div className="grid grid-cols-1 gap-3 min-[640px]:grid-cols-2">
+              <div data-tour="studio" className="grid grid-cols-1 gap-3 min-[640px]:grid-cols-2">
                 <label className="min-[640px]:col-span-2"><span className={LABEL}>{T('¿Qué querés anunciar?', 'What do you want to advertise?')}</span>
                   <textarea ref={whatRef} value={draft.instructions} disabled={busy} onChange={(e) => { setDraft({ ...draft, instructions: e.target.value }); if (e.target.value.trim()) setNeedWhat(false) }} onBlur={() => save({ instructions: draft.instructions })} rows={2} maxLength={2000}
                     placeholder={T('Ej.: mi estudio de uñas en Palermo; que reserven el primer turno con 20 % off', 'E.g.: my nail studio; get them to book the first appointment at 20% off')} className={`${INPUT} mt-1 resize-y ${needWhat ? 'ring-2 ring-accent' : ''}`} />
@@ -161,7 +161,7 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
                 </div>
               </div>
 
-              <div onDragOver={(e) => { e.preventDefault(); setDrag(true) }} onDragLeave={() => setDrag(false)} onDrop={(e) => { e.preventDefault(); setDrag(false); if (!busy) upload([...e.dataTransfer.files]) }}
+              <div data-tour="studio-files" onDragOver={(e) => { e.preventDefault(); setDrag(true) }} onDragLeave={() => setDrag(false)} onDrop={(e) => { e.preventDefault(); setDrag(false); if (!busy) upload([...e.dataTransfer.files]) }}
                 className={`mt-4 rounded-2xl border-2 border-dashed p-4 transition ${drag ? 'border-accent bg-accent-soft' : 'border-line'}`}>
                 <input ref={fileRef} type="file" multiple accept="video/*,image/*" className="hidden" onChange={(e) => { upload([...(e.target.files ?? [])]); e.target.value = '' }} />
                 {!cur?.media.length && !ups.length ? (
@@ -193,7 +193,7 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
               </div>
 
               {!busy && (
-                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 text-[12.5px] text-ink-2">
+                <div data-tour="studio-record" className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 text-[12.5px] text-ink-2">
                   <MonitorSmartphone size={15} className="shrink-0 text-accent" />
                   <span className="min-w-[min(100%,220px)] flex-1">{touring ? (cur?.tour?.step || T('Grabando tu app…', 'Recording your app…')) : T('¿Es una app o una web? Tably la abre como un celular, la recorre y suma la grabación.', 'Is it an app or a website? Tably opens it like a phone, walks through it and adds the recording.')}</span>
                   {touring ? <Loader2 size={15} className="animate-spin text-accent" /> : <>
@@ -203,7 +203,7 @@ export default function AdStudio({ onBack }: { onBack: () => void }) {
                   {cur?.tour?.status === 'error' && !touring && <span className="w-full text-[12px] text-danger">{cur.tour.error} {T('Tocá «Grabar mi app» para probar de nuevo.', 'Tap «Record my app» to try again.')}</span>}
                 </div>
               )}
-              {!busy && !cur?.media.length && !ups.length && <TwinPanel cur={cur} ensure={() => ensure()} onCur={(p) => { setCur(p); loadList() }} />}
+              {!busy && !cur?.media.length && !ups.length && <div data-tour="studio-twin"><TwinPanel cur={cur} ensure={() => ensure()} onCur={(p) => { setCur(p); loadList() }} /></div>}
               {cur?.gen?.status === 'working' && (
                 <p className="mt-4 flex items-center gap-2 rounded-xl border border-accent/40 bg-accent-soft/40 px-3 py-2.5 text-[13px] text-ink-2"><Loader2 size={14} className="animate-spin text-accent" /> {cur.gen.step || T('Generando el material…', 'Generating the footage…')}</p>
               )}

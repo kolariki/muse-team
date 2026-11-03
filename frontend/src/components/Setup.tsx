@@ -1,3 +1,5 @@
+import { useAiConnect } from './AiConnect'
+import InlineKey from './InlineKey'
 import TeamTable from './TeamTable'
 import { loadMyPhoto } from '../lib/myPhoto'
 import { newLookOn } from '../lib/look'
@@ -5,7 +7,7 @@ import { useArena } from '../store'
 import { EmployeePicker, employeeToAgent } from './MyTeam'
 import { useBuild, type Activity } from '../buildStore'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, Bookmark, Check, Eye, FolderOpen, Globe, Loader2, MonitorSmartphone, Play, Plus, Puzzle, Settings2, Smartphone, Trash2, Users, X, Zap } from 'lucide-react'
+import { ArrowLeftRight, Bookmark, Check, Eye, FolderOpen, Globe, KeyRound, Loader2, MonitorSmartphone, Play, Plus, Puzzle, Settings2, Smartphone, Trash2, Users, X, Zap } from 'lucide-react'
 import { toast, useConfirm, usePrompt } from './Toast'
 import SkillPicker from './SkillPicker'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -23,11 +25,13 @@ import ModelSelect, { invalidateModels } from './ModelSelect'
 import ArenaIntro, { ICON_STEP, PLAY_OUT, iconExitAt, introTeam } from './ArenaIntro'
 import Intake from './Intake'
 import PersonaField from './PersonaField'
+import FieldTitle from './FieldTitle'
+import { offerTour } from './ProductTour'
+import { openTeam } from './TeamMemory'
 import ProviderLogo, { BrandLogoRow, BrandStripes, LogoWatermark } from './ProviderLogo'
 import { BRAND_COLOR, MODE_INFO, PALETTE, brandTheme } from '../lib/brand'
 import type { AgentConfig, Mode, Preset, Provider, Role, SessionConfig, SessionSummary } from '../types'
 import { getLang, pick, tr, useLang, useT } from '../lib/i18n'
-import Hint from './Hint'
 
 const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'agente'
 
@@ -105,6 +109,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
   useEffect(() => { loadMyPhoto() }, [])
   const [providers, setProviders] = useState<Provider[]>(() => visibleProviders(readCache<Provider[]>('providers') ?? []))
   const trialProvider = providers.find((x) => x.id === 'baseten' && x.source === 'trial')
+  const ai = useAiConnect(providers, (np) => { setProviders((ps) => ps.map((x) => (x.id === np.id ? np : x))); invalidateModels(np.id) })
   const apiProviders = providers.filter((p) => p.id !== 'mock' || !providers.some((x) => x.configured && x.id !== 'mock'))
   const isApiBuilder = !!builder.provider && !engines.some((e) => e.id === builder.provider)
   const [roles, setRoles] = useState<{ groups: string[]; groups_en?: string[]; roles: Role[] }>({ groups: [], roles: [] })
@@ -250,7 +255,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
     setLane(l)
     setTimeout(() => document.querySelector('[data-lane]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
   }
-  const setLane = (l: 'direct' | 'team' | null) => { if (HACKATHON_MODE) l = 'team'; setLaneState(l); try { if (l) localStorage.setItem('tably.lane', l); else localStorage.removeItem('tably.lane') } catch { /* private mode */ } }
+  const setLane = (l: 'direct' | 'team' | null) => { if (HACKATHON_MODE) l = 'team'; setLaneState(l); if (l) offerTour(l); try { if (l) localStorage.setItem('tably.lane', l); else localStorage.removeItem('tably.lane') } catch { /* private mode */ } }
   const research = async (direct = false) => {
     if (!validate()) return
     let context = cfg.context ?? null
@@ -419,7 +424,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
             <>
               <div className="relative mt-3 min-w-0 flex-1 basis-[calc(100%-2.5rem)] sm:mt-0 sm:basis-auto">
                 {/* the Muse hint floats above the select, so the row's controls stay aligned */}
-                {isMuseReco(a) ? (
+                {!MUSE_FIRST ? null : isMuseReco(a) ? (
                   <div className="absolute -top-[15px] left-1 max-w-full truncate text-[10px] font-semibold leading-none text-[#0064E0]" title={T(museReco(a).why, museReco(a).why_en)}>✓ {T('Muse recomendado', 'Muse recommended')}{museReco(a).tool ? ` · ${museReco(a).tool}` : ''}</div>
                 ) : (
                   <button type="button" onClick={() => updateAgent(i, { provider: 'meta', model: museReco(a).model, wanted_provider: undefined, color: null })} className="absolute -top-[15px] left-1 max-w-full truncate text-[10px] leading-none text-[#0064E0] underline-offset-2 hover:underline" title={T(museReco(a).why, museReco(a).why_en)}>{T('Recomendado', 'Recommended')}: Muse {museReco(a).model.replace('muse-', '').replace('-1.0', '').replace('-1.3', ' 1.3')}</button>
@@ -568,7 +573,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
       <div className="w-full px-4 py-5 sm:px-8 sm:py-10 2xl:px-12">
         {/* the sections live in the side bar (AppShell); on a phone only the brand, the tab bar is at the bottom */}
         <div className="-mb-2 flex items-center gap-3 md:hidden">
-          <img src="/icon.svg" alt="" aria-hidden className="h-9 w-9 rounded-xl shadow-sm" draggable={false} />
+          <img src="/icon.svg?v=2" alt="" aria-hidden className="h-9 w-9 rounded-xl shadow-sm" draggable={false} />
           <span className="serif text-xl">Tably <em className="text-accent">Team</em></span>
         </div>
         <div className="mt-5 flex flex-wrap items-end justify-between gap-3 md:mt-0">
@@ -581,7 +586,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
             <button onClick={() => document.getElementById('new-project')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex h-10 items-center gap-2 rounded-full bg-accent px-4 text-sm font-semibold text-white shadow-md transition hover:brightness-110"><Plus size={16} /> {T('Nuevo proyecto', 'New project')}</button>
           </div>
         </div>
-        <HomeOverview />
+        <HomeOverview onOpenProject={(id) => onOpen(id, 'builder')} />
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 md:mt-5">
           {/* no hero on the home: the brand is in the header, the companies' row is the first thing */}
           <div className="flex flex-wrap gap-2 text-[11px]">
@@ -622,7 +627,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
               <div className="mt-1 text-[22px] leading-tight">{lane === 'direct' ? T('Constructor directo', 'Direct builder') : T('Constructor con equipo de desarrollo', 'Builder with a development team')}</div>
               <div className="mt-1 text-[13px] text-ink-2">{lane === 'direct' ? T('Tu pedido pasa por prompt engineering y va directo al constructor, sin consejo previo.', 'Your request goes through prompt engineering and straight to the builder, with no council first.') : T('El equipo debate tu idea, acuerda el brief y recién entonces construye.', 'The team debates your idea, agrees on the brief and only then builds.')}</div>
             </div>
-            {!HACKATHON_MODE && <button type="button" onClick={() => setLane(null)} className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-[13px] font-medium text-ink shadow-sm transition hover:border-accent hover:bg-accent-soft hover:text-accent"><ArrowLeftRight size={14} /> {T('Cambiar de modo', 'Change mode')}</button>}
+            {!HACKATHON_MODE && <span className="lane-ring lane-ring-pill inline-flex shrink-0"><button type="button" onClick={() => setLane(null)} className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-[13px] font-medium text-ink shadow-sm transition hover:border-accent hover:bg-accent-soft hover:text-accent"><ArrowLeftRight size={14} /> {T('Cambiar de modo', 'Change mode')}</button></span>}
           </div>
         )}
         {lane === 'team' && presets.some((p) => p.custom) && (
@@ -634,7 +639,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
         {lane === 'team' && (
           <>
             <h2 className="mt-10 font-sans text-xs uppercase tracking-widest text-ink-3">{T('Experimentos', 'Experiments')}</h2>
-            <div className="mt-3 grid gap-3 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
+            <div data-tour="experiments" className="mt-3 grid gap-3 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
               {presets.filter((p) => !p.custom).map(presetCard)}
             </div>
           </>
@@ -648,7 +653,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
             <div className="absolute inset-0 rounded-[inherit] bg-surface/35" aria-hidden />
             <div className="relative space-y-4">
             <label className="block">
-              <span className="text-xs uppercase tracking-widest text-ink-3">{T('Nombre de la app', 'App name')}</span>
+              <FieldTitle title={T('Nombre de la app', 'App name')} />
               <input className={`${input} mt-1`} value={cfg.title ?? ''} onChange={(e) => setCfg({ ...cfg, title: e.target.value })} placeholder={T('cómo se va a llamar', 'what it will be called')} />
             </label>
             {/* idea + attachments → prompt-engineered brief; until one is generated, the user's own text is the topic */}
@@ -656,6 +661,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
               idea={idea}
               onIdea={(t) => { setIdea(t); if (!promptMd) setCfg((c) => ({ ...c, topic: t })) }}
               providers={providers}
+              onConnected={(np) => { setProviders((ps) => ps.map((x) => (x.id === np.id ? np : x))); invalidateModels(np.id) }}
               promptActive={!!promptMd}
               onPrompt={(md, ctx) => { setPromptMd(md); setCfg((c) => ({ ...c, topic: md, context: ctx ?? c.context ?? null })) }}
               onDiscardPrompt={() => { setPromptMd(null); setCfg((c) => ({ ...c, topic: idea, context: null })) }}
@@ -668,8 +674,8 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
             />
             {/* the direct lane: who builds, a local agent on the subscription (Claude Code / Codex) or an API model */}
             {lane === 'direct' && (
-              <div>
-                <span className="flex items-center gap-1 text-xs uppercase tracking-widest text-ink-3">{T('Constructor', 'Builder')} <Hint text={T('Quién escribe el código: Claude Code o Codex instalados en esta máquina (con tu suscripción, sin gastar API) o un modelo por API con tu key.', 'Who writes the code: Claude Code or Codex installed on this machine (on your subscription, no API spend) or an API model with your key.')} /></span>
+              <div data-tour="builder">
+                <FieldTitle title={T('Constructor', 'Builder')} sub={T('Quién escribe el código: Muse Code instalado en esta máquina o Muse por API con tu key.', 'Who writes the code: Claude Code or Codex installed on this machine (on your subscription, no API spend) or an API model with your key.')} />
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   {engines.map((e) => {
                     const on = builder.provider === e.id
@@ -685,17 +691,19 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
                   })}
                   <div className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 transition sm:col-span-2 ${isApiBuilder ? 'border-accent bg-accent-soft' : 'border-line'}`}>
                     <button type="button" onClick={() => { if (!isApiBuilder) { const p = apiProviders[0]; if (p) setBuilder({ provider: p.id, model: p.default_model }) } }} className="flex items-center gap-3 text-left">
-                      <ProviderLogo provider={isApiBuilder ? builder.provider : apiProviders[0]?.id ?? 'mock'} size={22} />
+                      {isApiBuilder ? <ProviderLogo provider={builder.provider} size={22} /> : <KeyRound size={20} className="text-ink-3" />}
                       <span>
                         <span className="block text-sm font-medium">{T('Por API', 'Via API')}</span>
                         <span className="block text-[11.5px] text-ink-3">{T('Un modelo con tu API key; se cobran los tokens', 'A model with your API key; tokens are billed')}</span>
                       </span>
                     </button>
                     <div className="ml-auto flex flex-wrap items-center gap-2">
-                      <select value={isApiBuilder ? builder.provider : ''} onChange={(e) => { const p = apiProviders.find((x) => x.id === e.target.value); if (p) setBuilder({ provider: p.id, model: p.default_model }) }} className="h-9 rounded-lg border border-line bg-surface px-2 text-sm outline-none">
+                      <select value={isApiBuilder ? builder.provider : ''} onChange={(e) => { if (ai.ask(e.target.value, (np) => setBuilder({ provider: np.id, model: np.default_model }))) return; const p = apiProviders.find((x) => x.id === e.target.value); if (p) setBuilder({ provider: p.id, model: p.default_model }) }} className="h-9 rounded-lg border border-line bg-surface px-2 text-sm outline-none">
                         {!isApiBuilder && <option value="">{T('elegir proveedor…', 'pick a provider…')}</option>}
-                        {apiProviders.map((p) => <option key={p.id} value={p.id}>{p.label.split(' · ')[0]}{p.configured ? '' : ` (${T('sin key', 'no key')})`}</option>)}
+                        {apiProviders.filter((p) => p.configured).map((p) => <option key={p.id} value={p.id}>{p.label.split(' · ')[0]}</option>)}
+                        {ai.options}
                       </select>
+                      {ai.dialog}
                       {isApiBuilder && <span className="w-[220px]"><ModelSelect provider={builder.provider} value={builder.model} onChange={(m) => setBuilder({ ...builder, model: m })} /></span>}
                     </div>
                   </div>
@@ -703,11 +711,16 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
               </div>
             )}
             {/* the direct lane does not debate, but the team is who reviews and audits afterwards: show each role with its Muse model */}
-            {lane === 'direct' && cfg.agents.length > 0 && (
-              <div>
+            {lane === 'direct' && (
+              <div data-tour="direct-team">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="flex items-center gap-1 text-xs uppercase tracking-widest text-ink-3">{T('Tu equipo', 'Your team')} <Hint text={T('En el constructor directo el equipo no debate antes, pero es quien revisa y audita después. Cada rol con el modelo de Muse recomendado para su trabajo.', 'In the direct builder the team does not debate first, but it reviews and audits afterwards. Every role with the Muse model recommended for its job.')} /></span>
-                  {!cfg.agents.every(isMuseReco) && <button type="button" onClick={() => setCfg((c) => ({ ...c, agents: museTeam(c.agents) }))} className="flex items-center gap-1.5 rounded-full border border-[#BBD5FA] bg-[#EEF5FF] px-3 py-1 text-[12px] font-semibold text-[#0B2E66] transition hover:border-[#0082FB]"><ProviderLogo provider="meta" size={13} /> {T('Usar los modelos recomendados', 'Use the recommended models')}</button>}
+                  <FieldTitle className="min-w-[min(100%,220px)] flex-1" title={T('Tu equipo', 'Your team')} sub={T('No debate antes de construir: son los roles que revisan y auditan la app cuando está lista. Tocá uno para editarlo.', 'It does not debate before building: these are the roles that review and audit the app once it is ready. Tap one to edit it.')} />
+                  <div className="ml-auto flex flex-wrap items-center gap-2">
+                  <EmployeePicker onUse={applyEmployees} />
+                  <button type="button" onClick={() => openTeam()} className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-2 transition hover:border-accent hover:text-accent"><Settings2 size={14} /> {T('Editar mi equipo', 'Edit my team')}</button>
+                  <button type="button" disabled={cfg.agents.length >= 8} onClick={() => { const n = cfg.agents.length; addAgent(); setEditAgent(n) }} className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[13px] font-semibold text-white transition hover:brightness-110 disabled:opacity-40"><Plus size={14} /> {T('Agregar rol', 'Add role')}</button>
+                  {MUSE_FIRST && !cfg.agents.every(isMuseReco) && <button type="button" onClick={() => setCfg((c) => ({ ...c, agents: museTeam(c.agents) }))} className="flex items-center gap-1.5 rounded-full border border-[#BBD5FA] bg-[#EEF5FF] px-3 py-1 text-[12px] font-semibold text-[#0B2E66] transition hover:border-[#0082FB]"><ProviderLogo provider="meta" size={13} /> {T('Usar los modelos recomendados', 'Use the recommended models')}</button>}
+                  </div>
                 </div>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {cfg.agents.map((a, i) => {
@@ -719,7 +732,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-[13px] font-semibold">{pick(a, 'name')}</div>
                           <div className="truncate font-mono text-[10.5px] text-ink-3">{ok ? a.model : `${a.provider} · ${a.model}`}</div>
-                          <div className="truncate text-[10.5px] text-[#0064E0]" title={T(r.why, r.why_en)}>{ok ? '✓ ' + T('Muse recomendado', 'Muse recommended') : `${T('Recomendado', 'Recommended')}: ${r.model}`}{r.tool ? ` · ${r.tool}` : ''}</div>
+                          {MUSE_FIRST && <div className="truncate text-[10.5px] text-[#0064E0]" title={T(r.why, r.why_en)}>{ok ? '✓ ' + T('Muse recomendado', 'Muse recommended') : `${T('Recomendado', 'Recommended')}: ${r.model}`}{r.tool ? ` · ${r.tool}` : ''}</div>}
                         </div>
                         {(a.skills?.length ?? 0) > 0 && <span className="shrink-0 rounded-full border border-line bg-surface px-2 py-0.5 text-[10.5px] text-ink-2" title={(a.skills ?? []).join(' · ')}>🧩 {a.skills!.length} {a.skills!.length === 1 ? 'skill' : 'skills'}</span>}
                         <Settings2 size={14} className="shrink-0 text-ink-4" />
@@ -731,7 +744,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
             )}
             {/* what gets built: the brief, the designer, the builder and «Correr la app» all follow this */}
             <div>
-              <span className="flex items-center gap-1 text-xs uppercase tracking-widest text-ink-3">{T('Plataforma', 'Platform')} <Hint text={T('Qué construye el equipo: una web app, una app móvil para iOS y Android (con Expo, se corre en el simulador y el emulador desde acá) o las dos con un solo código.', 'What the team builds: a web app, a mobile app for iOS and Android (with Expo, run on the simulator and the emulator from here) or both from one codebase.')} /></span>
+              <FieldTitle title={T('Plataforma', 'Platform')} sub={T('Qué construye el equipo: una web app, una app móvil para iOS y Android (con Expo, se corre en el simulador y el emulador desde acá) o las dos con un solo código.', 'What the team builds: a web app, a mobile app for iOS and Android (with Expo, run on the simulator and the emulator from here) or both from one codebase.')} />
               <div className="mt-1 grid grid-cols-3 gap-2">
                 {([
                   { id: 'web' as const, icon: <Globe size={15} />, title: T('Web app', 'Web app'), text: T('Navegador, escritorio y móvil', 'Browser, desktop and mobile') },
@@ -750,7 +763,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
             </div>
             {/* reference apps: the build's research phase visits them before designing (empty → the team proposes them) */}
             <div>
-              <span className="flex items-center gap-1 text-xs uppercase tracking-widest text-ink-3">{T('Apps de referencia', 'Reference apps')} <Hint text={T('Apps o sitios parecidos que el equipo va a mirar antes de diseñar: entra, saca capturas y anota qué emular y qué evitar. Podés dejarlo vacío y el equipo propone los líderes de la categoría.', 'Similar apps or sites the team studies before designing: it visits them, takes screenshots and notes what to emulate and avoid. Leave it empty and the team proposes the category leaders.')} /></span>
+              <FieldTitle title={T('Apps de referencia', 'Reference apps')} sub={T('Apps o sitios parecidos que el equipo va a mirar antes de diseñar: entra, saca capturas y anota qué emular y qué evitar. Podés dejarlo vacío y el equipo propone los líderes de la categoría.', 'Similar apps or sites the team studies before designing: it visits them, takes screenshots and notes what to emulate and avoid. Leave it empty and the team proposes the category leaders.')} />
               <div className={`${input} mt-1 flex flex-wrap items-center gap-1.5 py-1.5`}>
                 {(cfg.references ?? []).map((r) => (
                   <span key={r} className="flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[12px] text-accent">
@@ -771,11 +784,11 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
               <label className={`mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm ${rstatus && !rstatus.rea.ok ? 'opacity-60' : ''}`}>
                 <input type="checkbox" className="accent-accent h-4 w-4 shrink-0" checked={cfg.deep_analysis ?? false} disabled={!!rstatus && !rstatus.rea.ok} onChange={(e) => setCfg({ ...cfg, deep_analysis: e.target.checked })} />
                 <span>{T('Análisis profundo e ingeniería inversa', 'Deep analysis and reverse engineering')}</span>
-                <Hint text={rstatus && !rstatus.rea.ok ? T('REA no está instalado en esta máquina: corré `npx rea-agents setup`. Hasta entonces el equipo solo observa las apps (capturas y notas), que es gratis.', 'REA is not installed on this machine: run `npx rea-agents setup`. Until then the team only observes the apps (screenshots and notes), which is free.') : T('Durante la construcción, REA analiza bundles, rutas y APIs de las apps de referencia para entender cómo están hechas. Requiere Claude Code o Codex como constructor. Corre con tu suscripción o tu API key.', 'During the build, REA analyses the reference apps\' bundles, routes and APIs to understand how they are built. Requires Claude Code or Codex as builder. Runs on your subscription or your API key.')} />
+                <span className="basis-full pl-6 text-[12.5px] leading-snug text-ink-3">{rstatus && !rstatus.rea.ok ? T('REA no está instalado en esta máquina: corré `npx rea-agents setup`. Hasta entonces el equipo solo observa las apps (capturas y notas), que es gratis.', 'REA is not installed on this machine: run `npx rea-agents setup`. Until then the team only observes the apps (screenshots and notes), which is free.') : T('Durante la construcción, REA analiza bundles, rutas y APIs de las apps de referencia para entender cómo están hechas. Requiere Muse Code como constructor. Corre con tu suscripción o tu API key.', 'During the build, REA analyses the reference apps\' bundles, routes and APIs to understand how they are built. Requires Claude Code or Codex as builder. Runs on your subscription or your API key.')}</span>
               </label>
             </div>
             <div className="team-only">
-              <span className="text-xs uppercase tracking-widest text-ink-3">{T('Modo', 'Mode')}</span>
+              <FieldTitle title={T('Modo', 'Mode')} sub={T('Cómo se organiza el debate del equipo.', 'How the team organises its debate.')} />
               <div className="mt-1 grid grid-cols-3 gap-2">
                 {(Object.keys(MODE_INFO).filter((m) => m !== 'audit' && m !== 'review') as Mode[]).map((m) => (
                   <button key={m} onClick={() => setCfg({ ...cfg, mode: m })} className={`rounded-xl border px-3 py-2 text-left text-sm ${cfg.mode === m ? 'border-accent bg-accent-soft' : 'border-line hover:bg-surface-2'}`}>
@@ -792,9 +805,9 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
               <Range label={T('Tokens máx. por turno', 'Max tokens per turn')} help={T('Largo máximo de cada intervención (≈ 1 token por cada 3-4 caracteres). Más tokens: respuestas más largas y más costo por turno.', 'Maximum length of each intervention (≈ 1 token per 3-4 characters). More tokens: longer answers and more cost per turn.')} value={cfg.max_tokens} min={300} max={6000} step={100} onChange={(v) => setCfg({ ...cfg, max_tokens: v })} />
             </div>
             <div className="team-only"><CostEstimate cfg={cfg} align="left" /></div>
-            <div className="grid grid-cols-1 gap-4 items-end sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 items-start sm:grid-cols-2">
               <label className="block">
-                <span className="flex items-center gap-1 text-xs uppercase tracking-widest text-ink-3">{T('Idioma', 'Language')} <Hint text={T('El idioma en el que van a hablar los agentes del consejo durante el debate y en el brief. Es independiente del idioma de esta interfaz.', 'The language the council agents will speak in during the debate and in the brief. Independent from the language of this interface.')} /></span>
+                <FieldTitle title={T('Idioma', 'Language')} sub={T('El idioma en el que van a hablar los agentes del consejo durante el debate y en el brief. Es independiente del idioma de esta interfaz.', 'The language the council agents will speak in during the debate and in the brief. Independent from the language of this interface.')} />
                 <select className={`${input} mt-1`} value={cfg.language} onChange={(e) => setCfg({ ...cfg, language: e.target.value })}>
                   {(DEBATE_LANGUAGES.includes(cfg.language) ? DEBATE_LANGUAGES : [cfg.language, ...DEBATE_LANGUAGES]).map((l) => <option key={l} value={l}>{l}</option>)}
                 </select>
@@ -805,10 +818,9 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
                   { key: 'final_vote', checked: cfg.final_vote, label: T('Votación final', 'Final vote'), help: T('Cada agente vota quién aportó el argumento más sólido y el juez explica el veredicto. Si lo apagás, el debate termina sin ganador.', 'Each agent votes for who made the strongest argument and the judge explains the verdict. Turn it off and the debate ends without a winner.'), set: (v: boolean) => setCfg({ ...cfg, final_vote: v }) },
                   { key: 'auto_skills', checked: cfg.auto_skills ?? false, label: T('El consejo elige skills', 'The council picks skills'), help: T('Antes de arrancar, cada rol recibe las skills del catálogo que mejor encajan con la tarea. Se suman a las que elegiste; nunca las reemplazan.', 'Before starting, each role gets the catalog skills that best fit the task. They are added to the ones you chose; never replaced.'), set: (v: boolean) => setCfg({ ...cfg, auto_skills: v }) },
                 ] as const).map((o) => (
-                  <label key={o.key} className="flex min-h-7 items-center gap-2 text-sm leading-tight sm:whitespace-nowrap">
-                    <input type="checkbox" checked={o.checked} onChange={(e) => o.set(e.target.checked)} className="accent-accent h-4 w-4 shrink-0" />
-                    <span>{o.label}</span>
-                    <Hint text={o.help} />
+                  <label key={o.key} className="flex min-h-7 items-start gap-2 text-sm leading-tight">
+                    <input type="checkbox" checked={o.checked} onChange={(e) => o.set(e.target.checked)} className="accent-accent mt-0.5 h-4 w-4 shrink-0" />
+                    <span><span className="block font-medium text-ink">{o.label}</span><span className="mt-0.5 block text-[12.5px] leading-snug text-ink-3">{o.help}</span></span>
                   </label>
                 ))}
               </div>
@@ -821,9 +833,9 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
               </div>
             </div>
           </div>
-          <div ref={teamRef} className="team-only panel flex h-full flex-col rounded-2xl p-4 sm:p-5">
+          <div ref={teamRef} data-tour="agents" className="team-only panel flex h-full flex-col rounded-2xl p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-y-2">
-              <span className="text-xs uppercase tracking-widest text-ink-3">{T('Agentes', 'Agents')} ({cfg.agents.length}/8)</span>
+              <FieldTitle className="w-full" title={`${T('Agentes', 'Agents')} (${cfg.agents.length}/8)`} sub={T('Cada tarjeta es un rol: elegí qué IA lo ocupa y cómo piensa.', 'Each card is a role: choose which AI takes it and how it thinks.')} />
               <button
                 disabled={suggesting || !cfg.topic.trim()}
                 onClick={async () => {
@@ -845,7 +857,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
                 title={T('Elegir del catálogo las skills que mejor encajan con la tarea, rol por rol', 'Pick from the catalog the skills that best fit the task, role by role')}
               >{suggesting ? <Loader2 size={14} className="animate-spin" /> : <Puzzle size={14} />} {T('Sugerir skills', 'Suggest skills')}</button>
               <div className="ml-2"><EmployeePicker onUse={applyEmployees} /></div>
-              <button type="button" onClick={() => setCfg((c) => ({ ...c, agents: museTeam(c.agents) }))} disabled={cfg.agents.every(isMuseReco)} className="ml-2 flex items-center gap-1.5 rounded-lg border border-[#BBD5FA] bg-[#EEF5FF] px-3 py-1.5 text-[13px] font-semibold text-[#0B2E66] shadow-sm transition hover:border-[#0082FB] disabled:opacity-40" title={T('Cada rol con el modelo de Muse que mejor hace su trabajo: Wonder para dirección e ingeniería, Spark para producto, diseño y QA', 'Every role on the Muse model that does its job best: Wonder for direction and engineering, Spark for product, design and QA')}><ProviderLogo provider="meta" size={14} /> {T('Equipo recomendado con Muse', 'Recommended Muse team')}</button>
+              {MUSE_FIRST && <button type="button" onClick={() => setCfg((c) => ({ ...c, agents: museTeam(c.agents) }))} disabled={cfg.agents.every(isMuseReco)} className="ml-2 flex items-center gap-1.5 rounded-lg border border-[#BBD5FA] bg-[#EEF5FF] px-3 py-1.5 text-[13px] font-semibold text-[#0B2E66] shadow-sm transition hover:border-[#0082FB] disabled:opacity-40" title={T('Cada rol con el modelo de Muse que mejor hace su trabajo: Wonder para dirección e ingeniería, Spark para producto, diseño y QA', 'Every role on the Muse model that does its job best: Wonder for direction and engineering, Spark for product, design and QA')}><ProviderLogo provider="meta" size={14} /> {T('Equipo recomendado con Muse', 'Recommended Muse team')}</button>}
               <button disabled={cfg.agents.length >= 8} onClick={addAgent} className="ml-2 flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[13px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-40" title={T('Sumar un rol al equipo (hasta 8)', 'Add a role to the team (up to 8)')}><Plus size={15} />{T('Agregar rol', 'Add role')}</button>
             </div>
             <div className="mt-3 space-y-3">
@@ -862,14 +874,14 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
             {/* the table rules: who opens, who judges */}
             <div className="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
               <label className="block">
-                <span className="flex items-center gap-1 text-xs uppercase tracking-widest text-ink-3">{T('Quién arranca', 'Who opens')} <Hint text={T('El rol que abre el debate con la primera intervención. Después, cada agente elige a quién le pasa la palabra.', 'The role that opens the debate with the first intervention. After that, each agent chooses who gets the floor next.')} /></span>
+                <FieldTitle title={T('Quién arranca', 'Who opens')} sub={T('El rol que abre el debate con la primera intervención. Después, cada agente elige a quién le pasa la palabra.', 'The role that opens the debate with the first intervention. After that, each agent chooses who gets the floor next.')} />
                 <select className={`${input} mt-1`} value={cfg.starter ?? ''} onChange={(e) => setCfg({ ...cfg, starter: e.target.value || null })}>
                   <option value="">{cfg.agents[0]?.name ?? '—'} {T('(primero de la lista)', '(first in the list)')}</option>
                   {cfg.agents.slice(1).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </label>
               <label className={`block ${cfg.final_vote ? '' : 'opacity-50'}`}>
-                <span className="flex items-center gap-1 text-xs uppercase tracking-widest text-ink-3">{T('Juez del veredicto', 'Verdict judge')} <Hint text={T('Al terminar, cada agente vota y un juez neutral explica por qué ganó quien ganó y qué se decidió. Acá elegís qué modelo hace de juez: usa el modelo del rol que marques. Requiere "Votación final" activada.', 'At the end each agent votes and a neutral judge explains why the winner won and what was decided. Pick which model acts as judge: it uses the model of the role you choose. Requires "Final vote" on.')} /></span>
+                <FieldTitle title={T('Juez del veredicto', 'Verdict judge')} sub={T('Al terminar, cada agente vota y un juez neutral explica por qué ganó quien ganó y qué se decidió. Acá elegís qué modelo hace de juez: usa el modelo del rol que marques. Requiere "Votación final" activada.', 'At the end each agent votes and a neutral judge explains why the winner won and what was decided. Pick which model acts as judge: it uses the model of the role you choose. Requires "Final vote" on.')} />
                 <select className={`${input} mt-1`} disabled={!cfg.final_vote} value={cfg.judge ?? ''} onChange={(e) => setCfg({ ...cfg, judge: e.target.value || null })}>
                   <option value="">{cfg.agents[0] ? `${cfg.agents[0].name} · ${cfg.agents[0].model}` : '—'}</option>
                   {cfg.agents.slice(1).map((a) => <option key={a.id} value={a.id}>{a.name} · {a.model}</option>)}
@@ -913,6 +925,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
                 <>
                 {lane === 'direct' && (
                 <button
+                  data-tour="start"
                   onClick={() => research(true)}
                   disabled={busy || launching || directBusy}
                   title={T('Sin consejo: el pedido (con prompt engineering) se convierte en brief y el constructor arranca ya. Más rápido y más barato; el consejo queda a un clic después.', 'No council: the (prompt-engineered) request becomes the brief and the builder starts right away. Faster and cheaper; the council is one click away afterwards.')}
@@ -923,7 +936,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
                 </button>
                 )}
                 {lane === 'team' && (
-                <button onClick={() => research(false)} disabled={busy || launching || directBusy || cfg.agents.length < 2} style={{ background }} className="group relative flex items-center gap-3 overflow-hidden rounded-2xl border border-black/10 text-ink px-6 py-3.5 font-bold text-lg shadow-sm hover:scale-[1.02] transition disabled:opacity-50" title={order.join(' · ')}>
+                <button data-tour="start" onClick={() => research(false)} disabled={busy || launching || directBusy || cfg.agents.length < 2} style={{ background }} className="group relative flex items-center gap-3 overflow-hidden rounded-2xl border border-black/10 text-ink px-6 py-3.5 font-bold text-lg shadow-sm hover:scale-[1.02] transition disabled:opacity-50" title={order.join(' · ')}>
                   {/* launch: the play icon slides out to the right, then the logos follow one by one (each one shows up big on stage as it leaves) */}
                   <span className="flex items-center -space-x-1">
                     {order.map((p, i) => (
@@ -977,10 +990,9 @@ function CostEstimate({ cfg, align = 'right' }: { cfg: SessionConfig; align?: 'l
 function Range({ label, help, value, min, max, step = 1, fmt, onChange }: { label: string; help?: string; value: number; min: number; max: number; step?: number; fmt?: (v: number) => string; onChange: (v: number) => void }) {
   return (
     <label className="block">
-      <span className="flex items-center gap-1 text-xs uppercase tracking-widest text-ink-3">
-        <span className="truncate" title={label}>{label}</span>
-        {help && <Hint text={help} />}
-        <span className="ml-auto w-14 shrink-0 text-right font-mono tabular-nums text-ink-2 normal-case">{fmt ? fmt(value) : value}</span>
+      <span className="flex items-start gap-2">
+        <FieldTitle className="min-w-0 flex-1" title={label} sub={help} />
+        <span className="ml-auto w-14 shrink-0 text-right font-mono text-[13px] tabular-nums text-ink-2">{fmt ? fmt(value) : value}</span>
       </span>
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-accent mt-2" />
     </label>
@@ -991,54 +1003,6 @@ function Range({ label, help, value, min, max, step = 1, fmt, onChange }: { labe
 const DEBATE_LANGUAGES = ['español rioplatense', 'español neutro', 'English', 'Português (Brasil)', 'Français', 'Deutsch', 'Italiano']
 
 /** Key input in the model slot for a provider without key: "Probar" validates the key, saves it and the slot turns into the model list. */
-function InlineKey({ provider, onConnected, trash }: { provider: Provider; onConnected: (p: Provider) => void; trash: ReactNode }) {
-  const T = useT()
-  const [key, setKey] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-  const go = async () => {
-    const k = key.trim()
-    if (!k) return
-    setBusy(true)
-    setErr(null)
-    try {
-      const r = await api.testKey(provider.id, k)
-      if (!r.ok) throw new Error(r.error || tr('La key no respondió', 'The key did not respond'))
-      await api.saveProvider(provider.id, { api_key: k })
-      const fresh = (await api.providers()).find((x) => x.id === provider.id)
-      onConnected(fresh ?? { ...provider, configured: true })
-      toast.ok(`${provider.label} ${tr('conectado', 'connected')}`, `${r.models?.length ?? 0} ${tr('modelos disponibles. La key queda guardada en tu cuenta.', 'models available. The key is saved in your account.')}`)
-    } catch (e) {
-      setErr((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <>
-      <div className="min-w-0">
-        <input
-          type="password"
-          autoComplete="off"
-          className={`w-full rounded-lg bg-surface border px-3 py-2 text-xs font-mono outline-none focus:border-accent transition ${err ? 'border-danger' : 'border-gold/60'}`}
-          value={key}
-          onChange={(e) => { setKey(e.target.value); setErr(null) }}
-          onKeyDown={(e) => { if (e.key === 'Enter') go() }}
-          placeholder={`API key ${T('de', 'for')} ${provider.label}`}
-          title={err ?? T(`Pegá tu API key de ${provider.label} y tocá Probar`, `Paste your ${provider.label} API key and hit Test`)}
-        />
-        {err && <div className="mt-0.5 text-[10.5px] text-danger truncate" title={err}>{err}</div>}
-      </div>
-      <div className="flex items-center gap-1.5">
-        <button type="button" onClick={go} disabled={busy || !key.trim()} className="flex items-center gap-1 rounded-lg bg-accent text-white px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40" title={T('Probar la key y guardarla', 'Test the key and save it')}>
-          {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} {T('Probar', 'Test')}
-        </button>
-        {trash}
-      </div>
-    </>
-  )
-}
-
 /** Provider chip in the header. Configured (or simulated) → Settings. Without key → it travels down to the connect panel. */
 function ProviderChip({ provider: p, active, onSettings, onOpen }: { provider: Provider; active: boolean; onSettings: () => void; onOpen: () => void }) {
   const T = useT()

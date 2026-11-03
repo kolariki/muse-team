@@ -146,8 +146,8 @@ const post = (url: string, body: unknown) => authed(url, { method: 'POST', heade
 
 export const api = {
   authConfig: () => j<{ allow_signup: boolean }>(fetch('/api/auth/config')),
-  register: (email: string, password: string, name?: string) => j<{ token?: string; user: User; pending?: boolean; email?: string; dev_code?: string }>(post('/api/auth/register', { email, password, name })),
-  verifyEmail: (email: string, code: string) => j<{ token: string; user: User }>(post('/api/auth/verify', { email, code })),
+  register: (email: string, password: string, name: string | undefined, acceptedTerms: boolean) => j<{ token?: string; user: User; pending?: boolean; email?: string; dev_code?: string }>(post('/api/auth/register', { email, password, name, accepted_terms: acceptedTerms })),
+  verifyEmail: (email: string, code: string) => j<{ token: string; user: User }>(post('/api/auth/verify', { email, code, lang: getLang() })),
   resendCode: (email: string) => j<{ ok: boolean; dev_code?: string }>(post('/api/auth/resend', { email })),
   login: (email: string, password: string) => j<{ token: string; user: User }>(post('/api/auth/login', { email, password })),
   logout: () => j(post('/api/auth/logout', {})),
@@ -181,6 +181,8 @@ export const api = {
   analyticsAi: (slug: string, days: number) => j<AiSummary>(authed(`/api/analytics/${slug}/ai?days=${days}`)),
   analyticsExperiments: (slug: string, days: number, goals: Record<string, string>) => j<Experiments>(authed(`/api/analytics/${slug}/experiments?days=${days}&goals=${encodeURIComponent(JSON.stringify(goals))}`)),
   analyticsAsk: (slug: string, kind: 'ab' | 'ai', text = '') => j<{ ok: boolean; build_id: string; session_id: string }>(post(`/api/analytics/${slug}/ask`, { kind, text })),
+  analyticsPerson: (slug: string, who: string, days: number) => j<PersonDetail>(authed(`/api/analytics/${slug}/person?who=${encodeURIComponent(who)}&days=${days}`)),
+  analyticsPersonAnalyze: (slug: string, who: string, days: number, provider: string, model: string) => j<PersonAnalysis>(post(`/api/analytics/${slug}/person/analyze`, { who, days, provider, model, lang: getLang() })),
   analyticsDetail: (slug: string, days: number) => j<AnalyticsDetail>(authed(`/api/analytics/${slug}?days=${days}`)),
   analytics: () => j<{ apps: AnalyticsApp[]; collector: string; collector_public: boolean }>(authed('/api/analytics')),
   siteCreate: (body: { title: string; url: string; repo: string; pr?: boolean }) => j<{ slug: string; pr?: { ok: boolean; url?: string; files?: string[]; error?: string } }>(post('/api/analytics/sites', body)),
@@ -198,7 +200,7 @@ export const api = {
   confirmCheckout: (checkout: string) => j<Order>(post('/api/billing/confirm', { checkout })),
   orders: (buildId?: string | null) => j<Order[]>(authed(`/api/billing/orders${buildId ? `?build_id=${encodeURIComponent(buildId)}` : ''}`)),
   fdeRequests: (sessionId?: string | null) => j<FdeRequest[]>(authed(`/api/fde/requests${sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''}`)),
-  fdeCreate: (body: { session_id: string; build_id: string; package: string; notes: string; contact: string }) => j<FdeRequest>(post('/api/fde/requests', body)),
+  fdeCreate: (body: { session_id: string; build_id: string; package: string; notes: string; contact: string; lang: string }) => j<FdeRequest>(post('/api/fde/requests', body)),
   fdeUpdate: (id: string, body: { status?: string; notes?: string }) => j<FdeRequest>(authed(`/api/fde/requests/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
   fdeTicket: async (id: string) => {
     const r = await authed(`/api/fde/requests/${id}/ticket.md`)
@@ -297,6 +299,26 @@ export const api = {
     j<{ set: boolean; last4: string | null }>(authed('/api/settings/github', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, clear }) })),
   cloud: (sessionId: string, id: string) => j<CloudInfo>(authed(`/api/sessions/${sessionId}/builds/${id}/cloud`)),
   notionStatus: () => j<{ set: boolean; last4: string | null; me: { name: string; workspace: string | null } | null; error: string | null; oauth?: boolean }>(authed('/api/notion/status')),
+  forgotPassword: (email: string) => j<{ ok: boolean; dev_code?: string }>(post('/api/auth/forgot', { email })),
+  forgotCheck: (email: string, code: string) => j<{ ok: boolean }>(post('/api/auth/forgot/check', { email, code })),
+  forgotReset: (email: string, code: string, password: string) => j<{ token: string; user: User }>(post('/api/auth/forgot/reset', { email, code, password })),
+  accountCheckPassword: (password: string) => j<{ ok: boolean }>(post('/api/account/check-password', { password })),
+  accountDelete: (password: string) => j<{ ok: boolean }>(post('/api/account/delete', { password })),
+  profile: () => j<Profile>(authed('/api/auth/profile')),
+  profileUpdate: (body: { name: string; phone: string }) => j<Profile>(authed('/api/auth/profile', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })),
+  emailChangeStart: (email: string, password: string) => j<{ ok: boolean; dev_code?: string }>(post('/api/auth/email', { email, password })),
+  emailChangeConfirm: (code: string) => j<Profile>(post('/api/auth/email/confirm', { code })),
+  emailChangeCancel: () => j<{ ok: boolean }>(authed('/api/auth/email', { method: 'DELETE' })),
+  passwordChange: (current: string, next: string) => j<{ ok: boolean }>(post('/api/auth/password', { current, new: next })),
+  adminAccess: () => j<{ admin: boolean }>(authed('/api/admin/access')),
+  backoffice: () => j<BackofficeData>(authed('/api/admin/backoffice')),
+  backofficeSetStatus: (id: string, status: string) => j<{ ok: boolean }>(authed(`/api/admin/requests/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status }) })),
+  backofficeReply: (id: string, text: string) => j<{ ts: number; to_addr: string; text: string }>(post(`/api/admin/requests/${id}/reply`, { text })),
+  backofficeTicket: async (id: string) => {
+    const r = await authed(`/api/admin/requests/${id}/ticket.md`)
+    if (!r.ok) throw new Error(await r.text())
+    return r.text()
+  },
   deployFailures: (days = 90) => j<DeployFailures>(authed(`/api/admin/deploy-failures?days=${days}`)),
   myPhoto: () => j<{ image: string | null }>(authed('/api/me/photo')),
   setMyPhoto: (image: string) => j<{ image: string | null }>(authed('/api/me/photo', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) })),
@@ -588,6 +610,15 @@ export interface AnalyticsApp {
 }
 export interface AnalyticsRow { key: string; n: number }
 export interface AnalyticsPerson { id: string; email: string | null; name: string | null; first_seen: number; last_seen: number; pageviews: number; actions: number; sessions: number; country: string | null; device: string | null; os: string | null; browser: string | null }
+export interface PersonAnalysis { summary: string; provider: string; model: string; ts: number }
+export interface PersonEvent { ts: number; kind: string; path: string; name: string; times: number }
+export interface PersonDetail {
+  person: { id: string; email: string | null; name: string | null; first_seen: number; last_seen: number; pageviews: number; actions: number; errors: number; sessions: number; country?: string | null; device?: string | null; os?: string | null; browser?: string | null }
+  visits: { start: number; end: number; source: string; events: PersonEvent[] }[]
+  pages: AnalyticsRow[]
+  clicks: AnalyticsRow[]
+  analysis: PersonAnalysis | null
+}
 export interface AnalyticsDetail {
   site: string
   days: number
@@ -619,7 +650,7 @@ export interface AdsPayload {
   ads: Ad[]; source: { kind: 'live' | 'design' | 'preview' | 'none'; label?: string; url?: string }; engine: boolean; writer: string | null
   app: { status: 'none' | 'capturing' | 'summarizing' | 'recommending' | 'ready' | 'error'; step: string; error?: string | null; summary: AppSummary | null; summary_by?: string | null
     source?: string | null; edited: boolean; stale: boolean; updated?: number; screens: { kind: 'phone' | 'desktop'; route: string; file: string; ratio: number; bg: string }[]; recommended: { id: string; why: string }[]; palette?: AdScript['palette'] | null }
-  meta: { ready: boolean; connected: boolean; account?: string; expired?: boolean }
+  meta: { ready: boolean; connected: boolean; account?: string; expired?: boolean; open?: boolean }
 }
 export interface MetaPublish { account_id: string; page_id: string; currency: string; daily_budget: number; countries: string[]; age_min: number; days: number | null; link: string }
 
@@ -644,7 +675,7 @@ export interface MetaBrain {
     audience: { countries: string[]; age_min: number; age_max: number; genders: string; why: string }; placements: string
     budget: { daily: number; currency: string; why: string }; ads: MetaBrainAd[]; missing: { id: string; title: string }[]
   } | null
-  meta: { ready: boolean; connected: boolean; account?: string; expired?: boolean; admin: boolean }
+  meta: { ready: boolean; connected: boolean; account?: string; expired?: boolean; admin: boolean; open?: boolean }
 }
 export interface StudioMedia { id: string; name: string; kind: 'video' | 'image'; duration?: number; width?: number; height?: number; audio?: boolean; thumb?: string }
 export interface StudioEvent { agent: 'listen' | 'plan' | 'edit' | 'improve' | 'review'; text: string; kind: 'note' | 'step' | 'result' | 'verdict' | 'warn' | 'done'; round: number; ts: number
@@ -690,7 +721,7 @@ export interface ReelIdea { title: string; duration_s: number; based_on: number[
 export interface ForYouProfile { id: string; name: string; source: 'tably' | 'form'; session_id: string | null; build_id: string | null; answers: Record<string, string>; data: ForYouProfileData
   searched: number | null; created: number; updated: number; searching: boolean; ideating?: boolean; found?: number }
 export interface ForYouHome { profiles: ForYouProfile[]; projects: { session_id: string; build_id: string; title: string; updated: number }[]; sectors: { id: string; es: string; en: string }[]
-  kinds: string[]; goals: string[]; model: boolean; meta?: { ready: boolean; connected: boolean; instagram: boolean; admin?: boolean } }
+  kinds: string[]; goals: string[]; model: boolean; meta?: { ready: boolean; connected: boolean; instagram: boolean; admin?: boolean; open?: boolean } }
 export interface ForYouMatches { profile: ForYouProfile; catalog: (AdTierCard & { match: number; why: string[] })[]; found: (AdTierCard & { stage: string | null; error: string | null; reviewed: boolean })[]; other_length?: number; searching: boolean; ideating?: boolean }
 export interface AdTierAgreement { reviewed: number; agree: number; pct: number | null }
 export interface AdTierHome { tiers: Record<AdTierTier, AdTierCard[]>; facets: { format: string[]; industry: string[]; language: string[]; country: string[]; platform_origin: string[]; brand: string[]; counts: Record<string, number> }
@@ -883,6 +914,19 @@ export interface FdePackage {
   needs: string[]
   checkout_url?: string | null
   booking_url?: string | null
+}
+
+export interface Profile { id: string; email: string; name: string; phone: string; pending_email: string | null }
+
+export interface BackofficeData {
+  overview: { users: number; verified: number; open_requests: number; new_requests: number; paid_usd: number; apps: number; open_errors: number; emails: number; emails_failed: number }
+  users: { id: string; email: string; name: string; phone: string; created: number; verified: number; requests: number; paid_usd: number; apps: number; projects: number; connected: string[] }[]
+  accounts: { user_id: string; email: string; kind: string; provider: string; account: string | null; expires: number | null; updated: number }[]
+  requests: { id: string; user_id: string; email: string; name: string; contact: string; package: string; package_name: string; status: string; notes: string; project: string; amount_usd: number; open: boolean; created: number; updated: number; paid_at: number | null; messages: { ts: number; to_addr: string; text: string }[] }[]
+  emails: { ts: number; to_addr: string; from_addr: string; subject: string; ok: number }[]
+  payments: { id: string; email: string; concept: string; amount_usd: number; status: string; ts: number | null; via: string }[]
+  apps: { user_id: string; build_id: string; email: string; slug: string; provider: string; status: string; url: string | null; open_errors: number; updated: number }[]
+  statuses: string[]
 }
 
 export interface FdeRequest {

@@ -12,6 +12,7 @@ import { agentMap, useAgentColor, useArena } from '../store'
 import ProviderLogo from './ProviderLogo'
 import AgentAvatar from './AgentAvatar'
 import { toast } from './Toast'
+import { useAiConnect } from './AiConnect'
 
 /** End of a review-mode session: the council's consolidated verdict + change list → "build again with these changes". */
 export default function CouncilVerdict() {
@@ -34,13 +35,15 @@ export default function CouncilVerdict() {
   // who builds the list: a local agent on the subscription or an API model (defaults to the build's current builder)
   const [engines, setEngines] = useState<EngineStatus[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
+  const [allProviders, setAllProviders] = useState<Provider[]>([])
+  const ai = useAiConnect(allProviders, (np) => { setAllProviders((ps) => ps.map((x) => (x.id === np.id ? np : x))); setProviders((ps) => [np, ...ps.filter((x) => x.id !== np.id)]) })
   const [bProvider, setBProvider] = useState('')
   const [bModel, setBModel] = useState('')
   const buildProvider = useBuild((b) => b.provider)
   const buildModel = useBuild((b) => b.model)
   useEffect(() => {
     api.engines().then((es) => setEngines(visibleEngines(es))).catch(() => {})
-    api.providers().then((all) => { const ps = visibleProviders(all); setProviders(ps.filter((p) => p.configured && p.id !== 'mock').concat(ps.filter((p) => p.id === 'mock' && p.configured))) }).catch(() => {})
+    api.providers().then((all) => { const ps = visibleProviders(all); setAllProviders(ps); setProviders(ps.filter((p) => p.configured && p.id !== 'mock').concat(ps.filter((p) => p.id === 'mock' && p.configured))) }).catch(() => {})
   }, [])
   // the builder of the reviewed build, read from the build itself (the store may hold another build, or none after F5)
   const [reviewed, setReviewed] = useState<{ provider: string; model: string } | null>(null)
@@ -251,6 +254,7 @@ export default function CouncilVerdict() {
                     value={bProvider}
                     onChange={(e) => {
                       const id = e.target.value
+                      if (ai.ask(id, (np) => { setUserPicked(true); setBProvider(np.id); setBModel(np.default_model) })) return
                       const eng = engines.find((x) => x.id === id)
                       setUserPicked(true)
                       setBProvider(id)
@@ -267,8 +271,10 @@ export default function CouncilVerdict() {
                     <optgroup label={T('Por API', 'Via API')}>
                       {providers.map((p) => <option key={p.id} value={p.id}>{p.label.split(' · ')[0]}</option>)}
                     </optgroup>
+                    {ai.options}
                   </select>
                   </label>
+                  {ai.dialog}
                   {!isEngineSel && bProvider && <span className="min-w-0 flex-1"><ModelSelect provider={bProvider} value={bModel} onChange={(m) => { setUserPicked(true); setBModel(m) }} /></span>}
                 </div>
               )}

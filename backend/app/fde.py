@@ -5,18 +5,26 @@ real integrations (payments, email, auth, an external data source), a human pre-
 Fixed-price packages with a closed scope. The request is created from the project's real state, so the engineer
 receives a ticket with everything (brief summary, version and readiness, the council's open blockers, the services
 still missing, stack, where the code is) instead of "hi, it doesn't work".
-Payment / scheduling links are optional: set FDE_CHECKOUT_URL_<PACKAGE_ID_UPPER> (Stripe Payment Link) and
-FDE_BOOKING_URL (Cal.com) in .env; without them the request stays "new" and you follow up by email.
+Payment links live in CHECKOUT_LINKS; FDE_CHECKOUT_URL_<PACKAGE_ID_UPPER> overrides one and FDE_BOOKING_URL (Cal.com)
+adds scheduling. A request that can be paid online waits as "pending_payment" and the developer gets the ticket once the
+payment is confirmed; one that cannot stays "new", the ticket goes out right away and you follow up by email. The client
+always gets a copy, and the conversation runs through the support address (mailer.support_address).
 """
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import time
 import uuid
 
+from . import mailer
 from .auth import _db
+from .config import env
+
+log = logging.getLogger("arena.fde")
+EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 with _db() as _c:
     _c.executescript(
@@ -28,6 +36,9 @@ with _db() as _c:
         CREATE INDEX IF NOT EXISTS fde_user ON fde_requests (user_id, created);
         """
     )
+    _c.execute("CREATE TABLE IF NOT EXISTS fde_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, request_id TEXT NOT NULL, user_id TEXT NOT NULL, ts REAL NOT NULL, to_addr TEXT NOT NULL, text TEXT NOT NULL)")
+    if "paid_at" not in {r[1] for r in _c.execute("PRAGMA table_info(fde_requests)")}:
+        _c.execute("ALTER TABLE fde_requests ADD COLUMN paid_at REAL")
 
 PACKAGES: list[dict] = [
     {
@@ -41,10 +52,10 @@ PACKAGES: list[dict] = [
     {
         "id": "service_setup", "name": "Un experto configura el servicio", "price_usd": 49, "eta": "24 h hábiles", "badge": "nuevo",
         "tagline": "Mercado Pago, emails, login con Google… lo dejamos funcionando en tu app, con vos o por vos.",
-        "includes": ["Te ayudamos a crear o configurar la cuenta del servicio", "Cargamos las claves en tu app (prueba y producción)", "Probamos que funcione de verdad (un pago, un email…)", "Te dejamos anotado cómo cambiarlo"],
+        "includes": ["Precio por cada servicio conectado", "Te ayudamos a crear o configurar la cuenta del servicio", "Cargamos las claves en tu app (prueba y producción)", "Probamos que funcione de verdad (un pago, un email…)", "Te dejamos anotado cómo cambiarlo"],
         "excludes": ["Cambios en cómo funciona la app", "Los costos o comisiones del propio servicio"],
         "needs": ["Acceso a tu cuenta del servicio: nos invitás o lo hacemos juntos en una llamada"],
-        "name_en": "An expert sets up the service", "eta_en": "24 business hours", "badge_en": "new", "tagline_en": "Mercado Pago, email, Google login… we leave it working in your app, with you or for you.", "includes_en": ["We help you create or configure the service account", "We load the keys into your app (test and production)", "We check it really works (a payment, an email…)", "A short note on how to change it"], "excludes_en": ["Changes to how the app works", "The service's own costs or fees"], "needs_en": ["Access to your service account: invite us or we do it together on a call"],
+        "name_en": "An expert sets up the service", "eta_en": "24 business hours", "badge_en": "new", "tagline_en": "Mercado Pago, email, Google login… we leave it working in your app, with you or for you.", "includes_en": ["Price per connected service", "We help you create or configure the service account", "We load the keys into your app (test and production)", "We check it really works (a payment, an email…)", "A short note on how to change it"], "excludes_en": ["Changes to how the app works", "The service's own costs or fees"], "needs_en": ["Access to your service account: invite us or we do it together on a call"],
     },
     {
         "id": "integration", "name": "Integración de un servicio", "price_usd": 149, "eta": "24–48 h hábiles", "badge": None,
@@ -72,15 +83,21 @@ PACKAGES: list[dict] = [
     },
 ]
 
-STATUSES = ["new", "paid", "scheduled", "in_progress", "delivered", "closed", "cancelled"]
+STATUSES = ["pending_payment", "new", "paid", "scheduled", "in_progress", "delivered", "closed", "cancelled"]
 
 
 def package(pid: str) -> dict | None:
     return next((p for p in PACKAGES if p["id"] == pid), None)
 
 
+# Stripe Payment Links, one per package, come from FDE_CHECKOUT_URL_<PACKAGE_ID_UPPER>.
+CHECKOUT_LINKS: dict[str, str] = {}
+
+
 def links(pid: str) -> dict:
-    return {"checkout_url": os.environ.get(f"FDE_CHECKOUT_URL_{pid.upper()}") or None, "booking_url": os.environ.get("FDE_BOOKING_URL") or None}
+    # a link is only offered once Stripe can tell us it was paid (its webhook): otherwise someone pays and nobody finds out
+    link = (os.environ.get(f"FDE_CHECKOUT_URL_{pid.upper()}") or CHECKOUT_LINKS.get(pid)) if env("STRIPE_WEBHOOK_SECRET", "") else None
+    return {"checkout_url": link, "booking_url": os.environ.get("FDE_BOOKING_URL") or None}
 
 
 # ------------------------------------------------------------------ ticket
@@ -91,7 +108,7 @@ def _brief_summary(brief: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", txt)[:1500]
 
 
-def build_ticket(b, services: dict, stack: list[dict], pkg: dict, notes: str, contact: str) -> dict:
+def build_ticket(b, services: dict, stack: list[dict], pkg: dict, notes: str, contact: str, lang: str = "es") -> dict:
     """Everything the engineer needs, from the project's real state."""
     v = b.versions[-1] if b.versions else None
     blockers = []
@@ -115,7 +132,7 @@ def build_ticket(b, services: dict, stack: list[dict], pkg: dict, notes: str, co
         "deploys": [{"target": d.get("target"), "ok": d.get("ok"), "url": d.get("url")} for d in (b.deploys or [])[-3:]],
         "app_run": {"status": b.app_run.status, "url": b.app_run.url} if getattr(b, "app_run", None) else None,
         "package": {"id": pkg["id"], "name": pkg["name"], "price_usd": pkg["price_usd"], "eta": pkg["eta"]},
-        "notes": notes, "contact": contact,
+        "notes": notes, "contact": contact, "lang": lang,
     }
 
 
@@ -147,12 +164,12 @@ def _row(r) -> dict:
     return d
 
 
-def create_request(user_id: str, session_id: str, build_id: str, pkg: dict, ticket: dict, notes: str, contact: str) -> dict:
+def create_request(user_id: str, session_id: str, build_id: str, pkg: dict, ticket: dict, notes: str, contact: str, status: str = "new") -> dict:
     rid = "fde-" + uuid.uuid4().hex[:8]
     now = time.time()
     with _db() as c:
         c.execute("INSERT INTO fde_requests (id, user_id, session_id, build_id, package, status, notes, contact, ticket, created, updated) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                  (rid, user_id, session_id, build_id, pkg["id"], "new", notes[:4000], contact[:300], json.dumps(ticket, ensure_ascii=False), now, now))
+                  (rid, user_id, session_id, build_id, pkg["id"], status, notes[:4000], contact[:300], json.dumps(ticket, ensure_ascii=False), now, now))
     return get_request(user_id, rid)  # type: ignore[return-value]
 
 
@@ -169,6 +186,97 @@ def get_request(user_id: str, rid: str) -> dict | None:
     with _db() as c:
         r = c.execute("SELECT * FROM fde_requests WHERE user_id=? AND id=?", (user_id, rid)).fetchone()
     return _row(r) if r else None
+
+
+def usd_cents(session: dict) -> int:
+    """What a Checkout Session charged in USD, 0 if it does not say. Payment Links offer the buyer's local currency: on
+    current Stripe API versions the session stays in USD, on older ones the USD amount is under currency_conversion."""
+    conversion = session.get("currency_conversion") or {}
+    if str(conversion.get("source_currency") or "").lower() == "usd":
+        return int(conversion.get("amount_total") or 0)
+    return int(session.get("amount_total") or 0) if str(session.get("currency") or "").lower() == "usd" else 0
+
+
+def _client_address(contact: str, account: str) -> str:
+    """The email they left as contact, or their account's: the contact can be a WhatsApp number."""
+    contact = (contact or "").strip()
+    return contact if EMAIL.fullmatch(contact) else account
+
+
+def reply_to_client(rid: str, text: str) -> dict | None:
+    """The operator answers a request: the email goes out from support and stays on the request. None if nothing went out."""
+    with _db() as c:
+        row = c.execute("SELECT r.user_id, r.package, r.contact, u.email, u.name FROM fde_requests r LEFT JOIN users u ON u.id = r.user_id WHERE r.id = ?", (rid,)).fetchone()
+    if not row or not row["email"]:
+        return None
+    to = _client_address(row["contact"], row["email"])
+    pkg = package(row["package"]) or {}
+    support = mailer.support_address()
+    if not mailer.send(to, *mailer.fde_reply_email(rid, row["name"], pkg.get("name", row["package"]), text), from_addr=f"Tably Team <{support}>", reply_to=support):
+        return None
+    msg = {"ts": time.time(), "to_addr": to, "text": text}
+    with _db() as c:
+        c.execute("INSERT INTO fde_messages (request_id, user_id, ts, to_addr, text) VALUES (?,?,?,?,?)", (rid, row["user_id"], msg["ts"], to, text))
+    return msg
+
+
+def send_ticket_emails(r: dict, paid: bool) -> None:
+    """The ticket by email to the developer and to the client. A mail problem never undoes a payment or a request."""
+    try:
+        with _db() as c:
+            u = c.execute("SELECT email, name FROM users WHERE id=?", (r["user_id"],)).fetchone()
+        t = r["ticket"]
+        account = u["email"] if u else r["contact"]
+        client = _client_address(r["contact"], account)
+        pkg = package(r["package"]) or {}
+        lang = t.get("lang", "es")
+        package_client = (pkg.get("name_en") if lang == "en" else None) or t["package"]["name"]
+        mailer.fde_requested(r["id"], account, client, u["name"] if u else "", t["package"]["name"], package_client, t["project"]["title"], ticket_markdown(t), paid, lang)
+    except Exception as e:  # noqa: BLE001
+        log.warning("could not send the ticket of %s: %s", r.get("id"), e)
+
+
+def confirm_paid(rid: str) -> bool:
+    """The request was really paid: it moves to 'paid' and the developer gets the ticket. Stripe's notice and the user's
+    return can both arrive, only the first one counts. A request cancelled meanwhile counts too: the money came in."""
+    with _db() as c:
+        changed = c.execute("UPDATE fde_requests SET status='paid', paid_at=?, updated=? WHERE id=? AND status IN ('pending_payment','new','cancelled')", (time.time(), time.time(), rid)).rowcount
+        row = c.execute("SELECT user_id FROM fde_requests WHERE id=?", (rid,)).fetchone()
+    if not changed or not row:
+        return False
+    send_ticket_emails(get_request(row["user_id"], rid) or {}, paid=True)
+    return True
+
+
+def settle_link_payment(rid: str, amount_cents: int) -> bool:
+    """A Stripe Payment Link came back paid with this request as its reference. The reference travels in a URL the
+    user can edit, so the amount has to cover the package (taxes only add to it) before the request counts as paid."""
+    with _db() as c:
+        row = c.execute("SELECT package FROM fde_requests WHERE id=?", (rid,)).fetchone()
+    if not row:
+        return False
+    pkg = package(row["package"]) or {}
+    floor = float(pkg.get("price_usd", 0)) * (4 if row["package"] == "hours" else 1)
+    if not floor or amount_cents < floor * 100:
+        log.warning("payment link for %s came with %s cents, below the package price", rid, amount_cents)
+        return False
+    return confirm_paid(rid)
+
+
+def operator_set_status(rid: str, status: str) -> None:
+    """The operator moves a request along; marking it paid (arranged by email) records when, whatever comes after."""
+    now = time.time()
+    with _db() as c:
+        c.execute("UPDATE fde_requests SET status=?, updated=?, paid_at=CASE WHEN ?='paid' THEN COALESCE(paid_at, ?) ELSE paid_at END WHERE id=?", (status, now, status, now, rid))
+
+
+def request_amount(r: dict) -> float:
+    """What a request is worth in USD: hourly ones by the hours written in their notes, 4 at least."""
+    price = float((package(r["package"]) or {}).get("price_usd", 0))
+    if r["package"] != "hours":
+        return price
+    m = re.search(r"Horas pedidas:\s*(\d+)", r.get("notes") or "")
+    return price * max(4, int(m.group(1)) if m else 4)
 
 
 def update_request(user_id: str, rid: str, status: str | None = None, notes: str | None = None) -> dict | None:

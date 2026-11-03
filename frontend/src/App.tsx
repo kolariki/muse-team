@@ -35,10 +35,13 @@ import { setSfx, sfx, sfxEnabled } from './lib/sfx'
 import { LOOK_SWITCH, newLookOn, setBuilderLook, setNewLook } from './lib/look'
 import { setReconnectBuild, useBuild } from './buildStore'
 import { useArena } from './store'
+import { takeResumeView } from './lib/staleBuild'
 import type { ArenaEvent, SessionConfig } from './types'
 // the Ad Studio (uploads, the five agents, the renders) loads only when it opens
 const AdStudio = lazy(() => import('./components/AdStudio'))
 const MetaAdsPage = lazy(() => import('./components/MetaAdsPage'))
+const Backoffice = lazy(() => import('./components/Backoffice'))
+const ProfilePage = lazy(() => import('./components/ProfilePage'))
 const AdTier = lazy(() => import('./components/AdTier'))
 
 function onEvent(ev: ArenaEvent) {
@@ -473,7 +476,10 @@ function AppInner() {
     if (!auth.token) return useArena.getState().set({ authChecked: true })
     api
       .me()
-      .then(({ user }) => useArena.getState().set({ user, authChecked: true }))
+      .then(({ user }) => {
+        const view = takeResumeView()  // a new version came out while the tab was open: back to the screen the person had asked for
+        useArena.getState().set({ user, authChecked: true, ...(view ? { view } : {}) })
+      })
       .catch(() => useArena.getState().set({ user: null, authChecked: true }))
   }, [])
 
@@ -572,6 +578,8 @@ function AppInner() {
   if (view === 'analytics') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><AnalyticsPage onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
   if (view === 'team') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><TeamPage onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>
   if (view === 'adtier') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={<PageLoader />}><AdTier onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
+  if (view === 'profile') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={<PageLoader />}><ProfilePage onDeleted={logout} /></Suspense></AppShell></>
+  if (view === 'backoffice') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={<PageLoader />}><Backoffice /></Suspense></AppShell></>
   if (view === 'metaads') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={<PageLoader />}><MetaAdsPage onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
   if (view === 'studio') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Suspense fallback={<PageLoader />}><AdStudio onBack={() => useArena.getState().set({ view: 'setup' })} /></Suspense></AppShell></>
   if (view === 'market') return <>{banner}{demoLayer}<AppShell user={user} onLogout={logout}><Marketplace onBack={() => useArena.getState().set({ view: 'setup' })} /></AppShell></>

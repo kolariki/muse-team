@@ -39,6 +39,8 @@ from fastapi.responses import FileResponse, PlainTextResponse, Response, Streami
 from pydantic import BaseModel
 
 from . import auth, keystore, trial
+from . import account as accountmod
+from . import backoffice as backofficemod
 from . import memory as memorymod
 from . import scores as scoresmod
 from . import team as teammod
@@ -52,7 +54,7 @@ from . import scene_gen
 from .auth import CurrentUser, Credentials, User
 from . import builder as buildermod
 from .builder import BUILDS, Build, BuildRequest, list_builds, load_build, rehydrate, start_build
-from .local_engine import ENGINES, engine_status, is_engine, snapshot_dir
+from .local_engine import ENGINES, ask_engine, engine_models, engine_status, is_engine, snapshot_dir
 from . import deploy as deploymod
 from . import service_guide
 from . import service_tutorials
@@ -137,11 +139,20 @@ class SecurityHeaders(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeaders)
 
 
+def _client_ip(request: Request) -> str:
+    """Behind Railway every connection comes from its proxy, which names the visitor in X-Real-IP. Elsewhere nothing vouches
+    for that header, so it is not read."""
+    if env("RAILWAY_ENVIRONMENT_NAME") or env("RAILWAY_PROJECT_ID"):
+        if ip := request.headers.get("x-real-ip", "").strip():
+            return ip
+    return request.client.host if request.client else "x"
+
+
 def _rate_limit(request: Request, bucket: str, limit: int = 10, window: float = 60) -> None:
     """Simple per-IP limiter for auth endpoints (brute-force protection)."""
     import time as _t
 
-    key = f"{bucket}:{request.client.host if request.client else 'x'}"
+    key = f"{bucket}:{_client_ip(request)}"
     now = _t.time()
     hits = [t for t in _auth_hits.get(key, []) if now - t < window]
     if len(hits) >= limit:
@@ -178,12 +189,13 @@ def register(cred: Credentials, request: Request):
 class VerifyBody(BaseModel):
     email: str
     code: str = ""
+    lang: str = "es"
 
 
 @app.post("/api/auth/verify")
 def verify_email(body: VerifyBody, request: Request):
     _rate_limit(request, "verify", limit=20)
-    token, user = auth.verify(body.email, body.code)
+    token, user = auth.verify(body.email, body.code, body.lang)
     return {"token": token, "user": user}
 
 
@@ -260,6 +272,63 @@ def my_photo_delete(user: User = CurrentUser):
     return {"image": None}
 
 
+@app.post("/api/auth/forgot")
+def auth_forgot(body: dict, request: Request):
+    _rate_limit(request, "forgot", limit=6)
+    dev_code = auth.start_password_reset(str(body.get("email") or ""))
+    return {"ok": True, **({"dev_code": dev_code} if dev_code else {})}
+
+
+@app.post("/api/auth/forgot/check")
+def auth_forgot_check(body: dict, request: Request):
+    _rate_limit(request, "forgot-check", limit=20)
+    auth.check_password_reset(str(body.get("email") or ""), str(body.get("code") or ""))
+    return {"ok": True}
+
+
+@app.post("/api/auth/forgot/reset")
+def auth_forgot_reset(body: dict, request: Request):
+    _rate_limit(request, "forgot-reset", limit=20)
+    token, user = auth.finish_password_reset(str(body.get("email") or ""), str(body.get("code") or ""), str(body.get("password") or ""))
+    return {"token": token, "user": user}
+
+
+@app.get("/api/auth/profile")
+def auth_profile(user: User = CurrentUser):
+    return auth.profile(user.id)
+
+
+@app.patch("/api/auth/profile")
+def auth_profile_update(body: dict, user: User = CurrentUser):
+    return auth.update_profile(user.id, str(body.get("name") or ""), str(body.get("phone") or ""))
+
+
+@app.post("/api/auth/email")
+def auth_email_start(body: dict, request: Request, user: User = CurrentUser):
+    _rate_limit(request, "email-change", limit=10)
+    dev_code = auth.start_email_change(user, str(body.get("email") or ""), str(body.get("password") or ""))
+    return {"ok": True, **({"dev_code": dev_code} if dev_code else {})}
+
+
+@app.post("/api/auth/email/confirm")
+def auth_email_confirm(body: dict, request: Request, user: User = CurrentUser):
+    _rate_limit(request, "email-confirm", limit=20)
+    return auth.confirm_email_change(user, str(body.get("code") or ""), auth.bearer(request))
+
+
+@app.delete("/api/auth/email")
+def auth_email_cancel(user: User = CurrentUser):
+    auth.cancel_email_change(user.id)
+    return {"ok": True}
+
+
+@app.post("/api/auth/password")
+def auth_password(body: dict, request: Request, user: User = CurrentUser):
+    _rate_limit(request, "password", limit=10)
+    auth.change_password(user, str(body.get("current") or ""), str(body.get("new") or ""), auth.bearer(request))
+    return {"ok": True}
+
+
 @app.get("/api/auth/config")
 def auth_config():
     return {"allow_signup": auth.ALLOW_SIGNUP}
@@ -285,6 +354,8 @@ async def providers(user: User = CurrentUser):
 
 @app.get("/api/providers/{provider_id}/models")
 async def provider_models(provider_id: str, user: User = CurrentUser):
+    if is_engine(provider_id):
+        return {"models": engine_models(provider_id)}
     if provider_id not in PROVIDERS:
         raise HTTPException(404, "unknown provider")
     try:
@@ -512,10 +583,10 @@ class RolePromptsBody(BaseModel):
 async def intake_role_prompts(intake_id: str, body: RolePromptsBody, user: User = CurrentUser):
     """Tailored personality prompt per role, from the generated brief. The user applies them (they replace the current ones)."""
     it = _intake(user, intake_id)
-    if body.provider not in PROVIDERS:
+    if body.provider not in PROVIDERS and not is_engine(body.provider):
         raise HTTPException(400, "Proveedor desconocido")
     eff = keystore.creds(user.id)
-    if PROVIDERS[body.provider].kind != "mock" and body.provider not in eff:
+    if not is_engine(body.provider) and PROVIDERS[body.provider].kind != "mock" and body.provider not in eff:
         raise HTTPException(400, f"{PROVIDERS[body.provider].label}: sin API key")
     try:
         prompts = await it.role_prompts(body.agents[:8], body.provider, body.model, eff.get(body.provider), language=body.language or None)
@@ -529,10 +600,10 @@ async def intake_run(intake_id: str, body: IntakeRun, user: User = CurrentUser):
     it = _intake(user, intake_id)
     if not body.text.strip():
         raise HTTPException(400, "Escribí qué querés construir")
-    if body.provider not in PROVIDERS:
+    if body.provider not in PROVIDERS and not is_engine(body.provider):
         raise HTTPException(400, "Proveedor desconocido")
     eff = keystore.creds(user.id)
-    if PROVIDERS[body.provider].kind != "mock" and body.provider not in eff:
+    if not is_engine(body.provider) and PROVIDERS[body.provider].kind != "mock" and body.provider not in eff:
         raise HTTPException(400, f"{PROVIDERS[body.provider].label}: sin API key")
     try:
         it.start(body.text, body.provider, body.model, eff.get(body.provider), extra=body.extra, language=body.language or None)
@@ -1550,6 +1621,40 @@ def team_memory(user: User = CurrentUser):
 
 
 # ---------------------------------------------------------------------------------------------- move an account between installs
+@app.post("/api/account/check-password")
+def account_check_password(body: dict, request: Request, user: User = CurrentUser):
+    """Whether what the person is typing is their password, so «Delete» only lights up when it is. Limited: it answers yes or no."""
+    _rate_limit(request, "account-check-password", limit=30)
+    try:
+        auth.check_password(user.id, str(body.get("password") or ""))
+    except HTTPException:
+        return {"ok": False}
+    return {"ok": True}
+
+
+@app.post("/api/account/delete")
+async def account_delete(body: dict, request: Request, user: User = CurrentUser):
+    """Everything of the account goes, for good. The password proves it is its owner; a build at work has to end first."""
+    _rate_limit(request, "account-delete", limit=5)
+    auth.check_password(user.id, str(body.get("password") or ""))
+    if _is_admin(user):
+        raise HTTPException(400, "Sos administrador: sacá tu email de TABLY_ADMIN_EMAILS antes de eliminar esta cuenta")
+    mine = [b for b in BUILDS.values() if b.user.id == user.id]
+    if any(b.status in ("running", "reviewing") for b in mine):
+        raise HTTPException(409, "Tenés una construcción en curso: frenala antes de eliminar la cuenta")
+    for build_id in accountmod.published_builds(user.id):
+        try:
+            await cloudmod.unpublish(user.id, build_id)
+        except Exception as e:  # noqa: BLE001
+            log.warning("could not unpublish %s while deleting an account: %s", build_id, e)
+    for b in mine:
+        if run := runmod.RUNS.get(b.id):
+            await run.stop()
+        BUILDS.pop(b.id, None)
+    accountmod.erase(user)
+    return {"ok": True}
+
+
 @app.post("/api/account/export")
 def account_export(user: User = CurrentUser):
     """Everything of this account as one encrypted file; the code to open it goes in a header and is never stored."""
@@ -2415,10 +2520,13 @@ def fde_create(body: dict, user: User = CurrentUser):
         stack = runmod.detect(deploymod.materialize(user.id, build_id, b.files, b.workdir))
     except Exception:
         stack = []
-    ticket = fdemod.build_ticket(b, services, stack, pkg, str(body.get("notes") or ""), str(body.get("contact") or user.email))
-    req = fdemod.create_request(user.id, session_id, build_id, pkg, ticket, str(body.get("notes") or ""), str(body.get("contact") or user.email))
+    ticket = fdemod.build_ticket(b, services, stack, pkg, str(body.get("notes") or ""), str(body.get("contact") or user.email), "en" if body.get("lang") == "en" else "es")
+    pay_online = billing.enabled() or bool(fdemod.links(pkg["id"])["checkout_url"])
+    req = fdemod.create_request(user.id, session_id, build_id, pkg, ticket, str(body.get("notes") or ""), str(body.get("contact") or user.email), status="pending_payment" if pay_online else "new")
     b.chat.append({"role": "system", "text": f"Pedido de developer creado: {pkg['name']} ({req['id']}).", "ts": __import__("time").time()})
     b._save()
+    if not pay_online:  # no payment will confirm it later: the developer hears about it now, to arrange it by email
+        fdemod.send_ticket_emails(req, paid=False)
     return req | fdemod.links(pkg["id"])
 
 
@@ -2469,7 +2577,7 @@ async def _settle(o: dict) -> None:
     if o.get("status") != "paid":
         return
     if o["kind"] == "fde":
-        fdemod.update_request(o["user_id"], o["ref"], status="paid")
+        fdemod.confirm_paid(o["ref"])
     elif o["kind"] == "fees":
         b = BUILDS.get(o["build_id"])
         if b is not None:
@@ -2509,7 +2617,12 @@ async def billing_webhook(request: Request):
     if ev is None:
         raise HTTPException(400, "firma inválida o webhook no configurado")
     if ev.get("type") in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
-        o = await billing.confirm(ev["data"]["object"]["id"])
+        obj = ev["data"]["object"]
+        if obj.get("payment_link") and obj.get("client_reference_id"):
+            if obj.get("payment_status") == "paid":
+                fdemod.settle_link_payment(str(obj["client_reference_id"]), fdemod.usd_cents(obj))
+            return {"ok": True}
+        o = await billing.confirm(obj["id"])
         if o:
             await _settle(o)
     return {"ok": True}
@@ -3256,6 +3369,53 @@ def analytics_experiments(slug: str, days: int = 30, goals: str = "", user: User
     return observemod.experiments(slug, max(1, min(int(days), 365)), g if isinstance(g, dict) else {})
 
 
+@app.get("/api/analytics/{slug}/person")
+def analytics_person(slug: str, who: str, days: int = 30, user: User = CurrentUser):
+    """One visitor in depth: what they did, visit by visit."""
+    app_ = _my_app(user, slug)
+    data = analyticsmod.person(slug, who, max(1, min(int(days), 365)), urlparse(app_.get("url") or "").hostname)
+    if not data:
+        raise HTTPException(404, "No hay actividad de este visitante en el período")
+    return data
+
+
+@app.post("/api/analytics/{slug}/person/analyze")
+async def analytics_person_analyze(slug: str, body: dict, user: User = CurrentUser):
+    """«Analizar usuario»: the AI the user picked reads the visitor's activity and says what they did and what they were after."""
+    app_ = _my_app(user, slug)
+    provider, model = str(body.get("provider") or ""), str(body.get("model") or "")
+    data = analyticsmod.person(slug, str(body.get("who") or ""), max(1, min(int(body.get("days") or 30), 365)), urlparse(app_.get("url") or "").hostname)
+    if not data:
+        raise HTTPException(404, "No hay actividad de este visitante en el período")
+    system = analyticsmod.PERSON_SYSTEM.format(language="English" if str(body.get("lang") or "") == "en" else "español rioplatense")
+    digest = analyticsmod.person_digest(data, app_.get("title") or slug)
+    try:
+        if is_engine(provider):
+            text = (await ask_engine(user.id, provider, system, digest, model)).get("text") or ""
+        else:
+            cred = keystore.creds(user.id).get(provider)
+            if provider not in PROVIDERS or PROVIDERS[provider].kind == "mock" or not cred or cred.source == "none":
+                raise HTTPException(400, "Elegí una IA conectada para analizar a este usuario")
+            # models that reason spend this budget before writing: a report that comes back cut is asked for again with more room
+            for budget in (8000, 24000):
+                result, out = CallResult(), []
+                async for kind, delta in stream(provider, model or cred.model or PROVIDERS[provider].default_model, system, digest, temperature=0.3, max_tokens=budget, result=result, cred=cred):
+                    if kind == "text":
+                        out.append(delta)
+                text = "".join(out)
+                if not result.truncated and text.strip():
+                    break
+            if result.truncated:
+                raise HTTPException(502, "El informe de este modelo salió cortado aunque le di más espacio; probá con otro modelo")
+    except HTTPException:
+        raise
+    except Exception as ex:  # noqa: BLE001
+        raise HTTPException(502, f"El modelo no respondió: {str(ex)[:200]}")
+    if not text.strip():
+        raise HTTPException(502, "El modelo no devolvió el análisis; probá de nuevo o elegí otra IA")
+    return analyticsmod.save_analysis(slug, data["person"]["id"], text.strip()[:12000], provider, model)
+
+
 @app.post("/api/analytics/{slug}/ask")
 def analytics_ask(slug: str, body: dict, user: User = CurrentUser):
     """One click from Analytics: the builder sets up an A/B test or the AI-call reporting in the app."""
@@ -3516,7 +3676,7 @@ def _ads_payload(user: User, b) -> dict:
     st = adsmod.recover_app(user.id, b)
     return {"ads": [adsmod.public(a) for a in adsmod.recover(user.id, b.id)], "source": adsmod.source_for(user, b), "engine": adsmod.engine_ready(),
             "writer": f"{provmod.PROVIDERS[w[0]].label} · {w[1]}" if w else None, "app": {**adsmod.public_app(st), "stale": bool(st.get("stale"))},
-            "meta": {"ready": metaads.ready(), "connected": bool(conn), **(conn or {})}}
+            "meta": {"ready": metaads.ready(), "connected": bool(conn), **(conn or {}), "open": _meta_open(user)}}
 
 
 @app.get("/api/ads/templates")
@@ -3618,6 +3778,8 @@ def build_ads_file(session_id: str, build_id: str, ad_id: str, name: str, reques
 
 @app.post("/api/meta-ads/start")
 def meta_ads_start(body: dict | None = None, user: User = CurrentUser):
+    if not _meta_open(user):
+        raise HTTPException(403, "Conectar Meta Ads va a estar disponible próximamente")
     if not metaads.ready():
         raise HTTPException(400, "La conexión con Meta Ads todavía no está habilitada en Tably.")
     scopes = metaads.IG_SCOPES if (body or {}).get("for") == "instagram" else metaads.SCOPES  # AdTier reads reference accounts
@@ -3661,7 +3823,7 @@ async def meta_ads_assets(user: User = CurrentUser):
 def meta_brain_get(user: User = CurrentUser):
     """What Tably learned from the connected ad account and the ads it proposes with the studio videos."""
     conn = metaads.connection(user.id)
-    return {**brainmod.public(user.id), "meta": {"ready": metaads.ready(), "connected": bool(conn), **(conn or {}), "admin": _is_admin(user)}}
+    return {**brainmod.public(user.id), "meta": {"ready": metaads.ready(), "connected": bool(conn), **(conn or {}), "admin": _is_admin(user), "open": _meta_open(user)}}
 
 
 @app.post("/api/meta-ads/brain")
@@ -3974,7 +4136,7 @@ async def adtier_home(request: Request, user: User = CurrentUser):
 def foryou_home(user: User = CurrentUser):
     return {"profiles": foryoumod.profiles(user.id), "projects": foryoumod.projects(user), "sectors": [{"id": a, "es": b, "en": c} for a, b, c in foryoumod.SECTORS],
             "kinds": foryoumod.KINDS, "goals": foryoumod.GOALS, "model": bool(adtiermod.studio_who(user.id)),
-            "meta": {"ready": metaads.ready(), "connected": bool(metaads.connection(user.id)), "instagram": metaads.has_instagram(user.id), "admin": _is_admin(user)}}
+            "meta": {"ready": metaads.ready(), "connected": bool(metaads.connection(user.id)), "instagram": metaads.has_instagram(user.id), "admin": _is_admin(user), "open": _meta_open(user)}}
 
 
 @app.post("/api/adtier/foryou")
@@ -4956,6 +5118,64 @@ async def app_errors_report(slug: str, request: Request):
     return Response(status_code=204 if kept else 202, headers={"Access-Control-Allow-Origin": "*"})
 
 
+@app.get("/api/admin/access")
+def admin_access(user: User = CurrentUser):
+    return {"admin": _is_admin(user)}
+
+
+def _meta_open(user: User) -> bool:
+    """Meta only lets people with a role on the app connect until App Review approves it. Until META_ADS_OPEN is set, everyone else
+    sees «coming soon»; administrators and META_TESTER_EMAILS (the accounts Meta reviews with) keep the real thing."""
+    if (env("META_ADS_OPEN") or "true").lower() == "true" or _is_admin(user):  # this edition shows the Meta integration working
+        return True
+    return user.email.lower() in [e.strip().lower() for e in (env("META_TESTER_EMAILS") or "").split(",") if e.strip()]
+
+
+def _operator(user: User) -> None:
+    if not _is_admin(user):
+        raise HTTPException(403)
+
+
+@app.get("/api/admin/backoffice")
+def admin_backoffice(user: User = CurrentUser):
+    """Everything the operator looks after, across every account. Never keys, tokens or passwords."""
+    _operator(user)
+    return backofficemod.snapshot()
+
+
+@app.patch("/api/admin/requests/{rid}")
+def admin_request_status(rid: str, body: dict, user: User = CurrentUser):
+    _operator(user)
+    status = str(body.get("status") or "")
+    if status not in fdemod.STATUSES:
+        raise HTTPException(400, "estado inválido")
+    fdemod.operator_set_status(rid, status)
+    return {"ok": True}
+
+
+@app.post("/api/admin/requests/{rid}/reply")
+def admin_request_reply(rid: str, body: dict, user: User = CurrentUser):
+    _operator(user)
+    text = str(body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(400, "Escribí la respuesta")
+    if len(text) > 20_000:
+        raise HTTPException(400, "La respuesta es demasiado larga")
+    msg = fdemod.reply_to_client(rid, text)
+    if not msg:
+        raise HTTPException(502, "No se pudo enviar el email; el mensaje no salió")
+    return msg
+
+
+@app.get("/api/admin/requests/{rid}/ticket.md")
+def admin_request_ticket(rid: str, user: User = CurrentUser):
+    _operator(user)
+    md = backofficemod.ticket(rid)
+    if md is None:
+        raise HTTPException(404)
+    return PlainTextResponse(md, media_type="text/markdown; charset=utf-8")
+
+
 @app.get("/api/admin/deploy-failures")
 def admin_deploy_failures(days: int = 90, user: User = CurrentUser):
     """What Tably Cloud learned from failed deploys: which errors repeat, which the automatic fix solved (admin only)."""
@@ -5115,6 +5335,24 @@ def content_blog_post(slug: str, lang: str = "es"):
     if not p:
         raise HTTPException(404, "No existe ese artículo")
     return {**p.meta(), "html": p.body_html, "toc": p.toc_html, "keywords": p.keywords}
+
+
+@app.get("/api/content/legal/{doc}")
+def content_legal(doc: str):
+    body = contentmod.legal_body(doc)
+    if body is None:
+        raise HTTPException(404)
+    return {"html": body}
+
+
+@app.get("/privacidad", include_in_schema=False)
+def page_privacy():
+    return HTMLResponse(contentmod.legal_html("privacidad"))
+
+
+@app.get("/terminos", include_in_schema=False)
+def page_terms():
+    return HTMLResponse(contentmod.legal_html("terminos"))
 
 
 @app.get("/api/content/faq")

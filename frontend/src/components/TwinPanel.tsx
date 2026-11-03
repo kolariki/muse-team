@@ -67,7 +67,7 @@ export default function TwinPanel({ cur, ensure, onCur }: { cur: StudioProject |
     <div className="mt-4 rounded-2xl border border-accent/30 bg-accent-soft/30 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white"><Wand2 size={15} /></span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[min(100%,220px)] flex-1">
           <div className="text-[14.5px] font-bold text-ink">{T('¿No tenés material? Lo hace tu gemelo digital', 'No footage? Your digital twin makes it')}</div>
           <div className="text-[12px] text-ink-3">{T('Vos hablando a cámara con tu cara y tu voz (HeyGen) y tomas de apoyo gratis (Pixabay). El guion lo escribe Muse y el equipo lo edita como siempre.', 'You talking to camera with your face and voice (HeyGen) and free stock shots (Pixabay). Muse writes the script and the team edits it as usual.')}</div>
         </div>
@@ -115,7 +115,7 @@ export default function TwinPanel({ cur, ensure, onCur }: { cur: StudioProject |
           {tw.consent_url && tw.consent_status !== 'accepted' && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-accent/40 bg-surface px-3 py-2.5">
               <UserRound size={16} className="text-accent" />
-              <span className="min-w-0 flex-1 text-[12.5px] text-ink-2">{T('Grabá tu consentimiento: HeyGen te pide decir una frase corta a cámara para confirmar que sos vos. El link dura 24 horas.', 'Record your consent: HeyGen asks you to say a short sentence on camera to confirm it is you. The link lasts 24 hours.')}</span>
+              <span className="min-w-[min(100%,220px)] flex-1 text-[12.5px] text-ink-2">{T('Grabá tu consentimiento: HeyGen te pide decir una frase corta a cámara para confirmar que sos vos. El link dura 24 horas.', 'Record your consent: HeyGen asks you to say a short sentence on camera to confirm it is you. The link lasts 24 hours.')}</span>
               <a href={tw.consent_url} target="_blank" rel="noreferrer" className={PRIMARY}><ExternalLink size={14} /> {T('Grabar mi consentimiento', 'Record my consent')}</a>
               <button onClick={() => api.twinConsent().then(setSt).catch((e) => toast.error(T('No se pudo', 'Could not'), (e as Error).message))} className={PILL}><RefreshCw size={13} /> {T('Pedir otro link', 'Get a new link')}</button>
             </div>

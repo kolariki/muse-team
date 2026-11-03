@@ -14,7 +14,8 @@ en un volumen montado en `/data`.
 | `ARENA_SECRET_KEY` | Clave Fernet para cifrar las API keys y tokens de los usuarios. Generala con `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. Si falta, se crea una en `/data` (sirve mientras el volumen exista). |
 | `CORS_ORIGINS` | El dominio público de la app, p. ej. `https://app.tably.team`. |
 | `TABLY_CLOUD_URL` | El mismo dominio público: base de las apps publicadas en modo local (`/apps/<slug>/`) y de los repos git (`/git/...`). |
-| `RESEND_API_KEY` / SMTP | Para los mails de verificación de cuenta (sin esto los códigos salen como `dev_code`, solo para pruebas). |
+| `RESEND_API_KEY` / SMTP | Para los mails de verificación de cuenta (sin esto los códigos salen como `dev_code`, solo para pruebas). Salen de `Tably Team <hola@tablyteam.com>`; `MAIL_FROM` lo cambia y el dominio tiene que estar verificado en Resend. |
+| `SIGNUP_NOTIFY_EMAIL` | A quién le llega el aviso de cada cuenta nueva. Sin esto va a `TABLY_ADMIN_EMAILS` o a la primera cuenta creada. |
 | `STRIPE_*` | Cobros (developer a pedido, REA). Opcional. |
 | `LANGFUSE_*` | Trazas. Opcional. |
 | `CF_API_TOKEN`, `CF_ACCOUNT_ID`, `FLY_API_TOKEN`, `NEON_API_KEY`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_ORG_ID` | Tably Cloud (hosting, base de datos, auth). Opcionales; ver `docs/tably-cloud.md`. |

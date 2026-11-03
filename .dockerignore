@@ -6,3 +6,5 @@ frontend/dist
 *.log
 backend/video/node_modules
 backend/video/build
+marketing
+backend/video/public

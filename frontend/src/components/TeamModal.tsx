@@ -10,13 +10,14 @@ import ModelSelect from './ModelSelect'
 import ProviderLogo from './ProviderLogo'
 import { toast } from './Toast'
 import SkillPicker from './SkillPicker'
+import { useAiConnect } from './AiConnect'
 
 function useProviders() {
   const [providers, setProviders] = useState<Provider[]>([])
   useEffect(() => {
     api.providers().then(setProviders).catch(() => {})
   }, [])
-  return providers.filter((p) => p.configured)
+  return [providers, setProviders] as const
 }
 
 /** One row: switch a role to another provider/model (promote or demote). */
@@ -24,7 +25,9 @@ function AgentSwitcher({ agentId, onDone, autoFocus }: { agentId: string; onDone
   const T = useT()
   const sessionId = useArena((s) => s.sessionId)!
   const config = useArena((s) => s.config)
-  const providers = useProviders()
+  const [all, setAll] = useProviders()
+  const providers = all.filter((p) => p.configured)
+  const ai = useAiConnect(all, (np) => setAll((ps) => ps.map((x) => (x.id === np.id ? np : x))), undefined)
   const a = agentMap(config)[agentId]
   const [provider, setProvider] = useState(a?.provider ?? '')
   const [model, setModel] = useState(a?.model ?? '')
@@ -72,6 +75,7 @@ function AgentSwitcher({ agentId, onDone, autoFocus }: { agentId: string; onDone
           className="rounded-lg bg-surface border border-line px-2.5 py-1.5 text-sm"
           value={provider}
           onChange={(e) => {
+            if (ai.ask(e.target.value, (np) => { setProvider(np.id); setModel(np.default_model) })) return
             const p = providers.find((x) => x.id === e.target.value)
             if (!p) return
             setProvider(p.id)
@@ -79,8 +83,10 @@ function AgentSwitcher({ agentId, onDone, autoFocus }: { agentId: string; onDone
           }}
         >
           {providers.map((p) => <option key={p.id} value={p.id}>{GLYPH[p.id]} {p.label}</option>)}
-          {!providers.some((p) => p.id === provider) && <option value={provider}>{provider}</option>}
+          {!all.some((p) => p.id === provider) && <option value={provider}>{provider}</option>}
+          {ai.options}
         </select>
+        {ai.dialog}
         <ModelSelect provider={provider} value={model} onChange={setModel} className="text-xs" />
         <button disabled={!changed || busy} onClick={apply} className="flex items-center gap-1 rounded-lg bg-accent text-white px-3 py-1.5 text-sm font-medium disabled:opacity-40">
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {T('Aplicar', 'Apply')}

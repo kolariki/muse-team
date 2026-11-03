@@ -161,7 +161,7 @@ export default function ServicesDeploy({ onOpenSettings }: { onOpenSettings: () 
         )}
         {info.pending_publish && (
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-accent/40 bg-accent-soft/50 px-4 py-3">
-            <div className="min-w-0 flex-1 text-[13px] text-ink"><b>{T('Guardaste claves nuevas.', 'You saved new keys.')}</b> {T('La app publicada las usa cuando la volvés a publicar.', 'The published app uses them once you publish it again.')}</div>
+            <div className="min-w-[min(100%,220px)] flex-1 text-[13px] text-ink"><b>{T('Guardaste claves nuevas.', 'You saved new keys.')}</b> {T('La app publicada las usa cuando la volvés a publicar.', 'The published app uses them once you publish it again.')}</div>
             <button disabled={republishing} onClick={republish} className="flex h-9 items-center gap-1.5 rounded-full bg-accent px-4 text-[12.5px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50">
               {republishing ? <Loader2 size={13} className="animate-spin" /> : <Rocket size={13} />} {T('Republicar ahora', 'Republish now')}
             </button>

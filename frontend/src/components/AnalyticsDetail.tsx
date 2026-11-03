@@ -7,6 +7,7 @@ import { useArena } from '../store'
 import { toast } from './Toast'
 import { PanelLoader } from './HomeLoader'
 import { AiTab, ErrorsTab, ExperimentsTab } from './AnalyticsObserve'
+import PersonPanel from './AnalyticsPerson'
 
 /** One published app, in depth: who visits, from where, on what device, what they tap and who the signed-in users are. */
 export default function AnalyticsDetail({ app, onBack }: { app: AnalyticsApp; onBack: () => void }) {
@@ -53,7 +54,7 @@ export default function AnalyticsDetail({ app, onBack }: { app: AnalyticsApp; on
     <div>
       <div className="flex flex-wrap items-center gap-3">
         <button onClick={onBack} className="flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-sm text-ink-2 shadow-sm transition hover:border-accent hover:text-accent"><ArrowLeft size={15} /> {T('Todas las apps', 'All apps')}</button>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[min(100%,220px)] flex-1">
           <div className="serif truncate text-[24px] leading-tight">{app.title}</div>
           {app.url && <a href={app.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-[12px] text-accent hover:underline">{app.url.replace(/^https?:\/\//, '')} <ExternalLink size={11} /></a>}
         </div>
@@ -75,7 +76,7 @@ export default function AnalyticsDetail({ app, onBack }: { app: AnalyticsApp; on
           {k && k.identified === 0 && d.people.length > 0 && (app.session_id || app.provider === 'external') && (
             <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent-soft/40 px-4 py-3 text-[13px] text-ink-2">
               <UserRound size={16} className="shrink-0 text-accent" />
-              <span className="min-w-0 flex-1">{app.provider === 'external'
+              <span className="min-w-[min(100%,220px)] flex-1">{app.provider === 'external'
                 ? (idPr ? T('Listo el PR: mergealo y, cuando se despliegue, acá aparecen el email y el nombre de quienes inician sesión.', 'The PR is ready: merge it and, once deployed, the email and name of those who sign in show up here.')
                   : T('Todavía no sabés quiénes son tus usuarios. Si tu sitio tiene inicio de sesión, Tably busca tu login en GitHub y abre un PR que manda el email y el nombre de quien entra (nunca contraseñas). Tarda alrededor de un minuto.', 'You do not know who your users are yet. If your site has a log in, Tably finds it on GitHub and opens a PR that sends the email and name of who signs in (never passwords). It takes about a minute.'))
                 : T('Todavía no sabés quiénes son tus usuarios. Si tu app tiene registro o inicio de sesión, el constructor la conecta para ver su email y nombre acá.', 'You do not know who your users are yet. If your app has sign up or log in, the builder connects it so you see their email and name here.')}</span>
@@ -111,7 +112,7 @@ export default function AnalyticsDetail({ app, onBack }: { app: AnalyticsApp; on
             <BarList title={T('Eventos', 'Events')} rows={d.events} mono />
             <BarList title={T('Errores', 'Errors')} rows={d.errors} mono empty={T('Sin errores', 'No errors')} />
           </div>
-          <People d={d} />
+          <People d={d} slug={app.slug} days={days} />
         </>
       )}
     </div>
@@ -127,13 +128,13 @@ export function Tile({ label, value, warn }: { label: string; value: number | st
   )
 }
 
-const flag = (cc: string) => (/^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map((c) => 127397 + c.charCodeAt(0))) : '🌐')
-function countryName(cc: string) {
+export const flag = (cc: string) => (/^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map((c) => 127397 + c.charCodeAt(0))) : '🌐')
+export function countryName(cc: string) {
   try { return new Intl.DisplayNames([getLang() === 'en' ? 'en' : 'es'], { type: 'region' }).of(cc) ?? cc } catch { return cc }
 }
 const countryLabel = (key: string) => (key === '—' ? tr('Desconocido', 'Unknown') : <><span className="mr-1.5">{flag(key)}</span>{countryName(key)}</>)
 const DEVICE: Record<string, [string, string, typeof Monitor]> = { desktop: ['Computadora', 'Desktop', Monitor], mobile: ['Celular', 'Mobile', Smartphone], tablet: ['Tablet', 'Tablet', Tablet] }
-const deviceLabel = (key: string) => { const x = DEVICE[key]; if (!x) return key; const Icon = x[2]; return <span className="inline-flex items-center gap-1.5"><Icon size={13} className="text-ink-3" />{tr(x[0], x[1])}</span> }
+export const deviceLabel = (key: string) => { const x = DEVICE[key]; if (!x) return key; const Icon = x[2]; return <span className="inline-flex items-center gap-1.5"><Icon size={13} className="text-ink-3" />{tr(x[0], x[1])}</span> }
 
 function BarList({ title, rows, render, mono, empty }: { title: string; rows: AnalyticsRow[]; render?: (key: string) => React.ReactNode; mono?: boolean; empty?: string }) {
   const T = useT()
@@ -195,7 +196,7 @@ export function TrendChart({ points }: { points: { x: string; y: number }[] }) {
   )
 }
 
-function ago(ts: number) {
+export function ago(ts: number) {
   const s = Math.max(1, Math.round(Date.now() / 1000 - ts))
   if (s < 90) return tr('recién', 'just now')
   const m = Math.round(s / 60)
@@ -205,14 +206,18 @@ function ago(ts: number) {
   return tr(`hace ${Math.round(h / 24)} días`, `${Math.round(h / 24)} days ago`)
 }
 
-function People({ d }: { d: Detail }) {
+function People({ d, slug, days }: { d: Detail; slug: string; days: number }) {
   const T = useT()
+  const [open, setOpen] = useState<string | null>(null)
   const [all, setAll] = useState(false)
   const shown = all ? d.people : d.people.slice(0, 15)
   return (
     <div className="panel mt-4 rounded-2xl p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="text-[13px] font-semibold text-ink">{T('Quiénes te visitan', 'Who visits you')}</div>
+        <div>
+          <div className="text-[13px] font-semibold text-ink">{T('Quiénes te visitan', 'Who visits you')}</div>
+          <div className="mt-0.5 text-[12px] text-ink-3">{T('Tocá a alguien para ver qué hizo y pedirle a una IA que lo analice.', 'Tap someone to see what they did and have an AI analyse it.')}</div>
+        </div>
         <div className="text-[12px] text-ink-3">{d.kpis.identified} {T('identificados', 'identified')} · {d.people.length} {T('visitantes en el período', 'visitors in the period')}</div>
       </div>
       {d.live.length > 0 && (
@@ -228,7 +233,7 @@ function People({ d }: { d: Detail }) {
           </thead>
           <tbody>
             {shown.map((p) => (
-              <tr key={p.id} className="border-b border-line/60 last:border-0">
+              <tr key={p.id} data-person onClick={() => setOpen(p.id)} className="cursor-pointer border-b border-line/60 transition last:border-0 hover:bg-accent-soft/50">
                 <td className="py-2 pr-3">{p.email || p.name ? <div><div className="font-medium text-ink">{p.name || p.email}</div>{p.name && p.email && <div className="text-[11.5px] text-ink-3">{p.email}</div>}</div> : <span className="text-ink-3">{T('Visitante anónimo', 'Anonymous visitor')} <span className="font-mono text-[11px] text-ink-4">{p.id.slice(0, 6)}</span></span>}</td>
                 <td className="py-2 pr-3 text-ink-2">{p.country ? <>{flag(p.country)} {countryName(p.country)}</> : '—'}</td>
                 <td className="py-2 pr-3 text-ink-2">{p.device ? deviceLabel(p.device) : '—'}<div className="text-[11px] text-ink-4">{[p.os, p.browser].filter(Boolean).join(' · ')}</div></td>
@@ -242,6 +247,7 @@ function People({ d }: { d: Detail }) {
           </tbody>
         </table>
       </div>
+      {open && <PersonPanel slug={slug} who={open} days={days} onClose={() => setOpen(null)} />}
       {d.people.length > 15 && <button onClick={() => setAll(!all)} className="mt-2 text-[12.5px] font-medium text-accent hover:underline">{all ? T('Ver menos', 'Show less') : T(`Ver todos (${d.people.length})`, `Show all (${d.people.length})`)}</button>}
       <p className="mt-3 text-[11.5px] text-ink-4">{T('Sin cookies ni IP: el país sale de la zona horaria del navegador y el email/nombre solo cuando tu app identifica a sus usuarios registrados. Mencionalo en tu política de privacidad.', 'No cookies or IP: the country comes from the browser time zone and email/name only when your app identifies its registered users. Mention it in your privacy policy.')}</p>
     </div>

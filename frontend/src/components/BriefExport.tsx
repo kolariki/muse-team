@@ -11,6 +11,7 @@ import ModelSelect from './ModelSelect'
 import ProviderLogo from './ProviderLogo'
 import { toast } from './Toast'
 import { tr, useT } from '../lib/i18n'
+import { useAiConnect } from './AiConnect'
 
 const TARGET_HINT: Record<string, [string, string]> = {
   'claude-code': ['Pide BRIEF.md + CLAUDE.md y construir por etapas verificando cada una.', 'Asks for BRIEF.md + CLAUDE.md and to build in stages, verifying each one.'],
@@ -152,6 +153,7 @@ export default function BriefExport({ onClose, onBuild, onOpenBuild }: { onClose
     if (busy && preview.current) preview.current.scrollTop = preview.current.scrollHeight
   }, [text, busy])
 
+  const ai = useAiConnect(providers, (np) => setProviders((ps) => ps.map((x) => (x.id === np.id ? np : x))))
   const configured = providers.filter((p) => p.configured && (p.id !== 'mock' || providers.filter((x) => x.configured).length === 1))
   // the file starts with an HTML comment header that renders as nothing: hide it in the preview
   const visible = useMemo(() => text.replace(/^\s*<!--[\s\S]*?-->\s*/, ''), [text])
@@ -236,17 +238,16 @@ export default function BriefExport({ onClose, onBuild, onOpenBuild }: { onClose
                   className={`${FIELD} pl-10`}
                   value={provider}
                   onChange={(e) => {
+                    if (ai.ask(e.target.value, (np) => { setProvider(np.id); setModel(np.default_model) })) return
                     const p = providers.find((x) => x.id === e.target.value)!
                     setProvider(p.id)
                     setModel(p.default_model)
                   }}
                 >
-                  {providers.map((p) => (
-                    <option key={p.id} value={p.id} disabled={!p.configured}>
-                      {p.label}{p.configured ? '' : T(' (sin key)', ' (no key)')}
-                    </option>
-                  ))}
+                  {providers.filter((p) => p.configured).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                  {ai.options}
                 </select>
+                {ai.dialog}
               </div>
               <ModelSelect provider={provider} value={model} onChange={setModel} />
             </div>
@@ -290,6 +291,7 @@ export default function BriefExport({ onClose, onBuild, onOpenBuild }: { onClose
                   className={`${FIELD} pl-10`}
                   value={bProvider}
                   onChange={(e) => {
+                    if (ai.ask(e.target.value, (np) => { setBProvider(np.id); setBModel(np.default_model) })) return
                     const id = e.target.value
                     const eng = engines.find((x) => x.id === id)
                     if (eng) {
@@ -310,6 +312,7 @@ export default function BriefExport({ onClose, onBuild, onOpenBuild }: { onClose
                   <optgroup label={T('Por API (factura por tokens)', 'Via API (billed per token)')}>
                     {configured.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                   </optgroup>
+                  {ai.options}
                 </select>
               </div>
               {engines.find((e) => e.id === bProvider) ? (

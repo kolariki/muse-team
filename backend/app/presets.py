@@ -1,23 +1,23 @@
 """Ready-made experiments: apps that can be built AND monetised, each with the reference apps the team benchmarks first
 (research with a real browser, and reverse engineering with REA when the user turns it on), so the result lands at the level of the best in its category.
-`provider` is a preference: the API swaps unconfigured providers for "mock" when `fallback=true` (and the Muse-first UI puts every seat on Muse)."""
+`provider` is a preference: the API swaps unconfigured providers for "mock" when `fallback=true`."""
 
 _TEAM_WEB = [
-    {"id": "ceo", "role": "ceo", "name": "CEO", "provider": "meta", "persona": "Visionario pero concreto. Decide alcance y prioridades, delega y corta lo que no suma al lanzamiento."},
-    {"id": "pm", "role": "product-manager", "name": "Product", "provider": "meta", "persona": "Historias de usuario con criterios de aceptación verificables; prioriza por impacto/esfuerzo y define qué es 'terminado'."},
-    {"id": "design", "role": "product-designer", "name": "Diseño", "provider": "meta", "persona": "Compara cada pantalla con los referentes: layout, jerarquía, estados, onboarding sin fricción."},
-    {"id": "head-eng", "role": "head-engineering", "name": "Head of Eng", "provider": "meta", "persona": "Plan por etapas, módulos y contratos claros; código que se publica con un clic."},
-    {"id": "growth", "role": "growth", "name": "Growth", "provider": "meta", "persona": "Monetización desde el día uno: pricing, conversión a pago, SEO y primer cliente."},
-    {"id": "qa", "role": "qa", "name": "QA", "provider": "meta", "persona": "Pagos, permisos y datos: busca cómo se rompe todo; criterios de aceptación verificables."},
+    {"id": "ceo", "role": "ceo", "name": "CEO", "provider": "anthropic", "persona": "Visionario pero concreto. Decide alcance y prioridades, delega y corta lo que no suma al lanzamiento."},
+    {"id": "pm", "role": "product-manager", "name": "Product", "provider": "deepseek", "persona": "Historias de usuario con criterios de aceptación verificables; prioriza por impacto/esfuerzo y define qué es 'terminado'."},
+    {"id": "design", "role": "product-designer", "name": "Diseño", "provider": "anthropic", "persona": "Compara cada pantalla con los referentes: layout, jerarquía, estados, onboarding sin fricción."},
+    {"id": "head-eng", "role": "head-engineering", "name": "Head of Eng", "provider": "openai", "persona": "Plan por etapas, módulos y contratos claros; código que se publica con un clic."},
+    {"id": "growth", "role": "growth", "name": "Growth", "provider": "gemini", "persona": "Monetización desde el día uno: pricing, conversión a pago, SEO y primer cliente."},
+    {"id": "qa", "role": "qa", "name": "QA", "provider": "openai", "persona": "Pagos, permisos y datos: busca cómo se rompe todo; criterios de aceptación verificables."},
 ]
 
 _TEAM_MOBILE = [
-    {"id": "ceo", "role": "ceo", "name": "CEO", "provider": "meta", "persona": "Visionario pero concreto. Decide alcance y prioridades, delega y corta lo que no suma al lanzamiento."},
-    {"id": "pm", "role": "product-manager", "name": "Product", "provider": "meta", "persona": "Historias de usuario con criterios de aceptación verificables; onboarding y retención."},
-    {"id": "design", "role": "product-designer", "name": "Diseño", "provider": "meta", "persona": "Pantallas móviles al nivel de los referentes: gestos, estados vacíos, dark mode."},
-    {"id": "mobile", "role": "mobile", "name": "Mobile", "provider": "meta", "persona": "Expo/React Native, offline, push, compras in-app y las stores."},
-    {"id": "growth", "role": "growth", "name": "Growth", "provider": "meta", "persona": "Freemium que convierte: paywall, trial, precios por país y reseñas."},
-    {"id": "qa", "role": "qa", "name": "QA", "provider": "meta", "persona": "Suscripciones, sincronización y notificaciones: cómo se rompe todo."},
+    {"id": "ceo", "role": "ceo", "name": "CEO", "provider": "anthropic", "persona": "Visionario pero concreto. Decide alcance y prioridades, delega y corta lo que no suma al lanzamiento."},
+    {"id": "pm", "role": "product-manager", "name": "Product", "provider": "deepseek", "persona": "Historias de usuario con criterios de aceptación verificables; onboarding y retención."},
+    {"id": "design", "role": "product-designer", "name": "Diseño", "provider": "anthropic", "persona": "Pantallas móviles al nivel de los referentes: gestos, estados vacíos, dark mode."},
+    {"id": "mobile", "role": "mobile", "name": "Mobile", "provider": "gemini", "persona": "Expo/React Native, offline, push, compras in-app y las stores."},
+    {"id": "growth", "role": "growth", "name": "Growth", "provider": "gemini", "persona": "Freemium que convierte: paywall, trial, precios por país y reseñas."},
+    {"id": "qa", "role": "qa", "name": "QA", "provider": "openai", "persona": "Suscripciones, sincronización y notificaciones: cómo se rompe todo."},
 ]
 
 
@@ -27,10 +27,10 @@ def _p(id_: str, title: str, topic: str, refs: list[str], *, platform: str = "we
 
 
 _TEAM_PERSONAL = [
-    {"id": "pm", "role": "product-manager", "name": "Product", "provider": "meta", "persona": "Piensa en el día a día de UNA persona: qué necesita ver a primera hora, qué la distrae, qué automatizar. Alcance chico y útil desde el primer día."},
-    {"id": "design", "role": "product-designer", "name": "Diseño", "provider": "meta", "persona": "Un panel que se lee en 5 segundos: jerarquía clara, lo urgente arriba, estados vacíos amables, móvil primero."},
-    {"id": "head-eng", "role": "head-engineering", "name": "Head of Eng", "provider": "meta", "persona": "Datos de las cuentas del usuario siempre a través de Tably (nunca OAuth propio), caché, tareas programadas y cero claves en el navegador."},
-    {"id": "qa", "role": "qa", "name": "QA", "provider": "meta", "persona": "Privacidad y fallas: cuenta sin conectar, token vencido, días sin eventos, zonas horarias; nada se rompe ni expone datos."},
+    {"id": "pm", "role": "product-manager", "name": "Product", "provider": "deepseek", "persona": "Piensa en el día a día de UNA persona: qué necesita ver a primera hora, qué la distrae, qué automatizar. Alcance chico y útil desde el primer día."},
+    {"id": "design", "role": "product-designer", "name": "Diseño", "provider": "anthropic", "persona": "Un panel que se lee en 5 segundos: jerarquía clara, lo urgente arriba, estados vacíos amables, móvil primero."},
+    {"id": "head-eng", "role": "head-engineering", "name": "Head of Eng", "provider": "openai", "persona": "Datos de las cuentas del usuario siempre a través de Tably (nunca OAuth propio), caché, tareas programadas y cero claves en el navegador."},
+    {"id": "qa", "role": "qa", "name": "QA", "provider": "openai", "persona": "Privacidad y fallas: cuenta sin conectar, token vencido, días sin eventos, zonas horarias; nada se rompe ni expone datos."},
 ]
 
 PRESETS = [

@@ -4,21 +4,10 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useBuild } from '../buildStore'
 import { api, type FdePackage, type FdeRequest, type StripeStatus } from '../lib/api'
-import { tr, useT } from '../lib/i18n'
-import { downloadBlob } from '../lib/recorder'
+import { getLang, tr, useT } from '../lib/i18n'
+import { downloadFdeTicket, fdeAwaitsPayment, fdeLink, fdeStatus, fdeStatusIsDone, fdeStatusTone, fdeUnit, payFde } from '../lib/fde'
+import { trackEvent } from '../lib/tracking'
 import { toast } from './Toast'
-
-const STATUS = (): Record<string, string> => ({
-  new: tr('recibido', 'received'),
-  paid: tr('pagado', 'paid'),
-  scheduled: tr('agendado', 'scheduled'),
-  in_progress: tr('en curso', 'in progress'),
-  delivered: tr('entregado', 'delivered'),
-  closed: tr('cerrado', 'closed'),
-  cancelled: tr('cancelado', 'cancelled'),
-})
-
-const ICON: Record<string, string> = { service_setup: '🔑', launch: '🚀', integration: '🔌', review: '🔍', hours: '⏱️' }
 
 /**
  * "Pedir un developer": fixed-price FDE packages. The request carries the project's real state as a ticket and, when
@@ -38,7 +27,7 @@ export default function FdeModal({ onClose, prefill = '', initialPackage = 'laun
   const [paying, setPaying] = useState<string | null>(null)
   const [done, setDone] = useState<FdeRequest | null>(null)
   const [mine, setMine] = useState<FdeRequest[]>([])
-  const status = STATUS()
+  const status = fdeStatus()
   useEffect(() => {
     api.fdePackages().then((d) => { setPackages(d.packages); setBookingUrl(d.booking_url); setStripe(d.stripe) }).catch((e) => toast.error(tr('No pude cargar los paquetes', 'Could not load the packages'), (e as Error).message))
     if (b.sessionId) api.fdeRequests(b.sessionId).then(setMine).catch(() => {})
@@ -50,16 +39,17 @@ export default function FdeModal({ onClose, prefill = '', initialPackage = 'laun
   }, [onClose])
   const pkg = packages.find((p) => p.id === selected)
   const latest = b.versions[b.versions.length - 1]
-  const canPay = !!stripe?.enabled
+  /** Without a Stripe key on the server each package can still be paid on its own Stripe Payment Link. */
+  const linkFor = (r: FdeRequest) => fdeLink(stripe, r, packages.find((p) => p.id === r.package)?.checkout_url)
+  const canPay = !!stripe?.enabled || !!pkg?.checkout_url
   const total = pkg ? pkg.price_usd * (pkg.id === 'hours' ? hours : 1) : 0
 
   /** Sends the user to Stripe for one request; the page comes back with ?checkout=… and App confirms it. */
   const pay = async (r: FdeRequest) => {
-    if (!canPay) return
+    if (!linkFor(r) && !canPay) return
     setPaying(r.id)
     try {
-      const o = await api.checkout({ kind: 'fde', ref: r.id, hours: r.package === 'hours' ? hours : undefined })
-      window.location.href = o.url
+      await payFde(r, linkFor(r), hours)
     } catch (e) {
       toast.error(tr('No se pudo iniciar el pago', 'Could not start the payment'), (e as Error).message)
       setPaying(null)
@@ -70,8 +60,9 @@ export default function FdeModal({ onClose, prefill = '', initialPackage = 'laun
     if (!b.sessionId || !b.id || !pkg) return
     setBusy(true)
     try {
-      const r = await api.fdeCreate({ session_id: b.sessionId, build_id: b.id, package: pkg.id, notes: notes.trim() + (pkg.id === 'hours' ? `\n\nHoras pedidas: ${hours}` : ''), contact: contact.trim() })
+      const r = await api.fdeCreate({ session_id: b.sessionId, build_id: b.id, lang: getLang(), package: pkg.id, notes: notes.trim() + (pkg.id === 'hours' ? `\n\nHoras pedidas: ${hours}` : ''), contact: contact.trim() })
       setMine((m) => [r, ...m])
+      trackEvent('Lead')
       if (canPay) { await pay(r); return }
       setDone(r)
       toast.ok(tr('Pedido enviado', 'Request sent'), `${pkg.name} · ${r.id}. ${tr('Te contactamos a la brevedad.', 'We will contact you shortly.')}`)
@@ -81,10 +72,7 @@ export default function FdeModal({ onClose, prefill = '', initialPackage = 'laun
       setBusy(false)
     }
   }
-  const downloadTicket = async (r: FdeRequest) => {
-    const md = await api.fdeTicket(r.id).catch((e) => { toast.error(tr('No se pudo bajar el ticket', 'Could not download the ticket'), (e as Error).message); return null })
-    if (md) downloadBlob(new Blob([md], { type: 'text/markdown' }), `pedido-${r.id}.md`)
-  }
+  const downloadTicket = (r: FdeRequest) => downloadFdeTicket(r.id).catch((e) => toast.error(tr('No se pudo bajar el ticket', 'Could not download the ticket'), (e as Error).message))
 
   const label = 'text-[10.5px] uppercase tracking-[0.25em] text-ink-3'
   const input = 'mt-1.5 w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[13.5px] shadow-sm outline-none transition focus:border-accent'
@@ -115,7 +103,7 @@ export default function FdeModal({ onClose, prefill = '', initialPackage = 'laun
             <div className="px-4 sm:px-7 py-6">
               <div className="rounded-2xl border border-ok/40 bg-ok/5 px-6 py-5">
                 <div className="flex items-center gap-2.5 text-lg font-semibold"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-ok text-white"><Check size={16} strokeWidth={3} /></span> {T('Pedido', 'Request')} {done.id} {T('recibido', 'received')} · {packages.find((p) => p.id === done.package)?.name}</div>
-                <p className="mt-2 text-[13.5px] text-ink-2">{T('Armamos el ticket con el estado real del proyecto. Te contactamos a tu email para coordinar el pago y el inicio.', 'We built the ticket with the real state of the project. We will email you to arrange payment and the start.')}</p>
+                <p className="mt-2 text-[13.5px] text-ink-2">{T('Armamos el ticket con el estado real del proyecto y te mandamos una copia por email. Te escribimos desde soporte@tablyteam.com para acordar el alcance, el pago y el inicio.', 'We built the ticket with the real state of the project and emailed you a copy. We will write to you from soporte@tablyteam.com to arrange the scope, the payment and the start.')}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {bookingUrl && <a href={bookingUrl} target="_blank" rel="noreferrer" className="flex h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-4 text-sm shadow-sm transition hover:bg-accent-soft hover:border-accent hover:text-accent"><Calendar size={15} /> {T('Elegir horario', 'Pick a time')}</a>}
                   <button onClick={() => downloadTicket(done)} className="flex h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-4 text-sm shadow-sm transition hover:bg-accent-soft hover:border-accent hover:text-accent"><Download size={15} /> {T('Ver el ticket que recibe el developer', 'See the ticket the developer receives')}</button>
@@ -125,22 +113,33 @@ export default function FdeModal({ onClose, prefill = '', initialPackage = 'laun
             </div>
           ) : (
             <>
-              {/* packages */}
-              <div className="grid gap-3 px-4 sm:px-7 pt-6 sm:grid-cols-2 lg:grid-cols-4">
+              {/* packages: the fixed-price ones share one anatomy with their lines aligned; the hourly one, a different kind of thing, gets its own row */}
+              <div className="grid gap-3 px-4 pt-6 sm:grid-cols-2 sm:px-7 lg:grid-cols-4">
                 {packages.map((p) => {
                   const on = selected === p.id
-                  return (
-                    <motion.button key={p.id} type="button" onClick={() => setSelected(p.id)} whileHover={{ y: -3 }} whileTap={{ scale: 0.985 }} className={`relative flex flex-col rounded-2xl border p-4 text-left shadow-[0_12px_28px_-18px_rgba(30,38,34,.45)] transition-colors ${on ? 'border-accent bg-accent-soft/50 shadow-[0_0_0_3px_rgba(47,107,93,.14),0_16px_36px_-18px_rgba(47,107,93,.45)]' : 'border-line bg-paper hover:border-ink-4'}`}>
-                      <div className="flex items-start gap-2">
-                        <span className="text-xl leading-none">{ICON[p.id] ?? '🛠️'}</span>
-                        <div className="min-w-0 text-[14.5px] font-semibold leading-tight">{p.name}</div>
-                        {p.badge && <span className="ml-auto shrink-0 rounded-full bg-gold/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-gold">{p.badge}</span>}
+                  const hourly = p.id === 'hours'
+                  const box = `rounded-xl border p-4 text-left transition-colors ${on ? 'border-accent bg-accent-soft/40 ring-1 ring-accent' : 'border-line bg-surface hover:border-ink-4'}`
+                  const radio = <span className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border ${on ? 'border-accent bg-accent text-white' : 'border-ink-4 bg-surface'}`}>{on && <Check size={11} strokeWidth={3} />}</span>
+                  const eyebrow = <div className="min-h-[14px] text-[11px] font-semibold leading-[14px] text-accent first-letter:uppercase">{p.badge}</div>
+                  const price = <div className="flex items-baseline gap-1"><span className="text-[11.5px] font-medium text-ink-3">USD</span><span className="text-[28px] font-semibold leading-none tracking-tight tabular-nums">{p.price_usd}</span>{fdeUnit(p.id) && <span className="text-[12px] text-ink-3">{fdeUnit(p.id)}</span>}</div>
+                  if (hourly) return (
+                    <button key={p.id} type="button" aria-pressed={on} onClick={() => setSelected(p.id)} className={`${box} flex flex-col gap-3 sm:col-span-2 sm:flex-row sm:items-center sm:gap-6 lg:col-span-4`}>
+                      <div className="shrink-0 sm:w-[190px]">{eyebrow}<div className="mt-1 text-[15px] font-semibold leading-snug">{p.name}</div></div>
+                      <div className="min-w-0 flex-1 text-[12.5px] leading-snug text-ink-2">{p.tagline}</div>
+                      <div className="flex shrink-0 items-center justify-between gap-5">
+                        <div>{price}<div className="mt-1.5 text-[11.5px] text-ink-3">{p.eta}</div></div>
+                        {radio}
                       </div>
-                      <div className="mt-3 flex items-baseline gap-1"><span className="text-[12px] text-ink-3">USD</span><span className="font-mono text-[30px] leading-none">{p.price_usd}</span>{p.id === 'hours' && <span className="text-[12px] text-ink-3">/h</span>}</div>
-                      <span className="mt-2 inline-flex w-fit rounded-full border border-line bg-surface px-2 py-0.5 text-[10.5px] text-ink-2">{p.eta}</span>
-                      <div className="mt-3 text-[12.5px] leading-snug text-ink-2">{p.tagline}</div>
-                      {on && <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-white shadow-sm"><Check size={13} strokeWidth={3} /></span>}
-                    </motion.button>
+                    </button>
+                  )
+                  return (
+                    <button key={p.id} type="button" aria-pressed={on} onClick={() => setSelected(p.id)} className={`${box} flex flex-col`}>
+                      <div className="flex items-start justify-between gap-2">{eyebrow}{radio}</div>
+                      <div className="mt-1 text-[15px] font-semibold leading-snug sm:min-h-[2.75em]">{p.name}</div>
+                      <div className="mt-3">{price}</div>
+                      <div className="mt-1.5 text-[11.5px] text-ink-3">{p.eta}</div>
+                      <div className="mt-3 border-t border-line pt-3 text-[12.5px] leading-snug text-ink-2">{p.tagline}</div>
+                    </button>
                   )
                 })}
               </div>
@@ -174,7 +173,7 @@ export default function FdeModal({ onClose, prefill = '', initialPackage = 'laun
                       <label className={`${label} mt-3 block`}>{T('Contacto (email o WhatsApp)', 'Contact (email or WhatsApp)')}</label>
                       <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder={T('si lo dejás vacío usamos el email de tu cuenta', 'if left empty we use your account email')} className={input} />
                       <div className="mt-4 flex items-center justify-between rounded-xl border border-line bg-surface px-3.5 py-2.5">
-                        <span className="text-[12.5px] text-ink-2">{pkg.name}{pkg.id === 'hours' ? ` × ${hours} h` : ''}</span>
+                        <span className="text-[12.5px] text-ink-2">{pkg.name}{pkg.id === 'hours' ? ` × ${hours} h` : pkg.id === 'service_setup' ? ` · ${T('1 servicio', '1 service')}` : ''}</span>
                         <span className="font-mono text-lg">USD {total}</span>
                       </div>
                       <button disabled={busy || !!paying || !b.id} onClick={submit} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-accent text-[15px] font-semibold text-white shadow-[0_12px_28px_-12px_rgba(47,107,93,.7)] transition hover:brightness-110 disabled:opacity-40">
@@ -182,7 +181,7 @@ export default function FdeModal({ onClose, prefill = '', initialPackage = 'laun
                         {canPay ? `${T('Pedir y pagar', 'Request and pay')} · USD ${total}` : `${T('Pedir', 'Request')} «${pkg.name}» · USD ${total}`}
                       </button>
                       <div className="mt-2 flex items-center justify-center gap-1.5 text-center text-[11px] text-ink-4">
-                        <Lock size={11} /> {canPay ? T('Te llevamos a Stripe; no guardamos tu tarjeta.', 'We take you to Stripe; we never store your card.') : T('Sin cargo hasta confirmar alcance y turno.', 'No charge until scope and slot are confirmed.')} {T('Garantía: si no queda en producción, no se cobra.', 'Guarantee: if it does not end up in production, you do not pay.')}
+                        <Lock size={11} /> {canPay ? T('Te llevamos a Stripe; no guardamos tu tarjeta. Apenas se confirma el pago, tu pedido le llega al developer.', 'We take you to Stripe; we never store your card. As soon as the payment is confirmed, your request reaches the developer.') : T('Sin cargo hasta confirmar alcance y turno.', 'No charge until scope and slot are confirmed.')} {T('Garantía: si no queda en producción, no se cobra.', 'Guarantee: if it does not end up in production, you do not pay.')}
                       </div>
                     </div>
                   </motion.div>
@@ -198,11 +197,11 @@ export default function FdeModal({ onClose, prefill = '', initialPackage = 'laun
                       <div key={r.id} className={`flex items-center gap-3 px-4 py-2.5 text-[12.5px] ${i ? 'border-t border-line' : ''}`}>
                         <span className="font-mono text-ink-3">{r.id}</span>
                         <span className="font-medium">{packages.find((p) => p.id === r.package)?.name ?? r.package}</span>
-                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10.5px] font-bold uppercase ${r.status === 'paid' || r.status === 'delivered' || r.status === 'closed' ? 'border-ok/30 bg-ok/10 text-ok' : r.status === 'cancelled' ? 'border-line bg-surface-2 text-ink-3' : 'border-gold/40 bg-gold/10 text-gold'}`}>{(r.status === 'paid' || r.status === 'delivered' || r.status === 'closed') && <span className="h-1.5 w-1.5 rounded-full bg-ok" />}{status[r.status] ?? r.status}</span>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10.5px] font-bold uppercase ${fdeStatusTone(r.status)}`}>{fdeStatusIsDone(r.status) && <span className="h-1.5 w-1.5 rounded-full bg-ok" />}{status[r.status] ?? r.status}</span>
                         <span className="ml-auto text-ink-3">{new Date(r.created * 1000).toLocaleDateString()}</span>
-                        {r.status === 'new' && canPay && <button disabled={!!paying} onClick={() => pay(r)} className="flex h-7 items-center gap-1 rounded-full bg-accent px-2.5 text-[11.5px] font-semibold text-white transition hover:brightness-110 disabled:opacity-40">{paying === r.id ? <Loader2 size={12} className="animate-spin" /> : <CreditCard size={12} />} {T('pagar', 'pay')}</button>}
+                        {fdeAwaitsPayment(r.status) && (stripe?.enabled || linkFor(r)) && <button disabled={!!paying} onClick={() => pay(r)} className="flex h-7 items-center gap-1 rounded-full bg-accent px-2.5 text-[11.5px] font-semibold text-white transition hover:brightness-110 disabled:opacity-40">{paying === r.id ? <Loader2 size={12} className="animate-spin" /> : <CreditCard size={12} />} {T('pagar', 'pay')}</button>}
                         <button onClick={() => downloadTicket(r)} className="text-accent hover:underline">{T('ticket', 'ticket')}</button>
-                        {r.status === 'new' && <button onClick={async () => { await api.fdeUpdate(r.id, { status: 'cancelled' }).catch(() => {}); setMine((m) => m.map((x) => (x.id === r.id ? { ...x, status: 'cancelled' } : x))) }} className="text-ink-3 hover:text-danger">{T('cancelar', 'cancel')}</button>}
+                        {fdeAwaitsPayment(r.status) && <button onClick={async () => { await api.fdeUpdate(r.id, { status: 'cancelled' }).catch(() => {}); setMine((m) => m.map((x) => (x.id === r.id ? { ...x, status: 'cancelled' } : x))) }} className="text-ink-3 hover:text-danger">{T('cancelar', 'cancel')}</button>}
                       </div>
                     ))}
                   </div>

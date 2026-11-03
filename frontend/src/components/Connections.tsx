@@ -39,7 +39,7 @@ export default function Connections({ compact = false, only }: { compact?: boole
         return (
           <div key={c.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-accent"><Icon size={18} /></span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-[min(100%,220px)] flex-1">
               <div className="flex items-center gap-2 text-[14.5px] font-semibold text-ink">{c.label}
                 {c.connected && <span className="inline-flex items-center gap-1 rounded-full border border-ok/30 bg-ok/10 px-2 py-0.5 text-[10.5px] font-semibold text-ok"><Check size={10} strokeWidth={3} /> {T('conectado', 'connected')}</span>}
               </div>

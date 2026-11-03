@@ -25,6 +25,7 @@ from pathlib import Path
 
 from .auth import User, user_dir
 from .pricing import cost_usd
+from .local_engine import ask_engine, is_engine
 from .providers import PROVIDERS, CallResult, Cred, MockContext, stream
 
 TEXT_EXT = {".md", ".txt", ".rst", ".json", ".yaml", ".yml", ".toml", ".csv", ".tsv", ".xml", ".html", ".htm", ".css", ".scss",
@@ -288,7 +289,7 @@ class Intake:
         """`extra`: something the user wants added/changed after a prompt was generated → the analyst rewrites it."""
         if self.status in ("running", "waiting"):
             raise ValueError("Ya está analizando")
-        if provider not in PROVIDERS:
+        if provider not in PROVIDERS and not is_engine(provider):
             raise ValueError("Proveedor desconocido")
         self.text, self.provider, self.model = text.strip(), provider, model
         self.language = lang_code(language) if language else self.language
@@ -326,6 +327,15 @@ class Intake:
         result = CallResult()
         chunks: list[str] = []
         mock = None
+        if is_engine(self.provider):  # the subscription of a local CLI agent: no conversation API, so the rounds go inside the prompt
+            past = "\n\n".join(f"[{'USUARIO' if m['role'] == 'user' else 'VOS'}]\n{m['content']}" for m in self.history)
+            def on_text(delta: str) -> None:
+                chunks.append(delta)
+                self.emit("delta", kind="text", delta=delta)
+            res = await ask_engine(self.user.id, self.provider, ANALYST_SYSTEM.replace("{language_rule}", LANGUAGE_RULES[self.language]), f"{past}\n\n[USUARIO]\n{user_msg}" if past else user_msg, self.model, on_text)
+            text = "".join(chunks) or res.get("text") or ""
+            self.history += [{"role": "user", "content": user_msg}, {"role": "assistant", "content": text}]
+            return text
         if PROVIDERS[self.provider].kind == "mock":
             answers = {q.question: q.answer or "" for q in self.questions}
             data = _mock_round(self.text, 99 if self.extra else self.rounds, answers, self.attachments)
@@ -347,14 +357,17 @@ class Intake:
         if not brief.strip():
             raise ValueError("Primero escribí o generá el prompt del proyecto")
         lang = lang_code(language) if language else self.language
-        if PROVIDERS[provider].kind == "mock":
+        if not is_engine(provider) and PROVIDERS[provider].kind == "mock":
             return _mock_role_prompts(agents, brief, lang)
         team = "\n".join(f"- id: {a['id']} · {a.get('label') or a.get('name')} ({a.get('name')}) · debe resolver: {a.get('mandate') or '—'} · prompt actual: {str(a.get('persona') or '')[:300]}" for a in agents)
         user = f"BRIEF DEL PRODUCTO:\n{brief[:20000]}\n\nEQUIPO:\n{team}\n\nRespondé solo el JSON."
         result = CallResult()
         chunks: list[str] = []
-        async for _kind, delta in stream(provider, model, ROLE_PROMPTS_SYSTEM.replace("{language_rule}", ROLE_LANGUAGE_RULES[lang]), user, temperature=0.3, max_tokens=4000, result=result, cred=cred):
-            chunks.append(delta)
+        if is_engine(provider):
+            chunks.append((await ask_engine(self.user.id, provider, ROLE_PROMPTS_SYSTEM.replace("{language_rule}", ROLE_LANGUAGE_RULES[lang]), user, model)).get("text") or "")
+        else:
+            async for _kind, delta in stream(provider, model, ROLE_PROMPTS_SYSTEM.replace("{language_rule}", ROLE_LANGUAGE_RULES[lang]), user, temperature=0.3, max_tokens=4000, result=result, cred=cred):
+                chunks.append(delta)
         self.cost_usd += cost_usd(model, result.input_tokens, result.output_tokens, result.cached_input_tokens, result.cache_write_tokens)
         raw = "".join(chunks)
         m = re.search(r"\{.*\}", re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip()), re.S)

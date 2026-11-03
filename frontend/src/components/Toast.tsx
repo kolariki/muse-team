@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
 import { Component, useEffect, useState, type ReactNode } from 'react'
 import { create } from 'zustand'
 import { tr, useT } from '../lib/i18n'
+import { isStaleBuildError, reloadForNewBuild } from '../lib/staleBuild'
 
 /* ------------------------------------------------------------------ toasts */
 export interface Toast {
@@ -90,6 +91,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode; onReset?: ()
   }
   componentDidCatch(error: Error) {
     console.error('UI crash', error)
+    if (isStaleBuildError(error)) reloadForNewBuild()
   }
   render() {
     if (!this.state.error) return this.props.children

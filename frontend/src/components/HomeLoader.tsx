@@ -11,7 +11,7 @@ export function Orbit({ size = 92, logo = 80 }: { size?: number; logo?: number }
       <motion.span className="absolute inset-[18%] rounded-full" aria-hidden animate={{ rotate: 360 }} transition={{ duration: 1.4, ease: 'linear', repeat: Infinity }}
         style={{ background: 'conic-gradient(from 0deg, transparent 0deg, var(--color-accent) 300deg, transparent 360deg)', WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))', mask: 'radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))' }} />
       <motion.div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.6, ease: 'easeInOut', repeat: Infinity }}>
-        <img src="/icon.svg" alt="" aria-hidden style={{ width: logo, height: logo }} className="rounded-[24%] shadow-[0_18px_40px_-14px_rgba(47,107,93,.6)]" draggable={false} />
+        <img src="/icon.svg?v=2" alt="" aria-hidden style={{ width: logo, height: logo }} className="rounded-[24%] shadow-[0_18px_40px_-14px_rgba(106,75,232,.45)]" draggable={false} />
       </motion.div>
     </div>
   )
@@ -32,7 +32,7 @@ export function PanelLoader({ caption, sub }: { caption: string; sub?: string })
 export default function HomeLoader({ caption }: { caption?: string } = {}) {
   const T = useT()
   return (
-    <motion.div initial={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.4 } }} className="fixed inset-0 z-[150] flex flex-col items-center justify-center bg-paper arena-bg">
+    <motion.div data-loader initial={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.25 } }} className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-paper arena-bg">
       <Orbit size={78} logo={84} />
       <div className="serif mt-8 text-2xl">Tably <em className="text-accent">Team</em></div>
       <div className="mt-1.5 text-[13px] text-ink-3">{caption ?? T('Reuniendo a tu equipo…', 'Gathering your team…')}</div>
@@ -43,7 +43,7 @@ export default function HomeLoader({ caption }: { caption?: string } = {}) {
 /** A section is loading: the Tably Team loader in the content area, under the sidebar. */
 export function PageLoader({ caption }: { caption?: string }) {
   return (
-    <div className="flex min-h-[70vh] w-full flex-col items-center justify-center text-center">
+    <div data-loader className="flex min-h-[70vh] w-full flex-col items-center justify-center text-center">
       <Orbit size={64} logo={64} />
       <div className="serif mt-6 text-[22px]">Tably <em className="text-accent">Team</em></div>
       {caption && <div className="mt-1 text-[13px] text-ink-3">{caption}</div>}

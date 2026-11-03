@@ -1,11 +1,13 @@
 import { ArrowRight, BarChart3, Clapperboard, Loader2, Medal, Play } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import { api, type AnalyticsApp, type AdTierCard, type StudioProject } from '../lib/api'
-import { useT } from '../lib/i18n'
+import { api, type AnalyticsApp, type AdTierCard, type FdePackage, type FdeRequest, type StripeStatus, type StudioProject } from '../lib/api'
+import { downloadFdeTicket, fdeAwaitsPayment, fdeLink, fdeStatus, fdeStatusTone, fdeUnit, payFde } from '../lib/fde'
+import { tr, useT } from '../lib/i18n'
 import { useArena } from '../store'
+import { toast } from './Toast'
 
-/** The home's dashboard cards: this week's visits, the latest ads and reels picked for the person's business. */
-export default function HomeOverview() {
+/** The home's dashboard cards: this week's visits, the latest ads, reels picked for the person's business and what they asked our developers. */
+export default function HomeOverview({ onOpenProject }: { onOpenProject: (sessionId: string) => void }) {
   const T = useT()
   const [apps, setApps] = useState<AnalyticsApp[] | null>(null)
   const [ads, setAds] = useState<StudioProject[] | null>(null)
@@ -80,17 +82,99 @@ export default function HomeOverview() {
           </div>
         )}
       </Card>
+
+      <MyRequests onOpenProject={onOpenProject} />
     </div>
   )
 }
 
-function Card({ icon, title, action, onAction, children, className = '' }: { icon: ReactNode; title: string; action: string; onAction: () => void; children: ReactNode; className?: string }) {
+const REQUESTS_SHOWN = 5
+/** The Payment Links send people back to ?pedido=pagado; read once, at load, so it survives whatever cleans the address after that. */
+let backFromPayment = new URLSearchParams(location.search).get('pedido') === 'pagado'
+
+/** Everything asked of our developers, on any project, with the step each one is waiting for one click away. */
+function MyRequests({ onOpenProject }: { onOpenProject: (sessionId: string) => void }) {
+  const T = useT()
+  const [items, setItems] = useState<FdeRequest[] | null>(null)
+  const [packages, setPackages] = useState<FdePackage[]>([])
+  const [stripe, setStripe] = useState<StripeStatus | null>(null)
+  const [all, setAll] = useState(false)
+  const [paying, setPaying] = useState<string | null>(null)
+  useEffect(() => {
+    api.fdeRequests().then(setItems).catch(() => setItems([]))
+    api.fdePackages().then((d) => { setPackages(d.packages); setStripe(d.stripe) }).catch(() => {})
+  }, [])
+  // back from Stripe: its notice confirms the payment, usually within seconds, and the request turns paid here
+  useEffect(() => {
+    if (!backFromPayment) return
+    backFromPayment = false
+    history.replaceState(null, '', location.pathname + location.hash)
+    let tries = 0
+    const t = setInterval(async () => {
+      const list = await api.fdeRequests().catch(() => null)
+      if (list) setItems(list)
+      const paid = !!list?.some((r) => r.status === 'paid' && Date.now() / 1000 - r.updated < 600)
+      if (!paid && ++tries < 12) return
+      clearInterval(t)
+      if (paid) toast.ok(tr('Pago confirmado', 'Payment confirmed'), tr('Tu pedido ya le llegó al developer.', 'Your request has reached the developer.'))
+      else toast.info(tr('Estamos confirmando tu pago', 'We are confirming your payment'), tr('Apenas entre, el pedido pasa a «Pagado» y le llega al developer.', 'As soon as it comes in, the request turns «Paid» and reaches the developer.'))
+    }, 2500)
+  }, [])
+  const status = fdeStatus()
+  const more = (items?.length ?? 0) - REQUESTS_SHOWN
+  const pay = async (r: FdeRequest, link: string | null) => {
+    setPaying(r.id)
+    try {
+      await payFde(r, link)
+    } catch (e) {
+      toast.error(tr('No se pudo iniciar el pago', 'Could not start the payment'), (e as Error).message)
+      setPaying(null)
+    }
+  }
+  const small = 'flex h-7 items-center gap-1 rounded-full border border-line bg-surface px-2.5 text-[11.5px] font-medium text-ink-2 transition hover:border-accent hover:text-accent'
+
+  return (
+    <Card className="md:col-span-2 xl:col-span-3" title={T('Mis pedidos', 'My requests')} action={more > 0 ? (all ? T('Ver menos', 'See less') : `${T('Ver todos', 'See all')} (${items!.length})`) : undefined} onAction={() => setAll((v) => !v)}>
+      {!items ? <Wait /> : items.length === 0 ? (
+        <Empty text={T('Cuando le pidas algo a un developer desde un proyecto, acá ves en qué estado está.', 'When you ask a developer for something from a project, you see its status here.')} />
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {(all ? items : items.slice(0, REQUESTS_SHOWN)).map((r) => {
+            const pkg = packages.find((p) => p.id === r.package)
+            const link = fdeLink(stripe, r, pkg?.checkout_url)
+            return (
+              <div key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line bg-paper px-3 py-2.5">
+                <div className="min-w-0 flex-1 basis-[240px]">
+                  <div className="truncate text-[13px] font-semibold text-ink">{pkg?.name ?? r.package}</div>
+                  <div className="truncate text-[11.5px] text-ink-3">{r.ticket.project.title} · {new Date(r.created * 1000).toLocaleDateString()}</div>
+                </div>
+                {pkg && <span className="shrink-0 text-[12.5px] tabular-nums text-ink-2">USD {pkg.price_usd} {fdeUnit(r.package)}</span>}
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium first-letter:uppercase ${fdeStatusTone(r.status)}`}>{status[r.status] ?? r.status}</span>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {fdeAwaitsPayment(r.status) && (stripe?.enabled || link) && (
+                    <button disabled={!!paying} onClick={() => pay(r, link)} className="flex h-7 items-center gap-1 rounded-full bg-accent px-2.5 text-[11.5px] font-semibold text-white transition hover:brightness-110 disabled:opacity-40">
+                      {paying === r.id ? '…' : T('Pagar', 'Pay')}
+                    </button>
+                  )}
+                  <button onClick={() => downloadFdeTicket(r.id).catch((e) => toast.error(tr('No se pudo bajar el ticket', 'Could not download the ticket'), (e as Error).message))} className={small}>{T('Bajar ticket', 'Download ticket')}</button>
+                  <button onClick={() => onOpenProject(r.session_id)} className={small}>{T('Abrir proyecto', 'Open project')}</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function Card({ icon, title, action, onAction, children, className = '' }: { icon?: ReactNode; title: string; action?: string; onAction: () => void; children: ReactNode; className?: string }) {
   return (
     <div className={`panel flex flex-col rounded-2xl p-4 ${className}`}>
       <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent">{icon}</span>
+        {icon && <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent">{icon}</span>}
         <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-ink">{title}</span>
-        <button onClick={onAction} className="flex shrink-0 items-center gap-1 text-[12px] font-semibold text-accent hover:underline">{action} <ArrowRight size={12} /></button>
+        {action && <button onClick={onAction} className="flex shrink-0 items-center gap-1 text-[12px] font-semibold text-accent hover:underline">{action} {icon && <ArrowRight size={12} />}</button>}
       </div>
       <div className="flex-1">{children}</div>
     </div>

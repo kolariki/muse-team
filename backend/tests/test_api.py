@@ -1,3 +1,4 @@
+import uuid
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -7,10 +8,10 @@ client.__enter__()  # runs the app lifespan (background job runner)
 
 
 def _auth():
-    r = client.post("/api/auth/register", json={"email": "api@test.local", "password": "secret-pass-123", "name": "API"})
-    if r.status_code == 409:
-        r = client.post("/api/auth/login", json={"email": "api@test.local", "password": "secret-pass-123"})
-    return {"authorization": f"Bearer {r.json()['token']}"}
+    email = f"t{uuid.uuid4().hex[:8]}@example.test"
+    r = client.post("/api/auth/register", json={"accepted_terms": True, "email": email, "password": "password123"}).json()
+    token = r.get("token") or client.post("/api/auth/verify", json={"email": email, "code": r["dev_code"]}).json()["token"]
+    return {"authorization": f"Bearer {token}"}
 
 
 def test_requires_auth():
@@ -42,6 +43,8 @@ def test_full_mock_flow_session_brief_build():
         st = client.get(f"/api/sessions/{sid}/builds/{bid}", headers=h).json()["status"]
         if st in ("completed", "error", "stopped"):
             break
+        if st == "design_review":  # the user approves the design before any code
+            assert client.post(f"/api/builds/{bid}/design/approve", headers=h).status_code == 200
         time.sleep(0.2)
     assert st == "completed"
     svc = client.get(f"/api/sessions/{sid}/builds/{bid}/services", headers=h).json()

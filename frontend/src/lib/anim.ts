@@ -39,7 +39,8 @@ export function heroIntro(root: HTMLElement) {
   }
   tl.from(root.querySelectorAll('[data-hero-kicker]'), { y: 10, opacity: 0, duration: 0.6 }, 0)
     .from(root.querySelectorAll('[data-hero-copy]'), { y: 18, opacity: 0, filter: 'blur(6px)', duration: 0.8 }, 0.7)
-    .from(root.querySelectorAll('[data-hero-cta]'), { y: 16, opacity: 0, scale: 0.96, duration: 0.6, stagger: 0.08 }, 1.0)
+    // explicit end values: these buttons have a CSS transition, and a plain .from() can read a half-way opacity as its target and leave them invisible
+    .fromTo(root.querySelectorAll('[data-hero-cta]'), { y: 16, opacity: 0, scale: 0.96, transition: 'none' }, { y: 0, opacity: 1, scale: 1, duration: 0.6, stagger: 0.08, clearProps: 'all' }, 1.0)
     .from(root.querySelectorAll('[data-hero-row]'), { y: 12, opacity: 0, duration: 0.6 }, 1.2)
     // the demo frame rises into place (no rotation, no blur: transform + opacity only, so it never stutters)
     .from(root.querySelectorAll('[data-hero-demo]'), { opacity: 0, y: 36, scale: 0.97, duration: 1.0, ease: 'power3.out', force3D: true, clearProps: 'transform' }, 0.4)
@@ -94,9 +95,16 @@ export function heroIntro(root: HTMLElement) {
 /** Cards and sections below the fold reveal as they scroll into view. */
 export function scrollReveal(root: HTMLElement) {
   if (reduced()) return
-  gsap.utils.toArray<HTMLElement>(root.querySelectorAll('[data-scroll-reveal]')).forEach((el, i) => {
-    gsap.from(el, { y: 36, opacity: 0, filter: 'blur(6px)', duration: 0.9, ease: 'power3.out', delay: (i % 3) * 0.08, scrollTrigger: { trigger: el, start: 'top 88%', once: true } })
-  })
+  const els = gsap.utils.toArray<HTMLElement>(root.querySelectorAll('[data-scroll-reveal]'))
+  gsap.set(els, { y: 36, opacity: 0, filter: 'blur(6px)' })
+  // an observer on the page's own scroller: it does not depend on measured positions, so content that loads later cannot leave a card hidden
+  const seen = new IntersectionObserver((entries) => entries.forEach((e) => {
+    if (!e.isIntersecting) return
+    seen.unobserve(e.target)
+    gsap.to(e.target, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.9, ease: 'power3.out', clearProps: 'all' })
+  }), { root, rootMargin: '0px 0px -8% 0px' })
+  els.forEach((el) => seen.observe(el))
+  return () => seen.disconnect()
 }
 
 /** One demo scene just mounted: its marked pieces cascade in, and any marked SVG path draws itself. */
