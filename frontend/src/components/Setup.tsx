@@ -672,10 +672,10 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
                 if (baseline.current) baseline.current = { ...baseline.current, agents: {} }
               }}
             />
-            {/* the direct lane: who builds, a local agent on the subscription (Claude Code / Codex) or an API model */}
+            {/* the direct lane: who builds, a local agent on the subscription (Muse Code) or an API model */}
             {lane === 'direct' && (
               <div data-tour="builder">
-                <FieldTitle title={T('Constructor', 'Builder')} sub={T('Quién escribe el código: Muse Code instalado en esta máquina o Muse por API con tu key.', 'Who writes the code: Claude Code or Codex installed on this machine (on your subscription, no API spend) or an API model with your key.')} />
+                <FieldTitle title={T('Constructor', 'Builder')} sub={T('Quién escribe el código: Muse Code instalado en esta máquina o Muse por API con tu key.', 'Who writes the code: Muse Code installed on this machine or Muse via API with your key.')} />
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   {engines.map((e) => {
                     const on = builder.provider === e.id
@@ -780,11 +780,11 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
                   className="min-w-[200px] flex-1 bg-transparent text-sm outline-none placeholder:text-ink-4"
                 />
               </div>
-              {/* level 2: REA reverse-engineers those apps during the build (needs REA installed + Claude Code / Codex as builder) */}
+              {/* level 2: REA reverse-engineers those apps during the build (needs REA installed + Muse Code as builder) */}
               <label className={`mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm ${rstatus && !rstatus.rea.ok ? 'opacity-60' : ''}`}>
                 <input type="checkbox" className="accent-accent h-4 w-4 shrink-0" checked={cfg.deep_analysis ?? false} disabled={!!rstatus && !rstatus.rea.ok} onChange={(e) => setCfg({ ...cfg, deep_analysis: e.target.checked })} />
                 <span>{T('Análisis profundo e ingeniería inversa', 'Deep analysis and reverse engineering')}</span>
-                <span className="basis-full pl-6 text-[12.5px] leading-snug text-ink-3">{rstatus && !rstatus.rea.ok ? T('REA no está instalado en esta máquina: corré `npx rea-agents setup`. Hasta entonces el equipo solo observa las apps (capturas y notas), que es gratis.', 'REA is not installed on this machine: run `npx rea-agents setup`. Until then the team only observes the apps (screenshots and notes), which is free.') : T('Durante la construcción, REA analiza bundles, rutas y APIs de las apps de referencia para entender cómo están hechas. Requiere Muse Code como constructor. Corre con tu suscripción o tu API key.', 'During the build, REA analyses the reference apps\' bundles, routes and APIs to understand how they are built. Requires Claude Code or Codex as builder. Runs on your subscription or your API key.')}</span>
+                <span className="basis-full pl-6 text-[12.5px] leading-snug text-ink-3">{rstatus && !rstatus.rea.ok ? T('REA no está instalado en esta máquina: corré `npx rea-agents setup`. Hasta entonces el equipo solo observa las apps (capturas y notas), que es gratis.', 'REA is not installed on this machine: run `npx rea-agents setup`. Until then the team only observes the apps (screenshots and notes), which is free.') : T('Durante la construcción, REA analiza bundles, rutas y APIs de las apps de referencia para entender cómo están hechas. Requiere Muse Code como constructor. Corre con tu suscripción o tu API key.', 'During the build, REA analyses the reference apps\' bundles, routes and APIs to understand how they are built. Requires Muse Code as builder. Runs on your subscription or your API key.')}</span>
               </label>
             </div>
             <div className="team-only">
