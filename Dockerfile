@@ -17,6 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y --no-install-recommends nodejs \
     && npm install -g @anthropic-ai/claude-code @openai/codex pnpm @railway/cli \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Muse Code, the builder: the launcher fetches its binary on first run, so that run happens here and not in someone's first build
+RUN curl -fsSL https://dev.meta.ai/install.sh | bash && /root/.local/bin/muse --version
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # the ads' video engine (Remotion, backend/video): its packages, its own headless Chrome and the composition bundled once
 WORKDIR /app/backend/video
