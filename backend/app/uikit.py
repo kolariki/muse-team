@@ -58,7 +58,7 @@ BASE_DEPS = {
     "clsx": "^2.1.1", "tailwind-merge": "^3.3.1", "lucide-react": "^1.0.0",
 }
 BASE_DEV_DEPS = {
-    "vite": "^6.3.5", "@vitejs/plugin-react": "^4.5.2", "typescript": "~5.8.3", "@types/react": "^18.3.23",
+    "vite": "^6.3.5", "@vitejs/plugin-react": "^4.5.2", "typescript": "~5.8.3", "@types/node": "^22.15.0", "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7", "tailwindcss": "^4.1.11", "@tailwindcss/vite": "^4.1.11", "tw-animate-css": "^1.3.5",
 }
 # registry dependency name → npm package(s) (anything not listed maps to itself)
@@ -88,7 +88,7 @@ SOURCES = [
     {"name": "lucide", "url": "https://lucide.dev", "license": "ISC", "use": "iconos: una sola librería, un solo grosor (lucide-react)"},
     {"name": "Motion (Framer Motion)", "url": "https://motion.dev", "license": "MIT", "use": "animación con propósito (150-250 ms): transiciones de lista, modales, feedback"},
     {"name": "Motion Primitives", "url": "https://motion-primitives.com", "license": "MIT", "use": "componentes animados listos (texto, números, reveal) sobre motion"},
-    {"name": "React Bits", "url": "https://reactbits.dev", "license": "MIT", "use": "componentes y fondos animados para el «primer impacto» de una landing, con moderación"},
+    {"name": "React Bits", "url": "https://reactbits.dev", "license": "MIT + Commons Clause (dentro de una app sí; no vender ni redistribuir los componentes)", "use": "componentes y fondos animados para el «primer impacto» de una landing, con moderación"},
     {"name": "Google Fonts", "url": "https://fonts.google.com", "license": "OFL", "use": "tipografía libre (Inter, Geist, Manrope, Fraunces, JetBrains Mono…)"},
     {"name": "Fontshare", "url": "https://www.fontshare.com", "license": "ITF Free Font License (uso comercial permitido)", "use": "tipografía con carácter (Satoshi, General Sans, Clash Display, Cabinet Grotesk)"},
     {"name": "Recharts", "url": "https://recharts.org", "license": "MIT", "use": "gráficos en dashboards (shadcn/charts los envuelve con los tokens)"},

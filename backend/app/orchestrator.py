@@ -35,6 +35,8 @@ from .tasks import spawn
 from .auth import User, user_dir
 from .pricing import cost_usd
 from .providers import CACHE_SEP, PROVIDERS, CallResult, Cred, MockContext, stream
+from . import inspiration as insp
+from .design import INSPIRATION_READ
 from .roles import role_of
 from .expertise import expertise_block
 from . import skills as skillmod
@@ -221,6 +223,7 @@ class Session:
         self.verdict: dict[str, Any] = {}
         self._resume = asyncio.Event()
         self.pause: dict[str, Any] | None = None  # {agent_id, provider, model, error, attempts} while waiting for the user
+        self.design_refs = ""  # what the Design roles saw in the inspiration library before the debate
 
     # ------------------------------------------------------------------ pub/sub
     def emit(self, type_: str, **data) -> dict:
@@ -319,6 +322,8 @@ class Session:
             role_txt += craft + "\n"
         if not review:
             role_txt += uikit.team_block(agent.role, getattr(self.config, "platform", "web"))
+            if self.design_refs and (role_of(agent.role) or {}).get("group") == "Diseño":
+                role_txt += self.design_refs
         from . import memory as memorymod
 
         from . import team as teammod
@@ -468,6 +473,41 @@ class Session:
         }
 
     # ------------------------------------------------------------------ main loop
+    async def _prepare_design_refs(self) -> None:
+        """The Design roles debate having seen good work of the business: once, as notes, so it costs one look and not one per turn.
+        Best effort, with what's already in the library: the debate never waits for a search and never stops for this."""
+        designer = next((a for a in self.config.agents if (role_of(a.role) or {}).get("group") == "Diseño" and PROVIDERS[a.provider].kind != "mock"), None)
+        if self.config.mode == "review" or not designer or not insp.ENABLED:
+            return
+
+        async def ask(system: str, user: str, images: list[bytes] | None = None, max_tokens: int = 200) -> str:
+            parts: list[str] = []
+            async for kind, delta in stream(designer.provider, designer.model, system, user, temperature=0.2, max_tokens=max_tokens, result=CallResult(), mock=MockContext("Referencias", [("x", "x")], "referencias", script=""), cred=self.creds.get(designer.provider), images=images):
+                if kind == "text":
+                    parts.append(delta)
+            return "".join(parts)
+
+        async def prepare() -> None:
+            text = f"{self.config.title or ''}\n\n{self.config.topic}"
+            rubro, _new = insp.read_rubro(await ask(insp.rubro_prompt(), text[:6000]), text)
+            picks = insp.choose(rubro, 6, seed=self.id)
+            if not picks:
+                return
+            names = ", ".join(i["name"] for i in picks)
+            try:
+                notes = await ask(INSPIRATION_READ, f"Producto: {text[:2000]}", [(insp.LIBRARY / i["file"]).read_bytes() for i in picks], 800)
+            except Exception:  # a model that can't look at images still gets the list
+                log.info("design references: %s can't look at images", designer.model)
+                notes = ""
+            self.design_refs = (f"\nREFERENCIAS VISUALES (sitios con muy buen diseño que miraste antes del debate: {names}). Usalas para subir la vara y proponé ideas concretas que salgan de ellas, "
+                                f"combinando varias; nada de copiar una.\n{notes.strip()}\n")
+            self.emit("notice", text=f"{designer.name} miró {len(picks)} referencias visuales antes del debate.")
+
+        try:
+            await asyncio.wait_for(prepare(), 75)
+        except Exception:
+            log.exception("design references")
+
     async def run(self) -> None:
         cfg = self.config
         self.status = "running"
@@ -486,6 +526,7 @@ class Session:
                     langfuse_url=url,
                 )
                 await asyncio.sleep(0.8)
+                await self._prepare_design_refs()
                 await self._conversation(ids)
                 if cfg.closing_round and not self._stop.is_set() and any(role_of(a.role) for a in cfg.agents):
                     await self._closing()

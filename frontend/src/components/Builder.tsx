@@ -446,7 +446,13 @@ export default function Builder({ onBack, onHome }: { onBack: () => void; onHome
                 </div>
               </div>
             )}
-            {b.status === 'design_review' && !b.liveTurn && <DesignReviewCard />}
+            {b.status === 'design_review' && !b.liveTurn && (b.directions.length ? (
+              <div className="rounded-2xl border-2 border-accent/40 bg-accent-soft/40 px-4 py-3 text-sm">
+                <div className="font-semibold text-ink">{T('Elegí cómo querés que se vea', 'Choose how you want it to look')}</div>
+                <p className="mt-1 text-[12.5px] text-ink-2">{T('Hay tres direcciones de diseño. Todavía no hay código escrito.', 'There are three design directions. No code has been written yet.')}</p>
+                <button type="button" onClick={() => useBuild.getState().set({ paneOpen: true, pane: 'design' })} className="mt-2 rounded-xl bg-accent px-4 py-1.5 text-sm font-semibold text-white">{T('Ver las tres', 'See all three')}</button>
+              </div>
+            ) : <DesignReviewCard />)}
             {b.status === 'completed' && !b.liveTurn && (
               <div className="rounded-2xl border border-ok/30 bg-ok/5 px-4 py-3 text-sm flex items-center gap-3">
                 <CheckCircle2 className="text-ok shrink-0" size={20} />

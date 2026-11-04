@@ -35,6 +35,7 @@ COPY backend/pyproject.toml backend/uv.lock* ./
 RUN uv sync --no-dev --frozen 2>/dev/null || uv sync --no-dev
 COPY backend/app ./app
 COPY backend/content ./content
+COPY backend/skills_catalog_index.json ./skills_catalog_index.json
 COPY --from=web /web/dist /app/frontend/dist
 ENV ARENA_DATA_DIR=/data/sessions ARENA_STATIC_DIR=/app/frontend/dist ARENA_CHROME=/usr/bin/chromium \
     CLAUDE_CONFIG_DIR=/data/claude-root HOME=/data/home PORT=8000

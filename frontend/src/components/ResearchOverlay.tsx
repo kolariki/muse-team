@@ -85,7 +85,8 @@ export default function ResearchOverlay({ demo = false, hiddenDemo = false, onCl
   // which phase we are in, read from the activity feed; the current reference is the last one entered
   const acts = b.activity
   const last = acts[acts.length - 1]
-  const phase = r?.finished ? 4 : /Armando/i.test(last?.label ?? '') ? 3 : /Analizando/i.test(last?.label ?? '') ? 2 : /Entrando/i.test(last?.label ?? '') ? 1 : 0
+  // the team's own references leave no named steps to read: the count says how far it went
+  const phase = r?.finished ? 4 : r?.hidden ? (r.visited.length ? 2 : 1) : /Armando/i.test(last?.label ?? '') ? 3 : /Analizando/i.test(last?.label ?? '') ? 2 : /Entrando/i.test(last?.label ?? '') ? 1 : 0
   const currentRef = [...acts].reverse().find((a) => /Entrando a/i.test(a.label))
   const currentHost = (currentRef?.path || currentRef?.label.replace(/^Entrando a\s*/i, '') || '').replace(/^https?:\/\//, '').replace(/\/$/, '')
   const visited = r?.visited ?? []
@@ -134,7 +135,7 @@ export default function ResearchOverlay({ demo = false, hiddenDemo = false, onCl
         <div className="flex flex-wrap items-end gap-4">
           <div className="min-w-[min(100%,260px)] flex-1">
             <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-accent"><span className="h-2 w-2 rounded-full bg-accent animate-pulse" /> {T('Reverse engineering · antes del consejo', 'Reverse engineering · before the council')}</div>
-            <h2 className="mt-1.5 text-[26px] leading-tight sm:text-[34px]">{r?.finished ? T('Listo: abriendo el consejo…', 'Done: opening the council…') : hidden ? T('Analizando modelos de referencia', 'Analysing reference models') : T('El equipo está investigando las referencias', 'The team is researching the references')}</h2>
+            <h2 className="mt-1.5 text-[26px] leading-tight sm:text-[34px]">{r?.finished ? T('Listo: abriendo el consejo…', 'Done: opening the council…') : hidden ? T('Investigando referentes', 'Researching references') : T('El equipo está investigando las referencias', 'The team is researching the references')}</h2>
             <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-ink-2">{hidden ? T('El equipo estudia los mejores productos de la categoría: estructura, jerarquía, flujos y estados. Con eso como vara, el consejo revisa tu proyecto. Quedate acá: se abre solo al terminar.', 'The team studies the best products in the category: structure, hierarchy, flows and states. With that as the bar, the council reviews your project. Stay here: it opens by itself when done.') : T('Entra a cada app, saca capturas y anota qué emular y qué evitar. Con eso en la mano, el consejo revisa tu proyecto. Quedate acá: se abre solo al terminar.', 'It visits each app, takes screenshots and notes what to emulate and avoid. With that in hand the council reviews your project. Stay here: it opens by itself when done.')}</p>
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -164,7 +165,7 @@ export default function ResearchOverlay({ demo = false, hiddenDemo = false, onCl
             <div className="relative overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_24px_60px_-28px_rgba(30,38,34,.55)]">
               <div className="flex h-9 items-center gap-1.5 border-b border-line bg-surface-2/70 px-3">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#E6A19A]" /><span className="h-2.5 w-2.5 rounded-full bg-[#E9C97A]" /><span className="h-2.5 w-2.5 rounded-full bg-[#9FCDA8]" />
-                <span className="ml-3 flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-line bg-surface px-2 font-mono text-[11px] text-ink-2"><Globe size={11} className="shrink-0 text-ink-3" /><span className="truncate">{hidden ? T('analizando modelos…', 'analysing models…') : currentHost ? `https://${currentHost}` : T('buscando referentes…', 'finding references…')}</span></span>
+                <span className="ml-3 flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-line bg-surface px-2 font-mono text-[11px] text-ink-2"><Globe size={11} className="shrink-0 text-ink-3" /><span className="truncate">{hidden ? T('investigando referentes…', 'researching references…') : currentHost ? `https://${currentHost}` : T('buscando referentes…', 'finding references…')}</span></span>
                 <span className={`ml-2 flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${phase === 1 ? 'border-danger/40 bg-danger/10 text-danger' : phase === 2 ? 'border-accent/40 bg-accent-soft text-accent' : 'border-line bg-surface text-ink-3'}`}><span className={`h-1.5 w-1.5 rounded-full ${phase === 1 ? 'bg-danger animate-pulse' : phase === 2 ? 'bg-accent animate-pulse' : 'bg-ink-4'}`} /> {phase === 1 ? T('capturando', 'capturing') : phase === 2 ? T('analizando', 'analysing') : phase === 3 ? T('redactando', 'writing') : r?.finished ? T('listo', 'done') : T('buscando', 'searching')}</span>
               </div>
               {/* the page being read: a skeleton that builds up, a scan beam, and the orbit watching from the corner */}

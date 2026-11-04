@@ -24,6 +24,7 @@ import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlparse
 
 from .config import env
 
@@ -362,6 +363,17 @@ def save_shots(workdir: Path | None, i: int, cap: Capture) -> list[str]:
             p.write_bytes(data)
             out.append(f"research/shots/{p.name}")
     return out
+
+
+def without_addresses(text: str, refs: list[dict]) -> str:
+    """Research the person didn't ask for by address keeps its findings, not its links."""
+    for r in refs:
+        host = urlparse(r.get("url") or "").netloc.removeprefix("www.")
+        if host:
+            name = r.get("name") or ""
+            label = name if name and "." not in name and "/" not in name else "un referente"
+            text = re.sub(rf"(?:https?://)?(?:www\.)?{re.escape(host)}(?:/[^\s)\]|,]*)?", label, text)
+    return text
 
 
 def stamp() -> str:

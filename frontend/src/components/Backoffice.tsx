@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { api, type BackofficeData } from '../lib/api'
+import { api, type BackofficeData, type InspirationStatus } from '../lib/api'
 import { fdeStatus, fdeStatusTone } from '../lib/fde'
 import { tr, useT } from '../lib/i18n'
 import { downloadBlob } from '../lib/recorder'
 import { toast } from './Toast'
 
-type Tab = 'overview' | 'tickets' | 'users' | 'accounts' | 'emails' | 'payments' | 'apps'
+type Tab = 'overview' | 'tickets' | 'users' | 'accounts' | 'emails' | 'payments' | 'apps' | 'inspiration'
 
 const date = (ts?: number | null) => (ts ? new Date(ts * 1000).toLocaleDateString() : '—')
 const dateTime = (ts?: number | null) => (ts ? new Date(ts * 1000).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '—')
@@ -13,6 +13,85 @@ const usd = (n: number) => `USD ${n.toLocaleString(undefined, { maximumFractionD
 const has = (q: string, ...parts: (string | null | undefined)[]) => !q || parts.some((p) => p?.toLowerCase().includes(q))
 
 /** The operator's desk: every account, developer request, email, payment and published app. Only administrators reach it. */
+// any image becomes the PNG the models and the library expect
+const toPng = (file: File) => new Promise<string>((resolve, reject) => {
+  const url = URL.createObjectURL(file)
+  const img = new Image()
+  img.onload = () => {
+    const c = document.createElement('canvas')
+    const w = Math.min(img.width, 1600)
+    c.width = w
+    c.height = Math.round((img.height * w) / img.width)
+    c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height)
+    URL.revokeObjectURL(url)
+    resolve(c.toDataURL('image/png'))
+  }
+  img.onerror = () => reject(new Error(file.name))
+  img.src = url
+})
+
+/** The inspiration library: how full it is, the businesses we had to go looking for, and captures picked by hand. */
+function InspirationDesk() {
+  const T = useT()
+  const [st, setSt] = useState<InspirationStatus | null>(null)
+  const [other, setOther] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { api.inspiration().then(setSt).catch((e) => toast.error(tr('No se pudo cargar', 'Could not load'), (e as Error).message)) }, [])
+  const upload = async (rubro: string, files: FileList | null, done: boolean) => {
+    if (!files?.length) return
+    setBusy(true)
+    try {
+      for (const f of Array.from(files)) setSt(await api.inspirationAdd({ rubro, name: f.name.replace(/\.[^.]+$/, ''), image: await toPng(f), done }))
+      toast.ok(tr('Capturas guardadas', 'Captures saved'), tr('Se van a usar en los próximos previews de este rubro.', 'They will be used in the next previews for this business.'))
+    } catch (e) {
+      toast.error(tr('No se pudo subir', 'Could not upload'), (e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  if (!st) return <div className="p-6 text-sm text-ink-3">{T('Cargando…', 'Loading…')}</div>
+  const pick = (rubro: string, done: boolean, label: string) => (
+    <label className={`inline-block cursor-pointer rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:brightness-110 ${busy ? 'pointer-events-none opacity-50' : ''}`}>
+      {label}
+      <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void upload(rubro, e.target.files, done); e.target.value = '' }} />
+    </label>
+  )
+  return (
+    <div className="flex flex-col gap-4 p-1">
+      <div className="rounded-xl border border-line bg-paper p-4 text-sm">
+        <div className="text-[22px] font-semibold tabular-nums">{st.total}</div>
+        <div className="text-ink-2">{T('capturas en la biblioteca', 'captures in the library')} · {T('de', 'of')} {st.known_sites} {T('sitios de la lista inicial', 'sites on the starting list')} · {st.failed} {T('no se pudieron abrir', 'could not be opened')}</div>
+      </div>
+      <div className="rounded-xl border border-line bg-paper p-4">
+        <div className="text-sm font-semibold">{T('Rubros para completar', 'Businesses to complete')}</div>
+        <p className="mt-1 text-[12.5px] text-ink-2">{T('Tuvimos que salir a buscar referencias de estos rubros. Guardá capturas de los mejores ejemplos y subilas acá.', 'We had to go looking for references for these businesses. Save captures of the best examples and upload them here.')}</p>
+        {!st.to_curate.length && <p className="mt-3 text-[13px] text-ink-3">{T('Por ahora no hay ninguno pendiente.', 'Nothing pending for now.')}</p>}
+        <div className="mt-3 flex flex-col gap-2">
+          {st.to_curate.map((c) => (
+            <div key={c.rubro} className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-surface p-3">
+              <div className="min-w-[220px] flex-1">
+                <div className="text-sm font-medium">{c.label}</div>
+                <div className="text-[12px] text-ink-3">{T('Bajamos', 'Fetched')}: {c.fetched.join(', ') || T('ninguna', 'none')}</div>
+              </div>
+              {pick(c.rubro, true, T('Subir capturas y marcar listo', 'Upload captures and mark done'))}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="rounded-xl border border-line bg-paper p-4">
+        <div className="text-sm font-semibold">{T('Sumar capturas a cualquier rubro', 'Add captures to any business')}</div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <select value={other} onChange={(e) => setOther(e.target.value)} className="rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px]">
+            <option value="">{T('Elegí un rubro', 'Choose a business')}</option>
+            {Object.entries(st.rubros).map(([k, v]) => <option key={k} value={k}>{v} ({st.shelves[k] ?? 0})</option>)}
+          </select>
+          {other && pick(other, false, T('Subir capturas', 'Upload captures'))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Backoffice() {
   const T = useT()
   const [data, setData] = useState<BackofficeData | null>(null)
@@ -52,6 +131,7 @@ export default function Backoffice() {
     { id: 'emails', label: T('Emails', 'Emails'), n: data?.overview.emails },
     { id: 'payments', label: T('Pagos', 'Payments'), n: data?.payments.length },
     { id: 'apps', label: T('Apps', 'Apps'), n: data?.overview.apps },
+    { id: 'inspiration', label: T('Inspiración', 'Inspiration') },
   ]
 
   return (
@@ -153,6 +233,7 @@ export default function Backoffice() {
               rows={data.payments.filter((p) => has(q, p.email, p.concept, p.id)).map((p) => [dateTime(p.ts), p.email, p.concept, usd(p.amount_usd), p.via, <Pill ok={p.status === 'paid'}>{p.status === 'paid' ? T('Pagado', 'Paid') : p.status}</Pill>])} />
           )}
 
+          {tab === 'inspiration' && <InspirationDesk />}
           {tab === 'apps' && (
             <Table head={[T('App', 'App'), T('Usuario', 'User'), T('Dónde', 'Where'), T('Estado', 'Status'), T('Errores abiertos', 'Open errors'), T('Actualizada', 'Updated')]}
               rows={data.apps.filter((a) => has(q, a.slug, a.email, a.url)).map((a) => [a.url ? <a href={a.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{a.slug}</a> : a.slug, a.email, a.provider, a.status, a.open_errors, date(a.updated)])} />

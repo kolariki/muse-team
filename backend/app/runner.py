@@ -246,6 +246,7 @@ class AppRun:
         self.host = "127.0.0.1"
         self.token = secrets.token_urlsafe(16)  # the app's address through Muse Team (/r/<token>/)
         self.fix: dict | None = None  # Muse Team fixing it: {state: fixing|restarting|needs_approval|stuck|manual, since, what, fix, impact, id}
+        self.quiet = False  # a check run by the build itself: its failures are the check's, not the self-healing's
         TOKENS[self.token] = self
 
     def state(self) -> dict:
@@ -257,7 +258,7 @@ class AppRun:
         self.status = status
         for k, v in extra.items():
             setattr(self, k, v)
-        if changed and ON_STATUS:
+        if changed and ON_STATUS and not self.quiet:
             try:
                 ON_STATUS(self)
             except Exception:  # pragma: no cover

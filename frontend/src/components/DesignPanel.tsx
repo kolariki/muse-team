@@ -2,7 +2,7 @@ import DOMPurify from 'dompurify'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ExternalLink, FileText, Loader2, Palette, RefreshCw, Send, Sparkles, Wand2 } from 'lucide-react'
 import { marked } from 'marked'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { reconnectBuild, useBuild } from '../buildStore'
 import { api } from '../lib/api'
 import { tr, useLang, useT } from '../lib/i18n'
@@ -18,6 +18,70 @@ const cache = new Map<string, { text: string | null; reason?: string; model?: st
  * The design, for anyone: what the current design is in plain words (a model reads DESIGN.md + the mockup), the
  * mockup itself, and a box to ask the designer for specific changes at any moment of the build.
  */
+// a direction is judged as a desktop page: rendered at 1280 px and scaled down to its card
+function DirectionFrame({ title, html }: { title: string; html: string }) {
+  const box = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  useEffect(() => {
+    if (!box.current) return
+    const ro = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }))
+    ro.observe(box.current)
+    return () => ro.disconnect()
+  }, [])
+  const [loaded, setLoaded] = useState(false)
+  const scale = size.w ? size.w / 1280 : 1
+  return (
+    <div ref={box} className="relative min-h-0 flex-1 overflow-hidden bg-surface-2">
+      {!loaded && <div className="absolute inset-0 flex items-center justify-center text-[13px] text-ink-3">{tr('Cargando…', 'Loading…')}</div>}
+      <iframe title={title} sandbox="allow-scripts" srcDoc={html} onLoad={() => setLoaded(true)} className="absolute left-0 top-0 origin-top-left border-0" style={{ width: 1280, height: size.h / scale, transform: `scale(${scale})` }} />
+    </div>
+  )
+}
+
+function DirectionsPicker() {
+  const T = useT()
+  const b = useBuild()
+  const [wish, setWish] = useState('')
+  const [busy, setBusy] = useState(false)
+  const send = async (body: { index?: number; feedback?: string }) => {
+    setBusy(true)
+    try {
+      await api.buildDesignDirection(b.id!, body, b.sessionId)
+      useBuild.getState().set({ status: 'connecting', directions: [] })
+      reconnectBuild(b.id!)
+    } catch (e) {
+      toast.error(tr('No se pudo elegir', 'Could not choose'), (e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface p-4">
+      <h3 className="text-[22px] leading-tight">{T('Elegí cómo querés que se vea', 'Choose how you want it to look')}</h3>
+      <p className="mt-1 text-[13px] text-ink-2">{T('Es la pantalla principal en tres estilos. Todavía no hay código: el diseño completo sale de la que elijas.', 'This is the main screen in three styles. No code yet: the full design comes from the one you choose.')}</p>
+      <div className="mt-4 grid min-h-[70vh] flex-1 grid-cols-1 gap-3 xl:grid-cols-3">
+        {b.directions.map((d, i) => (
+          <div key={i} className="flex min-h-[70vh] min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-paper shadow-sm">
+            <DirectionFrame title={d.name} html={d.html} />
+            <div className="border-t border-line p-3">
+              <div className="text-sm font-semibold text-ink">{d.name}</div>
+              {d.why && <p className="mt-0.5 text-[12.5px] text-ink-2">{d.why}</p>}
+              <button type="button" disabled={busy} onClick={() => send({ index: i, feedback: wish.trim() || undefined })} className="mt-2 w-full rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50">{T('Elegir esta', 'Choose this one')}</button>
+              <button type="button" onClick={() => { const w = window.open('', '_blank'); if (w) { w.document.write(d.html); w.document.close() } }} className="mt-1.5 w-full rounded-xl border border-line bg-surface px-4 py-1.5 text-[12.5px] text-ink-2 transition hover:text-ink">{T('Verla grande', 'See it large')}</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 rounded-xl border border-line bg-paper p-3">
+        <div className="text-[13px] font-semibold text-ink">{T('¿Le cambiarías algo o no te convence ninguna?', 'Would you change something, or none of them work?')}</div>
+        <textarea value={wish} onChange={(e) => setWish(e.target.value)} rows={2} placeholder={T('Ej.: más sobria, con más foto, parecida a la web de tal marca…', 'E.g.: more restrained, more photos, like such-and-such brand’s site…')} className="mt-2 w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-[13px] outline-none focus:border-accent" />
+        <button type="button" disabled={busy || !wish.trim()} onClick={() => send({ feedback: wish.trim() })} className="mt-2 rounded-xl border border-accent/50 bg-paper px-4 py-1.5 text-[13px] font-semibold text-accent disabled:opacity-40">{T('Ninguna: ver otras tres', 'None: see three others')}</button>
+        <span className="ml-3 text-[11.5px] text-ink-3">{T('Si elegís una, lo que escribiste acá se aplica a esa.', 'If you choose one, what you wrote here applies to it.')}</span>
+      </div>
+    </div>
+  )
+}
+
 export default function DesignPanel() {
   const T = useT()
   const lang = useLang()
@@ -72,6 +136,22 @@ export default function DesignPanel() {
     [tr('Animaciones sutiles', 'Subtle motion'), tr('Transiciones suaves al cambiar de pantalla y al cargar datos; nada que distraiga; respetá reduced-motion.', 'Smooth transitions between screens and when data loads; nothing distracting; respect reduced-motion.')],
     [tr('Pantalla de inicio más clara', 'Clearer home screen'), tr('Que la pantalla de inicio muestre primero lo más importante, con una sola acción principal bien visible.', 'The home screen should show the most important thing first, with a single, very visible primary action.')],
   ]
+
+  if (b.directions.length) return <DirectionsPicker />
+  if (b.previews && !hasDesign) {
+    const steps = [['buscando', T('Ver qué referencias tenemos', 'Check which references we have')], ['bajando', T('Buscar las que faltan', 'Find the missing ones')], ['generando', T('Generar tus tres opciones', 'Generate your three options')]]
+    const at = steps.findIndex(([id]) => id === b.previews!.stage)
+    return (
+      <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto bg-surface p-8">
+        <h3 className="text-[26px] leading-tight">{T('Construyendo previews', 'Building previews')}</h3>
+        <p className="mt-2 text-[14px] text-ink-2">{b.previews.text}</p>
+        <ol className="mt-6 flex flex-col gap-2 text-[14px]">
+          {steps.map(([id, label], i) => <li key={id} className={i === at ? 'font-semibold text-ink' : i < at ? 'text-ink-3 line-through' : 'text-ink-4'}>{i + 1}. {label}</li>)}
+        </ol>
+        <p className="mt-6 text-[12.5px] text-ink-3">{T('Tarda unos minutos. Todavía no se escribe código y podés dejar esta pantalla: te va a esperar.', 'This takes a few minutes. No code is being written yet and you can leave this screen: it will wait for you.')}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface md:flex-row md:overflow-visible">

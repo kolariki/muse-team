@@ -28,6 +28,8 @@ import io
 import json
 import logging
 import re
+import shutil
+import tempfile
 import time
 import uuid
 import zipfile
@@ -43,10 +45,11 @@ from .pricing import cost_usd
 from . import versions as vers
 from .expertise import expertise_block, quality_bar
 from . import skills as skillmod
-from .design import BUILDER_DESIGN_RULE, ENGINE_DESIGN_PROMPT, MOCK_DESIGN, DESIGN_USER, design_context_for_builder, design_system_prompt, POLISH_PROMPT, frontend_design_guide
+from .design import APP_CHECK_PROMPT, APP_CRITIC_NOTE, BUILDER_DESIGN_RULE, DESIGN_CRITIC, DIRECTIONS_API_FORMAT, DIRECTIONS_DIR, DIRECTIONS_ENGINE_FORMAT, DIRECTIONS_PROMPT, ENGINE_DESIGN_PROMPT, INSPIRATION_NOTE, INSPIRATION_READ, INSPIRATION_TEXT_NOTE, MOCK_DESIGN, DESIGN_USER, design_context_for_builder, design_system_prompt, POLISH_PROMPT, direction_note, frontend_design_guide, parse_design_critique, read_directions
 from .providers import PROVIDERS, CallResult, Cred, MockContext, stream
-from .local_engine import ENGINES, is_engine, run_engine, snapshot_dir, sync_files, workdir, USER_ENV, user_claude_env
+from .local_engine import ENGINES, ask_engine, is_engine, run_engine, snapshot_dir, sync_files, workdir, USER_ENV, user_claude_env
 from .roles import role_of
+from . import inspiration as insp
 from . import research as rsch
 from . import uikit
 from . import levels as levelsmod
@@ -74,6 +77,7 @@ ESTÁNDAR DE CALIDAD (el equipo que diseñó el producto lo va a revisar con est
 {quality_bar}
 
 {design_rule}
+ALCANCE: lo que dice el BRIEF manda. El estándar de calidad dice cómo hacer lo pedido, no agrega funciones: sin cuentas, servidor, invitaciones ni paneles que el brief no incluya.
 REGLAS:
 - Código real, completo, que compila y corre. Nada de pseudocódigo, TODOs vacíos ni placeholders.
 - Primera etapa: estructura del proyecto, README.md (setup), .env.example con TODAS las variables del brief, dependencias y config base.
@@ -117,6 +121,8 @@ class BuildRequest(BaseModel):
     priorities: str = ""  # what the user wants the council to treat first (next round)
     design: bool = True  # Product Designer designs the UI (design/) before any code is written
     design_review: bool = True  # pause after the design so the user approves it (or asks for changes) before any code
+    directions: bool = True  # before the full design, the person picks between three visual directions
+    auto_references: bool = False  # no references given: the team proposes them when a model can look at captures
     research: bool = False  # level 1: look at reference apps (user's list, or proposed from the brief) before designing
     references: list[str] = []  # reference apps / URLs the team studies first
     deep_analysis: bool = False  # level 2 (paid per use): REA reverse-engineering tools for the builder engine on those targets
@@ -134,6 +140,25 @@ Usalas SOLO sobre los referentes listados en research/REFERENCES.md: analizá su
 de pantallas y flujos para ENTENDER cómo están construidos (arquitectura, estados, datos que manejan, patrones de UI). Documentá lo que
 aprendiste en research/DEEP_ANALYSIS.md con evidencia. Está prohibido copiar código, assets, textos o marcas de terceros: se aprende el
 mecanismo y se implementa una versión propia para nuestro producto."""
+
+
+CHECK_RUNS = asyncio.Semaphore(2)  # each final check installs and runs an app on this machine
+INSPIRATION_SEARCH_LIMIT = 5 * 60  # the person is looking at «construyendo previews»
+DIRECTION_WAIT = 20 * 60  # a build with no approval step doesn't stay waiting for someone who left
+MAX_DIRECTION_ROUNDS = 3
+
+
+async def _capture_both(url: str, frame_src: str, tmp: Path) -> Any:
+    """Desktop and a true phone width: headless Chrome won't make a window narrower than 500 px, so the phone goes in a 390 px frame."""
+    frame = tmp / "celular.html"
+    frame.write_text(f'<!doctype html><body style="margin:0"><iframe src="{frame_src}" style="width:390px;height:932px;border:0"></iframe>')
+    cap, phone = await asyncio.gather(rsch.capture_async(url), rsch.capture_async(frame.as_uri()))
+    cap.mobile = phone.mobile
+    return cap
+
+
+async def _ignore_engine_event(kind: str, **data: Any) -> None:
+    """For short engine passes whose progress isn't shown."""
 
 
 def design_platform_note(platform: str) -> str:
@@ -424,6 +449,11 @@ class Build:
         self._design_ok = asyncio.Event()  # set by approve_design / redo_design while the pipeline waits in "design_review"
         self.design_feedback: str | None = None  # the user's change requests for the next design round
         self.design_rounds = 0
+        self.directions: list[dict] = []  # while the person chooses: [{name, why, html}]
+        self.direction_pick: int | None = None
+        self.previews: dict | None = None  # «construyendo previews»: what the person sees while the directions are prepared
+        self.inspiration: list[dict] | None = None
+        self.direction_chosen: dict | None = None
         self.council_sessions: list[str] = []  # arena sessions (mode "review") where the team debated this build
         self.design_html: str | None = None  # design/mockup.html, the hi-fi design the UI must match
         self.design_turns = 0  # turns spent in the design phase (build-stage numbering ignores them)
@@ -482,7 +512,7 @@ class Build:
             "engine": self.engine, "workdir": str(self.workdir) if self.workdir else None, "engine_session": self.engine_session,
             "activity": self.activity[-60:], "todos": self.todos,
             "app_run": self.app_run.state() if self.app_run else None,
-            "design_review": self.status == "design_review", "design_rounds": self.design_rounds,
+            "design_review": self.status == "design_review", "design_rounds": self.design_rounds, "directions": self.directions, "previews": self.previews,
             "research": self.research_refs, "references": self.req.references, "deep_analysis": self.req.deep_analysis, "platform": self.req.platform, "language": self.req.language, "references_auto": self.req.references_auto, "fees": self.fees, "fees_usd": round(sum(float(f.get("usd") or 0) for f in self.fees), 2), "fees_due_usd": round(sum(float(f.get("usd") or 0) for f in self.fees if not f.get("paid")), 2),
             "council_sessions": self.council_sessions, "council": self.req.council,
             "versions": self.versions, "version": len(self.versions), "pending_council": self.pending_council(),
@@ -635,11 +665,13 @@ class Build:
         USER_ENV.set(user_claude_env(self.user.id))  # the engine runs as this user (their own subscription token on a server)
         try:
             if not review_first:
-                if resume_with is None and (self.req.research or self.req.references) and RESEARCH_PATH not in self.files and not self._stop.is_set():
+                if resume_with is None and (self.req.research or self.req.references or (self.req.auto_references and self._can_see())) and RESEARCH_PATH not in self.files and not self._stop.is_set():
                     await self.research_phase()
                 if resume_with is None and self.req.design and DESIGN_MOCKUP not in self.files and not self._stop.is_set():
+                    await self._choose_direction()
                     await self.design_phase()
                     await self._ensure_mockup()
+                    await self._visual_design_check()
                     # the user looks at the mockup before a line of code exists: approve, or ask for changes and redesign
                     while self.req.design_review and self.status != "error" and not self._stop.is_set() and self.design_rounds < 6:
                         self.status = "design_review"
@@ -666,6 +698,7 @@ class Build:
                 if resume_with is None and self.req.design and self.status == "completed" and self.files and not self._stop.is_set():
                     self.chat.append({"role": "system", "text": self.tx("Pulido visual: el constructor ajusta la UI al diseño antes de entregar.", "Visual polish: the builder matches the UI to the design before delivering."), "ts": time.time()})
                     await self.run(POLISH_PROMPT)
+                    await self._final_app_check()
                 await self._ensure_identity()
                 if self.status == "completed" and self.files:
                     self.snapshot_version()
@@ -939,6 +972,7 @@ class Build:
                       f"principales navegables y datos de ejemplo, fiel al diseño del brief, para ver cómo queda el producto. "
                       f"Cuando termines, resumí en 5-10 líneas qué quedó construido, cómo correrlo y qué verificar.\n\n"
                       f"ESTÁNDAR DE CALIDAD (el equipo que diseñó el producto lo va a revisar con esta vara; construí para aprobarla a la primera):\n{bar}\n\n"
+                      f"ALCANCE: lo que dice BRIEF.md manda. El estándar de calidad dice cómo hacer lo pedido, no agrega funciones: sin cuentas, servidor, invitaciones ni paneles que el brief no incluya.\n\n"
                       + delivery.CONTRACT_RULE
                       + (BUILDER_DESIGN_RULE if (self.workdir / "design" / "mockup.html").exists() else "")
                       + frontend_design_guide()
@@ -1112,6 +1146,10 @@ class Build:
         self.design_feedback = None
         self._design_ok.set()
 
+    def choose_direction(self, index: int, wish: str = "") -> None:
+        self.direction_pick, self.design_feedback = index, wish.strip()[:1000] or None
+        self._design_ok.set()
+
     def redo_design(self, feedback: str) -> None:
         self.design_feedback = feedback.strip()[:4000] or "Mejorá el diseño: más pulido, más claro, más profesional."
         self._design_ok.set()
@@ -1144,6 +1182,10 @@ class Build:
     def _engine_mcp(self) -> dict | None:
         """Deep analysis (paid): the engine gets the REA MCP server for this run."""
         return rsch.rea_mcp_config() if self.req.deep_analysis else None
+
+    def _can_see(self) -> bool:
+        who = self._vision_model()
+        return bool(who and PROVIDERS.get(who[0]) and PROVIDERS[who[0]].kind != "mock")
 
     def _vision_model(self) -> tuple[str, str, Cred] | None:
         """An API model that can look at screenshots: the team's designer, else the builder's own model, else any configured key."""
@@ -1239,33 +1281,41 @@ class Build:
             self._note(self.tx("No se encontraron referentes para investigar; el diseño sigue solo con el brief.", "No references found to research; the design continues from the brief alone."))
             self.live = None
             return
-        self._note(self.tx("Analizando modelos de referencia: el equipo saca capturas y anota qué emular y qué evitar.", "Analyzing reference models: the team takes screenshots and notes what to emulate and what to avoid.") if self.req.references_auto else
+        # only what the person typed is ever named or linked; the rest is the team's own research
+        typed = [] if self.req.references_auto else list(only if only is not None else self.req.references)
+        own = {rsch.normalize_reference(r) for r in typed} | {r["url"] for r in refs if r.get("name") in named_only}
+        shown = lambda r: r["url"] in own
+        self._activity("search", self.tx("Investigando referentes", "Researching references")) if not all(shown(r) for r in refs) else None
+        self._note(self.tx("Investigando referentes: el equipo saca capturas y anota qué emular y qué evitar.", "Researching references: the team takes screenshots and notes what to emulate and what to avoid.") if not all(shown(r) for r in refs) else
                    self.tx("Investigación de referentes: ", "Reference research: ") + ", ".join(r["name"] or r["url"] for r in refs) + self.tx(". El equipo entra a cada app, saca capturas y anota qué emular y qué evitar.", ". The team opens each app, takes screenshots and notes what to emulate and what to avoid."))
         notes: list[str] = []
         for i, ref in enumerate(refs, 1):
             if self._stop.is_set():
                 break
-            self._activity("search", f"Entrando a {ref['name'] or ref['url']}", ref["url"])
+            if shown(ref):
+                self._activity("search", f"Entrando a {ref['name'] or ref['url']}", ref["url"])
             cap = await rsch.capture_async(ref["url"])
             shots = rsch.save_shots(self.workdir, shot_base + i, cap)
             entry = {"name": ref["name"], "url": ref["url"], "why": ref.get("why", ""), "ok": cap.ok, "error": cap.error, "shots": shots, "title": cap.title}
             self.research_refs.append(entry)
-            self.emit("research.reference", **entry)
+            self.emit("research.reference", **(entry if shown(ref) else {"name": "", "url": None, "ok": cap.ok}))
             if not cap.ok:
-                None if self.req.references_auto else self._note(self.tx(f"No se pudo abrir {ref['url']}: {cap.error}", f"Could not open {ref['url']}: {cap.error}"))
+                None if not shown(ref) else self._note(self.tx(f"No se pudo abrir {ref['url']}: {cap.error}", f"Could not open {ref['url']}: {cap.error}"))
                 continue
-            self._activity("read", f"Analizando {ref['name'] or cap.title or ref['url']}", ref["url"])
+            if shown(ref):
+                self._activity("read", f"Analizando {ref['name'] or cap.title or ref['url']}", ref["url"])
             images = [im for im in (cap.desktop, cap.mobile) if im] if not mock else None
             analysis = await self._ask(rsch.analyze_system(bool(self.req.deep_analysis)), rsch.build_user_prompt_for_analysis(cap, self.brief), provider, model, cred, images=images, max_tokens=4500 if self.req.deep_analysis else 3000,
                                        mock_text=f"## 1. Qué es\n{cap.title or ref['url']} (simulado).\n## 2. Pantallas\nHome con buscador y pronóstico.\n## 3. Patrones\nCards, jerarquía clara.\n## 4. Decisiones\nSin cuentas.\n## 5. Emular / evitar\nEmular: buscador arriba. Evitar: densidad excesiva.")
-            notes.append(f"## {ref['name'] or cap.title or ref['url']}\nURL: {ref['url']}\n\n{analysis.strip()}")
-            None if self.req.references_auto else self._note(self.tx(f"{ref['name'] or cap.title or ref['url']}: notas tomadas ({len(analysis.split())} palabras).", f"{ref['name'] or cap.title or ref['url']}: notes taken ({len(analysis.split())} words)."))
+            notes.append(f"## {ref['name'] or cap.title or ref['url']}\n" + (f"URL: {ref['url']}\n" if shown(ref) else "") + f"\n{analysis.strip()}")
+            None if not shown(ref) else self._note(self.tx(f"{ref['name'] or cap.title or ref['url']}: notas tomadas ({len(analysis.split())} palabras).", f"{ref['name'] or cap.title or ref['url']}: notes taken ({len(analysis.split())} words)."))
         md = ""
         if notes and not self._stop.is_set():
-            self._activity("plan", "Armando el brief de referentes", RESEARCH_PATH)
+            self._activity("plan", self.tx("Investigando referentes", "Researching references"))
             synth = await self._ask(rsch.synth_system(bool(self.req.deep_analysis)), f"NUESTRO BRIEF:\n{self.brief[:8000]}\n\nREFERENTES (en orden de prioridad): {', '.join(r['name'] or r['url'] for r in refs)}\n\nNOTAS DE BENCHMARK:\n\n" + "\n\n---\n\n".join(notes), provider, model, cred, max_tokens=8000,
                                     mock_text="# Referentes\n| app | mejor | falta |\n|---|---|---|\n| Open-Meteo | API clara | UI |\n# Patrones a emular\n- Buscador arriba\n# Patrones a evitar\n- Densidad\n# Flujo recomendado\n1. Buscar ciudad 2. Ver pronóstico\n# Copy y tono\nDirecto.\n# Checklist\n1. Carga < 2 s")
             md = f"<!-- Benchmark generado por Muse Team el {rsch.stamp()}. Observación de productos públicos; nada copiado. -->\n\n{synth.strip()}\n\n---\n\n# Notas por referente\n\n" + "\n\n".join(notes) + "\n"
+            md = rsch.without_addresses(md, [r for r in refs if not shown(r)])
             self._write(RESEARCH_PATH, md)
             self.research_md = md
             if self.workdir:
@@ -1299,7 +1349,7 @@ class Build:
             return
         designer = next((a for a in self.team if a.get("role") == "product-designer"), None)
         system = design_system_prompt(self.req.language, self.req.platform) + ("\n\n" + skillmod.prompt_block(self.user.id, designer.get("skills")) if designer and designer.get("skills") else "")
-        user_msg = DESIGN_USER.format(brief=self.brief[:30000]) + design_platform_note(self.req.platform) + research_context(self.research_md, bool(self.req.deep_analysis)) + (self._ref_note() if self.research_md else "")
+        user_msg = DESIGN_USER.format(brief=self.brief[:30000]) + design_platform_note(self.req.platform) + research_context(self.research_md, bool(self.req.deep_analysis)) + (self._ref_note() if self.research_md else "") + direction_note(self.direction_chosen, getattr(self, "_direction_wish", ""))
         if feedback:
             prev = self.files.get("design/DESIGN.md", "")[:12000]
             user_msg += f"\n\n---\nYA HAY UNA VERSIÓN DEL DISEÑO (abajo). El usuario la vio y pide ESTOS CAMBIOS, que son prioridad absoluta:\n{feedback}\n\nRediseñá entregando los tres archivos completos otra vez, aplicando los cambios y mejorando el resto.\n\nDISEÑO ANTERIOR (DESIGN.md):\n{prev}"
@@ -1333,7 +1383,7 @@ class Build:
             self.emit("turn.started", turn=self.turns, phase="design")
             if self.engine and not self._designer():
                 assert self.workdir
-                res = await run_engine(self.engine, ask.split("\n\n=====")[0] + " Escribilo directamente en el archivo; DESIGN.md y tokens.css ya están en design/.", self.workdir, resume_session=self.engine_session, model=self._engine_model())
+                res = await run_engine(self.engine, ask.split("\n\n=====")[0] + " Escribilo directamente en el archivo; DESIGN.md y tokens.css ya están en design/.", self.workdir, resume_session=self.engine_session, model=self._engine_model(), on_event=_ignore_engine_event)
                 self.cost += float(res.get("cost") or 0)
                 self.engine_cost += float(res.get("cost") or 0)
                 self.engine_tokens += int(res.get("tokens") or 0)
@@ -1354,6 +1404,245 @@ class Build:
                 self.design_html = inline_html(self.files[DESIGN_MOCKUP], DESIGN_MOCKUP, self.files)
                 self.emit("design.ready", path=DESIGN_MOCKUP, html=self.design_html)
             self._save()
+
+    def _wants_directions(self) -> bool:
+        prov = PROVIDERS.get(self.req.provider)
+        return self.req.directions and not self.req.deep_analysis and (is_engine(self.req.provider) or not (prov and prov.kind == "mock"))
+
+    async def _choose_direction(self) -> None:
+        """Two designs from the same brief come out very different: the person picks one here, before the code is paid for."""
+        if not self._wants_directions():
+            return
+        wish = ""
+        for _ in range(MAX_DIRECTION_ROUNDS):
+            if self._stop.is_set() or self.status == "error":
+                return
+            try:
+                found = await self._write_directions(wish)
+            except Exception:
+                log.exception("design directions")
+                return
+            if len(found) < 2:
+                return
+            self.directions, self.direction_pick, self.design_feedback, self.previews = found, None, None, None
+            self.status = "design_review"
+            self._design_ok.clear()
+            self.chat.append({"role": "system", "text": self.tx("Hay tres direcciones de diseño: elegí una en la pestaña Diseño.", "There are three design directions: pick one in the Design tab."), "ts": time.time()})
+            self.emit("design.directions", directions=found)
+            self._save()
+            try:
+                await asyncio.wait_for(self._design_ok.wait(), None if self.req.design_review else DIRECTION_WAIT)
+            except asyncio.TimeoutError:
+                self.direction_pick = 0
+                self._note(self.tx(f"Pasaron {DIRECTION_WAIT // 60} minutos sin elegir: sigo con «{found[0]['name']}» para no frenar. Después podés pedir cambios.", f"{DIRECTION_WAIT // 60} minutes without a choice: going on with «{found[0]['name']}». You can ask for changes later."))
+            self.directions = []
+            self.status = "running"
+            if self._stop.is_set():
+                return
+            if self.direction_pick is None and self.design_feedback:  # none of them: three more with what the person said
+                wish, self.design_feedback = self.design_feedback, None
+                self.chat.append({"role": "user", "text": self.tx("Otras direcciones: ", "Other directions: ") + wish, "ts": time.time()})
+                continue
+            self.direction_chosen = found[min(self.direction_pick or 0, len(found) - 1)]
+            self._direction_wish, self.design_feedback = self.design_feedback or "", None
+            self.chat.append({"role": "user", "text": self.tx("Dirección elegida: ", "Chosen direction: ") + self.direction_chosen["name"], "ts": time.time()})
+            return
+
+    def _previews(self, stage: str, text: str, **extra: Any) -> None:
+        self.previews = {"stage": stage, "text": text, **extra}
+        self.emit("previews.progress", previews=self.previews)
+
+    async def _ask_text(self, system: str, user: str, max_tokens: int = 1200) -> str:
+        """A short answer from whoever is available: a model with a key, else the subscription."""
+        who = self._vision_model()
+        if who and PROVIDERS.get(who[0]) and PROVIDERS[who[0]].kind != "mock":
+            return await self._ask(system, user, who[0], who[1], who[2], max_tokens=max_tokens)
+        if self.engine:
+            return (await ask_engine(self.user.id, self.engine, system, user)).get("text") or ""
+        return ""
+
+    async def _gather_inspiration(self) -> list[dict]:
+        """What's on the shelf for this business; if there's little, go find sites now, keep them and note that they were fetched."""
+        if not insp.ENABLED:
+            return []
+        self._previews("buscando", self.tx("Construyendo previews: viendo qué referencias tenemos…", "Building previews: checking which references we have…"))
+        text = f"{self.title}\n\n{self.brief[:6000]}"
+        rubro, name = insp.read_rubro(await self._ask_text(insp.rubro_prompt(), text, 200), text)
+        if name:
+            rubro = insp.new_shelf(name)
+        if rubro and len(insp.on_shelf(rubro)) < insp.MIN_FOR_A_BUSINESS and rsch.chrome_path():
+            label = insp.known_rubros().get(rubro, rubro)
+            self._previews("bajando", self.tx(f"No teníamos suficientes referencias de {label}: buscando las mejores…", f"We didn't have enough references for {label}: finding the best ones…"))
+            proposed = [p for p in rsch.parse_proposals(await self._ask_text(insp.PROPOSE_SYSTEM, f"Rubro: {label}. Nombrá 10 sitios.\n\nProducto:\n{self.brief[:2000]}")) if insp.public_url(p.get("url") or "")][:10]
+            gate = asyncio.Semaphore(3)
+            found: list[str] = []
+
+            async def one(p: dict) -> None:
+                async with gate:
+                    item = await asyncio.to_thread(insp.add, rubro, p.get("name") or p["url"], p["url"])
+                if item:
+                    found.append(item["name"])
+                    self._previews("bajando", self.tx(f"Guardando referencias de {label}: {len(found)} hasta ahora…", f"Saving references for {label}: {len(found)} so far…"))
+
+            try:
+                await asyncio.wait_for(asyncio.gather(*(one(p) for p in proposed)), INSPIRATION_SEARCH_LIMIT)
+            except asyncio.TimeoutError:
+                pass  # what arrived in time is enough; the rest stays out
+            if proposed:
+                insp.mark_for_curation(rubro, label, found)
+        return insp.choose(rubro, 6, seed=self.id)
+
+    async def _write_directions(self, wish: str) -> list[dict]:
+        """Three one-screen proposals. They never stay in the project: only the chosen one reaches the designer."""
+        self.status = "running"
+        self.turns += 1
+        self.design_turns += 1
+        self.emit("build.started", build=self.snapshot())
+        self.emit("turn.started", turn=self.turns, phase="design")
+        self._note(self.tx("El diseñador prepara tres direcciones para que elijas.", "The designer prepares three directions for you to choose from."))
+        if self.inspiration is None:
+            try:
+                self.inspiration = await self._gather_inspiration()
+            except Exception:
+                log.exception("inspiration")
+                self.inspiration = []
+        picks = self.inspiration
+        ask = DIRECTIONS_PROMPT.format(language=self.req.language) + (f"\n\nLa persona vio tres y ninguna la convenció. Pidió esto: {wish}" if wish else "") + design_platform_note(self.req.platform) + research_context(self.research_md, bool(self.req.deep_analysis))
+        who = self._designer()
+        self._previews("generando", self.tx("Generando tus tres previews…", "Generating your three previews…"))
+        if picks and not (self.engine and not who) and self._can_see():
+            see = self._vision_model()
+            assert see
+            notes = await self._ask(INSPIRATION_READ, f"Producto: {self.title}", see[0], see[1], see[2], images=[(insp.LIBRARY / i["file"]).read_bytes() for i in picks], max_tokens=800)
+            ask += INSPIRATION_TEXT_NOTE.format(notes=notes) if notes.strip() else ""
+        if self.engine and not who:
+            assert self.workdir
+            if picks:
+                shelf = self.workdir / "design" / "inspiracion"
+                shelf.mkdir(parents=True, exist_ok=True)
+                for i in picks:
+                    shutil.copy(insp.LIBRARY / i["file"], shelf / i["file"])
+                ask += INSPIRATION_NOTE
+            res = await run_engine(self.engine, ask + DIRECTIONS_ENGINE_FORMAT, self.workdir, resume_session=self.engine_session, model=self._engine_model(), on_event=_ignore_engine_event)
+            if res.get("session_id"):
+                self.engine_session = res["session_id"]
+            self.cost += float(res.get("cost") or 0)
+            self.engine_cost += float(res.get("cost") or 0)
+            self.engine_tokens += int(res.get("tokens") or 0)
+            sync_files(self.workdir, self.files)
+        else:
+            provider, model, cred = who if who else (self.req.provider, self.req.model, self.cred)
+            text = await self._turn(frontend_design_guide(), f"BRIEF DEL PRODUCTO:\n\n{self.brief[:30000]}\n\n---\n{ask}{DIRECTIONS_API_FORMAT}", phase="design", provider=provider, model=model, cred=cred)
+            if text is None:
+                return []
+            self._apply(text, phase="design")
+        found = read_directions(self.files)
+        for rel in [p for p in self.files if p.startswith(DIRECTIONS_DIR + "/")]:
+            del self.files[rel]
+        if self.workdir:
+            shutil.rmtree(self.workdir / DIRECTIONS_DIR, ignore_errors=True)
+            shutil.rmtree(self.workdir / "design" / "inspiracion", ignore_errors=True)
+        return found
+
+    async def _final_app_check(self) -> None:
+        """The last look: the finished app, running. Best effort: whatever fails here, the build is delivered as it was."""
+        if self.status != "completed" or self._stop.is_set() or self.req.platform != "web":
+            return
+        self._note(self.tx("Revisión final: se prueba la app terminada en un navegador.", "Final check: the finished app is tried in a browser."))
+        try:
+            if self.engine:  # a local agent can run it and walk the whole flow itself
+                await self.run(APP_CHECK_PROMPT)
+            elif PROVIDERS.get(self.req.provider) and PROVIDERS[self.req.provider].kind != "mock":
+                async with CHECK_RUNS:
+                    await self._api_app_check()
+        except Exception:
+            log.exception("final app check")
+
+    async def _api_app_check(self) -> None:
+        """A builder with no hands (API model): Muse Team runs the app and shows it the captures of the home screen."""
+        from . import runner
+        from .deploy import materialize
+
+        root = materialize(self.user.id, self.id, self.files, self.workdir)
+        services = runner.detect(root)
+        if not services:
+            return
+        run = runner.AppRun(root, services[0], self.user.id, self.id, self.files, lambda t, d: None)
+        run.quiet = True
+        run.task = spawn(run.run())
+        fix = None
+        try:
+            t0 = time.time()
+            while run.status not in ("running", "error", "stopped") and time.time() - t0 < 15 * 60 and not self._stop.is_set():
+                await asyncio.sleep(2)
+            if run.status == "error":
+                fix = "REVISIÓN FINAL: la app no arranca. " + (run.error or "") + "\nLo último que dijo:\n" + "\n".join(run.logs[-40:]) + "\n\nCorregí la causa."
+            elif run.status == "running" and self._can_see():
+                who = self._vision_model()
+                assert who
+                with tempfile.TemporaryDirectory(prefix="tably-app-") as tmp:
+                    target = run.embed_url or run.url or ""
+                    cap = await _capture_both(target, target, Path(tmp))
+                if cap.desktop:
+                    answer = await self._ask(DESIGN_CRITIC, f"{APP_CRITIC_NOTE} App: {self.title}. Primera imagen: escritorio. Segunda: celular.", who[0], who[1], who[2], images=[i for i in (cap.desktop, cap.mobile) if i], max_tokens=1200)
+                    problems = parse_design_critique(answer)
+                    if problems:
+                        fix = "REVISIÓN FINAL de la app funcionando (capturas reales). Corregí esto, sin agregar funciones ni cambiar la dirección visual:\n- " + "\n- ".join(problems)
+        finally:
+            await run.stop()
+            runner.TOKENS.pop(run.token, None)
+        if fix and not self._stop.is_set():
+            self._note(self.tx("La revisión final encontró problemas: el constructor los corrige.", "The final check found problems: the builder fixes them."))
+            await self.run(fix)
+
+    async def _visual_design_check(self) -> None:
+        """Nobody had seen the mockup rendered before the user did: capture it for real and let a critic send it back once.
+        Best effort: without Chrome or a model that can see, or on any failure, the design goes on as it was."""
+        if DESIGN_MOCKUP not in self.files or self._stop.is_set() or self.status == "error":
+            return
+        try:
+            with tempfile.TemporaryDirectory(prefix="tably-mockup-") as tmp:
+                page = Path(tmp) / "mockup.html"
+                page.write_text(self.design_html or self.files[DESIGN_MOCKUP])
+                cap = await _capture_both(page.as_uri(), "mockup.html", Path(tmp))
+            if not cap.desktop:
+                return
+            vision = self._vision_model()
+            if vision and PROVIDERS.get(vision[0]) and PROVIDERS[vision[0]].kind != "mock":
+                self._note(self.tx("Revisión visual: el diseño se mira en pantalla antes de mostrártelo.", "Visual check: the design is looked at on screen before you see it."))
+                answer = await self._ask(DESIGN_CRITIC, f"Maqueta de: {self.title}. Primera imagen: escritorio. Segunda: celular.", vision[0], vision[1], vision[2], images=[i for i in (cap.desktop, cap.mobile) if i], max_tokens=1200)
+                problems = parse_design_critique(answer)
+                if problems:
+                    self._note(self.tx("La revisión visual encontró problemas: el diseñador los corrige.", "The visual check found problems: the designer fixes them."))
+                    await self.design_phase(feedback="Revisión visual de la maqueta renderizada:\n- " + "\n- ".join(problems))
+                    await self._ensure_mockup()
+            elif self.engine == "claude-code" and self.workdir:  # subscription without an API key: the same agent looks at the captures
+                await self._engine_visual_check(cap)
+        except Exception:
+            log.exception("visual design check")
+
+    async def _engine_visual_check(self, cap: Any) -> None:
+        assert self.engine and self.workdir
+        shots = self.workdir / "design" / "capturas"
+        shots.mkdir(parents=True, exist_ok=True)
+        try:
+            for name, data in (("escritorio.png", cap.desktop), ("celular.png", cap.mobile)):
+                if data:
+                    (shots / name).write_bytes(data)
+            self._note(self.tx("Revisión visual: el diseño se mira en pantalla antes de mostrártelo.", "Visual check: the design is looked at on screen before you see it."))
+            self.turns += 1
+            self.design_turns += 1
+            self.emit("turn.started", turn=self.turns, phase="design")
+            res = await run_engine(self.engine, f"{DESIGN_CRITIC.split('Respondé SOLO')[0]}\nAbrí las capturas de design/capturas/ y juzgalas con esa vara. Si fallan, corregí design/mockup.html, y design/DESIGN.md o design/tokens.css si hace falta, y volvé a comparar con lo que escribiste. No escribas código de la app ni toques design/capturas. Terminá con una línea: qué corregiste, o que estaba bien.", self.workdir, resume_session=self.engine_session, model=self._engine_model(), on_event=_ignore_engine_event)
+            if res.get("session_id"):
+                self.engine_session = res["session_id"]
+            self.cost += float(res.get("cost") or 0)
+            self.engine_cost += float(res.get("cost") or 0)
+            self.engine_tokens += int(res.get("tokens") or 0)
+        finally:
+            shutil.rmtree(shots, ignore_errors=True)
+        self._sync_from_disk()
+        self._save()
 
     async def _engine_design(self) -> None:
         assert self.engine and self.workdir
@@ -1377,7 +1666,7 @@ class Build:
         try:
             designer = next((a for a in self.team if a.get("role") == "product-designer"), None)
             fb = getattr(self, "_design_feedback_now", None)
-            dprompt = ENGINE_DESIGN_PROMPT + uikit.designer_block(self.req.platform) + frontend_design_guide() + design_platform_note(self.req.platform) + (self._design_ref_prompt() if self.research_md else "") + (REA_PROMPT if self.req.deep_analysis else "") + (f"\n\nYA EXISTE design/ y el usuario lo revisó. Pide ESTOS CAMBIOS (prioridad absoluta): {fb}\nRediseñá los tres archivos aplicándolos y mejorando el resto." if fb else "") + ("\n\n" + skillmod.prompt_block(self.user.id, designer.get("skills")) if designer and designer.get("skills") else "")
+            dprompt = ENGINE_DESIGN_PROMPT + uikit.designer_block(self.req.platform) + frontend_design_guide() + design_platform_note(self.req.platform) + direction_note(self.direction_chosen, getattr(self, "_direction_wish", "")) + (self._design_ref_prompt() if self.research_md else "") + (REA_PROMPT if self.req.deep_analysis else "") + (f"\n\nYA EXISTE design/ y el usuario lo revisó. Pide ESTOS CAMBIOS (prioridad absoluta): {fb}\nRediseñá los tres archivos aplicándolos y mejorando el resto." if fb else "") + ("\n\n" + skillmod.prompt_block(self.user.id, designer.get("skills")) if designer and designer.get("skills") else "")
             res = await run_engine(self.engine, dprompt, self.workdir, resume_session=self.engine_session, model=self._engine_model(), mcp=self._engine_mcp(), on_event=on_event)
             if res.get("session_id"):
                 self.engine_session = res["session_id"]

@@ -229,6 +229,7 @@ export const api = {
   updateTeam: (sessionId: string, agents: AgentConfig[]) => j<{ agents: AgentConfig[] }>(authed(`/api/sessions/${sessionId}/team`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ agents }) })),
   session: (id: string) => j<{ id: string; status: string; config?: SessionConfig; events: ArenaEvent[] }>(authed(`/api/sessions/${id}`)),
   start: (cfg: SessionConfig) => j<{ id: string }>(post('/api/sessions', cfg)),
+  directCheck: (body: Record<string, unknown>) => j<{ question: string | null; options?: string[] }>(post('/api/direct-builds/check', body)),
   directBuild: (body: Record<string, unknown>) => j<{ session_id: string; id: string; brief_by: string }>(post('/api/direct-builds', body)),
   stop: (id: string) => j(post(`/api/sessions/${id}/stop`, {})),
   councilRedo: (id: string) => j<Record<string, unknown>>(post(`/api/sessions/${id}/council/redo`, {})),
@@ -243,12 +244,13 @@ export const api = {
   buildDesignApprove: (id: string, session_id?: string | null) => j<{ ok: boolean }>(post(`/api/builds/${id}/design/approve`, { session_id })),
   designSummary: (sessionId: string, id: string, lang: string, refresh = false) => j<{ text: string | null; reason?: string; model?: string; ts?: number }>(authed(`/api/sessions/${sessionId}/builds/${id}/design/summary?lang=${lang}${refresh ? '&refresh=true' : ''}`)),
   designRequest: (id: string, text: string, session_id?: string | null) => j<{ ok: boolean; mode: 'redo' | 'queued' | 'resumed' }>(post(`/api/builds/${id}/design/request`, { text, session_id })),
+  buildDesignDirection: (id: string, body: { index?: number; feedback?: string }, session_id?: string | null) => j<{ ok: boolean }>(post(`/api/builds/${id}/design/direction`, { ...body, session_id })),
   buildDesignRedo: (id: string, feedback: string, session_id?: string | null) => j<{ ok: boolean }>(post(`/api/builds/${id}/design/redo`, { feedback, session_id })),
   startBuild: (session_id: string, provider: string, model: string, target: string, review_rounds = 0, priorities = '', design = true, opts: { research?: boolean; references?: string[]; deep_analysis?: boolean } = {}) =>
     j<{ id: string }>(post('/api/builds', { session_id, provider, model, target, review_rounds, priorities, design, research: opts.research ?? false, references: opts.references ?? [], deep_analysis: opts.deep_analysis ?? false })),
   sceneStatus: (sessionId: string) => j<{ ready: boolean; pending: boolean; failed_recently: boolean }>(authed(`/api/sessions/${sessionId}/scene/status`)),
   sceneRegenerate: (sessionId: string) => j<{ ready: boolean; pending: boolean }>(authed(`/api/sessions/${sessionId}/scene/regenerate`, { method: 'POST' })),
-  researchJobStart: (references: string[], brief: string, deep_analysis: boolean) => j<ResearchJob>(post('/api/research/jobs', { references, brief, deep_analysis })),
+  researchJobStart: (references: string[], brief: string, deep_analysis: boolean, hidden = false) => j<ResearchJob>(post('/api/research/jobs', { references, brief, deep_analysis, hidden })),
   researchJob: (id: string) => j<ResearchJob>(authed(`/api/research/jobs/${id}`)),
   researchStatus: () => j<{ chrome: string | null; rea: { ok: boolean; cli: string | null; registered: boolean; fee_usd: number }; deep_fee_usd: number; max_references: number }>(authed('/api/research/status')),
   buildCouncil: (id: string, session_id: string | null, max_rounds: number, priorities = '', references: string[] = [], deep_analysis = false, focus: 'production' | 'design' = 'production') => j<{ session_id: string | null; researching?: number }>(post(`/api/builds/${id}/council`, { session_id, max_rounds, priorities, references, deep_analysis, focus })),
@@ -312,6 +314,8 @@ export const api = {
   passwordChange: (current: string, next: string) => j<{ ok: boolean }>(post('/api/auth/password', { current, new: next })),
   adminAccess: () => j<{ admin: boolean }>(authed('/api/admin/access')),
   backoffice: () => j<BackofficeData>(authed('/api/admin/backoffice')),
+  inspiration: () => j<InspirationStatus>(authed('/api/admin/inspiration')),
+  inspirationAdd: (body: { rubro: string; name: string; image: string; done?: boolean }) => j<InspirationStatus>(post('/api/admin/inspiration', body)),
   backofficeSetStatus: (id: string, status: string) => j<{ ok: boolean }>(authed(`/api/admin/requests/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status }) })),
   backofficeReply: (id: string, text: string) => j<{ ts: number; to_addr: string; text: string }>(post(`/api/admin/requests/${id}/reply`, { text })),
   backofficeTicket: async (id: string) => {
@@ -917,6 +921,15 @@ export interface FdePackage {
 }
 
 export interface Profile { id: string; email: string; name: string; phone: string; pending_email: string | null }
+
+export interface InspirationStatus {
+  total: number
+  known_sites: number
+  failed: number
+  shelves: Record<string, number>
+  rubros: Record<string, string>
+  to_curate: { rubro: string; label: string; ts: number; fetched: string[] }[]
+}
 
 export interface BackofficeData {
   overview: { users: number; verified: number; open_requests: number; new_requests: number; paid_usd: number; apps: number; open_errors: number; emails: number; emails_failed: number }

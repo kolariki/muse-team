@@ -77,25 +77,32 @@ async def _run(job: dict, user: User) -> None:
                     seen.add(pr["url"])
         notes: list[str] = []
         workdir = job["dir"]
+        if job.get("hidden"):  # the team's own references (no address the person typed): nothing is named or linked
+            _act(job, "search", "Investigando referentes")
         for i, ref in enumerate(refs):
-            _act(job, "search", f"Entrando a {ref['name'] or ref['url']}", ref["url"])
+            if not job.get("hidden"):
+                _act(job, "search", f"Entrando a {ref['name'] or ref['url']}", ref["url"])
             cap = await rsch.capture_async(ref["url"])
             shots = rsch.save_shots(workdir, i, cap)
-            job["visited"].append({"name": ref["name"], "url": ref["url"], "ok": cap.ok, "error": cap.error, "shots": shots, "title": cap.title})
+            job["visited"].append({"name": "", "url": None, "ok": cap.ok} if job.get("hidden") else {"name": ref["name"], "url": ref["url"], "ok": cap.ok, "error": cap.error, "shots": shots, "title": cap.title})
             if not cap.ok:
-                _act(job, "search", f"No se pudo abrir {ref['url']}: {cap.error}")
+                if not job.get("hidden"):
+                    _act(job, "search", f"No se pudo abrir {ref['url']}: {cap.error}")
                 continue
-            _act(job, "read", f"Analizando {ref['name'] or cap.title or ref['url']}", ref["url"])
+            if not job.get("hidden"):
+                _act(job, "read", f"Analizando {ref['name'] or cap.title or ref['url']}", ref["url"])
             images = [im for im in (cap.desktop, cap.mobile) if im] if not mock else None
             analysis = await _ask(rsch.analyze_system(deep), rsch.build_user_prompt_for_analysis(cap, job["brief"]), who, job, images=images, max_tokens=4500 if deep else 3000,
                                   mock_text=f"## 1. Qué es\n{cap.title or ref['url']} (simulado).\n## 2. Pantallas\nHome con buscador.\n## 3. Patrones\nCards.\n## 4. Decisiones\nSin cuentas.\n## 5. Emular / evitar\nEmular: buscador arriba.")
-            notes.append(f"## {ref['name'] or cap.title or ref['url']}\nURL: {ref['url']}\n\n{analysis.strip()}")
+            notes.append(f"## {ref['name'] or cap.title or ref['url']}\n" + ("" if job.get("hidden") else f"URL: {ref['url']}\n") + f"\n{analysis.strip()}")
         md = ""
         if notes:
-            _act(job, "plan", "Armando el brief de referentes", "research/REFERENCES.md")
+            _act(job, "plan", "Investigando referentes" if job.get("hidden") else "Armando el brief de referentes", "" if job.get("hidden") else "research/REFERENCES.md")
             synth = await _ask(rsch.synth_system(deep), f"NUESTRO BRIEF:\n{job['brief'][:8000]}\n\nREFERENTES (en orden de prioridad): {', '.join(r['name'] or r['url'] for r in refs)}\n\nNOTAS DE BENCHMARK:\n\n" + "\n\n---\n\n".join(notes), who, job, max_tokens=8000,
                               mock_text="# Referentes\n| app | mejor | falta |\n|---|---|---|\n| Windy | mapa | texto |\n# Patrones a emular\n- Mapa protagonista\n# Patrones a evitar\n- Densidad\n# Flujo recomendado\n1. Buscar ciudad\n# Copy y tono\nDirecto.\n# Checklist\n1. Carga < 2 s")
             md = f"<!-- Benchmark generado por Muse Team el {rsch.stamp()}. Observación de productos públicos; nada copiado. -->\n\n{synth.strip()}\n\n---\n\n# Notas por referente\n\n" + "\n\n".join(notes) + "\n"
+            if job.get("hidden"):
+                md = rsch.without_addresses(md, refs)
             (workdir / "REFERENCES.md").write_text(md)
         job.update(status="done", md=md, model=f"{PROVIDERS[who[0]].label} · {who[1]}")
     except Exception as e:  # noqa: BLE001
@@ -105,11 +112,11 @@ async def _run(job: dict, user: User) -> None:
         job["finished_at"] = time.time()
 
 
-def start(user: User, references: list[str], brief: str, deep: bool) -> dict:
+def start(user: User, references: list[str], brief: str, deep: bool, hidden: bool = False) -> dict:
     jid = "rj-" + uuid.uuid4().hex[:10]
     d = DATA_DIR.parent / "research" / user.id / jid
     d.mkdir(parents=True, exist_ok=True)
-    job = {"id": jid, "user_id": user.id, "refs": [r for r in references if r.strip()], "brief": brief[:12000], "deep": bool(deep), "dir": d,
+    job = {"id": jid, "user_id": user.id, "refs": [r for r in references if r.strip()], "brief": brief[:12000], "deep": bool(deep), "hidden": hidden, "dir": d,
            "status": "running", "visited": [], "activity": [], "md": "", "error": None, "tokens": 0, "started": time.time(), "finished_at": None}
     JOBS[jid] = job
     for k, j in list(JOBS.items()):  # forget old ones

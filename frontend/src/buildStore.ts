@@ -128,6 +128,8 @@ interface BuildState {
   previewHtml: string | null
   designHtml: string | null
   designRounds: number
+  directions: { name: string; why: string; html: string }[]  // while the person picks a visual direction
+  previews: { stage: string; text: string } | null  // «construyendo previews»
   team: TeamMember[]
   reviews: ReviewRound[]
   reviewPlan: { max_rounds: number } | null
@@ -200,6 +202,8 @@ const empty = {
   previewHtml: null,
   designHtml: null,
   designRounds: 0,
+  directions: [],
+  previews: null,
   team: [] as TeamMember[],
   reviews: [] as ReviewRound[],
   reviewPlan: null,
@@ -283,7 +287,7 @@ export const useBuild = create<BuildState>((set, get) => ({
         set({
           id: b.id, sessionId: b.session_id, provider: b.provider, model: b.model, title: b.title,
           engineSession: b.engine_session ?? s.engineSession, workdir: b.workdir ?? s.workdir,
-          activity: b.activity ?? s.activity, todos: b.todos ?? s.todos, versions: b.versions ?? s.versions, pendingCouncil: b.pending_council ?? null, designRounds: b.design_rounds ?? s.designRounds, designHtml: b.design_html ?? s.designHtml,
+          activity: b.activity ?? s.activity, todos: b.todos ?? s.todos, versions: b.versions ?? s.versions, pendingCouncil: b.pending_council ?? null, designRounds: b.design_rounds ?? s.designRounds, directions: b.directions ?? [], previews: b.previews ?? null, designHtml: b.design_html ?? s.designHtml,
           appRun: b.app_run ? { status: b.app_run.status, service: b.app_run.service, label: b.app_run.label, url: b.app_run.url, embedUrl: b.app_run.embed_url ?? null, port: b.app_run.port, error: b.app_run.error, logs: b.app_run.logs ?? [], fix: b.app_run.fix ?? null, started: b.app_run.started } : s.appRun,
           status: b.status === 'running' ? 'running' : b.status, files: { ...s.files, ...b.files }, chat: b.chat, stages: b.stages,
           councilSessionsKnown: (b.council_sessions ?? []).length, cost: b.cost_usd, buildSeconds: (b as { build_seconds?: number }).build_seconds ?? s.buildSeconds, fees: (b as { fees_usd?: number }).fees_usd ?? 0, usage: (b as { usage?: Usage }).usage ?? s.usage, language: (b as { language?: string }).language ?? s.language, engineCost: (b as { engine_cost_usd?: number }).engine_cost_usd ?? s.engineCost, turns: (b as { turns?: number }).turns ?? s.turns, feesDue: (b as { fees_due_usd?: number }).fees_due_usd ?? 0, tokens: b.tokens, done: b.done, selected: s.selected ?? Object.keys(b.files)[0] ?? null,
@@ -398,6 +402,12 @@ export const useBuild = create<BuildState>((set, get) => ({
         break
       case 'design.ready':
         set({ designHtml: ev.html })
+        break
+      case 'previews.progress':
+        set({ previews: ev.previews, pane: 'design', paneOpen: true, lastEventTs: Date.now() })
+        break
+      case 'design.directions':
+        set({ directions: ev.directions, previews: null, status: 'design_review', liveTurn: null, pane: 'design', paneOpen: true, lastEventTs: Date.now() })
         break
       case 'design.review':
         // the designer finished: show the mockup and wait for the user's verdict before any code is written

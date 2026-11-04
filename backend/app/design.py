@@ -10,6 +10,7 @@ Deliverables (all under design/ in the project):
 """
 from __future__ import annotations
 
+import json
 import re
 
 from .expertise import EXPERTISE
@@ -130,6 +131,87 @@ construiste al lado de design/mockup.html y design/DESIGN.md y corregí, archivo
    vacíos que invitan a actuar; palabras de la persona usuaria, nunca nombres técnicos.
 Hacé los cambios ahora mismo en el código (no me describas lo que harías). Al final listá en 5-10 líneas qué cambiaste y qué quedó
 pendiente, y dejá la checklist de DESIGN.md marcada en NOTES.md."""
+
+
+DESIGN_CRITIC = """Sos un/a Design Director exigente. Mirás capturas REALES de una maqueta ya renderizada (escritorio y celular), como la vería
+la persona que encargó el producto. Juzgá solo lo que se ve, nunca lo que el diseño dice que hace. Falla si pasa algo de esto:
+1. Se nota sin terminar: fuente por defecto del navegador, texto o elementos encimados o cortados, zonas vacías sin motivo, imágenes rotas.
+2. Jerarquía: en tres segundos no se entiende qué es ni qué hacer, compiten varios protagonistas o no se ve la acción principal.
+3. Legibilidad: texto chico o con poco contraste, líneas demasiado largas o apretadas.
+4. Ritmo: márgenes y separaciones desparejos, cosas que deberían alinearse y no se alinean.
+5. Celular: desborda, queda chico para tocar, o es la versión de escritorio achicada.
+6. Parece plantilla: podría ser de cualquier otro producto, o trae los rasgos típicos de página generada (tarjetas todas iguales, degradado de relleno, adornos sin función).
+La captura de celular está en un marco de 390 px: la franja blanca a su derecha y el corte al final no son parte de la maqueta.
+No opines de gustos ni pidas cambios menores: si se ve como un producto profesional, aprobalo.
+Respondé SOLO con JSON: {"aprobado": true|false, "problemas": ["qué se ve mal, dónde y cómo corregirlo"]}, máximo 6 problemas, los más graves primero."""
+
+
+APP_CHECK_PROMPT = """REVISIÓN FINAL DE LA APP TERMINADA. La maqueta ya se revisó; ahora se prueba lo que va a recibir la persona, en un navegador de verdad:
+1. Levantá la app como la correría ella y abrila con un navegador sin ventana (Playwright si el proyecto lo trae; si no, `npx playwright`).
+2. Recorré el camino principal de BRIEF.md de punta a punta, haciendo clic y cargando datos reales, como alguien que la ve por primera vez.
+3. Sacá capturas de cada paso a 1440 px y a 390 px de ancho, abrilas y miralas. Si no podés ver imágenes, medí: nada desborda, nada se encima, sin errores en la consola.
+4. Comparalas con design/mockup.html y corregí lo que se ve mal o no funciona: pasos rotos, errores en la consola, pantallas distintas a la maqueta, textos encimados o cortados, estados vacíos sin terminar.
+Solo corregí: no agregues funciones ni cambies la dirección visual. Borrá las capturas al terminar y dejá las pruebas en verde.
+Terminá en 3-6 líneas, en palabras simples: qué probaste, qué corregiste y qué sigue sin funcionar, si algo no quedó."""
+
+APP_CRITIC_NOTE = "Estas capturas son de la app ya construida y funcionando, no de una maqueta. La de celular es la pantalla de inicio en un marco de 390 px."
+
+DIRECTION_RE = re.compile(r"<!--\s*nombre:\s*(.+?)\s*\|\s*por qu[eé]:\s*(.+?)\s*-->", re.S | re.I)
+DIRECTIONS_DIR = "design/direcciones"
+
+DIRECTIONS_PROMPT = """Antes del diseño completo, la persona va a elegir entre TRES direcciones visuales. Leé el brief y escribí tres archivos: design/direcciones/1.html, 2.html y 3.html.
+Cada uno es la pantalla más importante del producto, terminada: un HTML autocontenido (CSS en <style>; Google Fonts por <link> si hace falta; sin frameworks), responsive, con textos reales del rubro. Nada de lorem ipsum ni de una galería de opciones: una sola pantalla, como quedaría de verdad. Si el brief no trae precios, teléfonos u otros datos del negocio, no los inventes: dejá el lugar con un texto que se note de ejemplo.
+Tienen que ser realmente distintas: otra paleta, otra tipografía, otra distribución y otro tono. Si dos se pueden confundir de lejos, cambiá una. Las tres cumplen el brief y se ven profesionales: no hagas una mala para que gane otra.
+La primera línea de cada archivo es exactamente: <!-- nombre: dos o tres palabras | por qué: una frase simple sobre para quién o por qué funciona -->
+Sé breve: cada archivo, como máximo 150 líneas. Idioma de los textos: {language}."""
+
+INSPIRATION_NOTE = """
+INSPIRACIÓN: en design/inspiracion/ hay capturas de sitios con muy buen diseño. Abrilas antes de diseñar y subí la vara: que tus direcciones se animen como esas. Tomá ideas (composición, jerarquía, ritmo, audacia) y combiná las de varias: ninguna dirección puede ser la versión de un solo sitio con otros colores. Colores, tipografías, textos e imágenes son propios; nunca uses sus logos, fotos ni marcas."""
+
+INSPIRATION_READ = """Sos Director de Arte. Mirás capturas de sitios con muy buen diseño y le pasás a tu diseñador, en menos de 300 palabras, las ideas que puede combinar para un producto nuevo: composición, jerarquía, ritmo, tipografía, uso del color, qué se anima a hacer cada una. Describí ideas, no marcas, y no le pidas copiar ninguna."""
+
+INSPIRATION_TEXT_NOTE = """
+INSPIRACIÓN: tu Director de Arte miró sitios con muy buen diseño y anotó ideas. Subí la vara con ellas y combiná varias; colores, tipografías, textos e imágenes son propios.
+{notes}"""
+
+DIRECTIONS_API_FORMAT = """
+Entregá solo esto, sin texto afuera: <say>una línea</say><file path="design/direcciones/1.html">…</file><file path="design/direcciones/2.html">…</file><file path="design/direcciones/3.html">…</file>"""
+
+DIRECTIONS_ENGINE_FORMAT = "\nEscribí los tres archivos directamente. No escribas nada más, ni fuera de design/direcciones/."
+
+
+def read_directions(files: dict[str, str]) -> list[dict]:
+    """The directions the designer wrote, in order: {name, why, html}."""
+    out = []
+    for i in (1, 2, 3):
+        html = files.get(f"{DIRECTIONS_DIR}/{i}.html")
+        if html and "<" in html:
+            m = DIRECTION_RE.search(html[:600])
+            out.append({"name": m.group(1).strip()[:60] if m else f"Dirección {i}", "why": m.group(2).strip()[:220] if m else "", "html": html})
+    return out
+
+
+def direction_note(direction: dict | None, wish: str = "") -> str:
+    if not direction:
+        return ""
+    return (f"\n\nDIRECCIÓN ELEGIDA POR LA PERSONA (manda: desarrollala en todas las pantallas, no la reemplaces): {direction['name']}. {direction['why']}"
+            f"{' Pidió además: ' + wish if wish else ''}\n\nPantalla de muestra de esa dirección:\n{direction['html'][:24000]}")
+
+
+def parse_design_critique(text: str) -> list[str] | None:
+    """The problems the critic found: [] when approved, None when the answer can't be read (the design then goes on unchanged)."""
+    m = re.search(r"\{.*\}", text or "", re.S)
+    if not m:
+        return None
+    try:
+        d = json.loads(m.group(0))
+    except ValueError:
+        return None
+    if not isinstance(d, dict) or not isinstance(d.get("aprobado"), bool):
+        return None
+    if d["aprobado"]:
+        return []
+    return [str(x) for x in (d.get("problemas") or []) if str(x).strip()][:6] or None
 
 
 def design_system_prompt(language: str = "español", platform: str = "web") -> str:

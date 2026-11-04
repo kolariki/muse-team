@@ -1032,6 +1032,35 @@ async def session_brief(session_id: str, req: BriefRequest, user: User = Current
     return StreamingResponse(stream_brief(user, session_id, req), media_type="text/markdown; charset=utf-8")
 
 
+def _brief_writer(eff: dict, provider: str, model: str) -> tuple[str, str]:
+    """Who writes for a direct build: the builder's own API model, else the first configured API provider, else mock."""
+    if not is_engine(provider) and eff.get(provider) and eff[provider].source != "none":
+        return provider, model
+    for pid in ("meta", "anthropic", "openai", "gemini", "deepseek", "xai", "groq", "mistral", "openrouter", "kimi", "ollama", "baseten"):
+        c = eff.get(pid)
+        if c and c.source != "none":
+            return pid, c.model or PROVIDERS[pid].default_model
+    return "mock", "mock-1"
+
+
+@app.post("/api/direct-builds/check")
+async def direct_build_check(body: dict, user: User = CurrentUser):
+    """The one question worth asking before a long build, if there is one. Never blocks: on any failure the build just goes on."""
+    from .exporter import scope_question
+
+    topic = (body.get("topic") or "").strip()
+    provider, model = body.get("provider") or "mock", body.get("model") or ""
+    if not topic:
+        return {"question": None}
+    bp, bm = _brief_writer(keystore.creds(user.id), provider, model)
+    try:
+        q = await asyncio.wait_for(scope_question(user, topic, body.get("language") or "español rioplatense", bp, bm, provider if bp == "mock" and is_engine(provider) else None), 90)
+    except Exception:
+        log.exception("direct build check")
+        q = None
+    return q or {"question": None}
+
+
 @app.post("/api/direct-builds")
 async def create_direct_build(body: dict, user: User = CurrentUser):
     """The fast lane: one (prompt-engineered) request → brief written by a model → builder, no council. Returns the session
@@ -1049,17 +1078,8 @@ async def create_direct_build(body: dict, user: User = CurrentUser):
     if target not in TARGETS:
         target = "claude-code"
     refs = [r.strip() for r in body.get("references", []) if isinstance(r, str) and r.strip()] if isinstance(body.get("references"), list) else []
-    # who writes the brief: the builder's own API model, else the first configured API provider, else mock
     eff = keystore.creds(user.id)
-    bp, bm = (provider, model) if (not is_engine(provider) and eff.get(provider) and eff[provider].source != "none") else (None, None)
-    if not bp:
-        for pid in ("meta", "anthropic", "openai", "gemini", "deepseek", "xai", "groq", "mistral", "openrouter", "kimi", "ollama", "baseten"):
-            c = eff.get(pid)
-            if c and c.source != "none":
-                bp, bm = pid, c.model or PROVIDERS[pid].default_model
-                break
-    if not bp:
-        bp, bm = "mock", "mock-1"
+    bp, bm = _brief_writer(eff, provider, model)
     sid = _t.strftime("%Y%m%d-%H%M%S-") + __import__("uuid").uuid4().hex[:6]
     agents = [a for a in (body.get("agents") or []) if isinstance(a, dict) and a.get("role")]
     config = {"topic": topic, "title": title, "mode": "direct", "agents": agents, "max_turns": 0, "min_turns": 0, "language": body.get("language") or "español rioplatense",
@@ -1072,7 +1092,7 @@ async def create_direct_build(body: dict, user: User = CurrentUser):
     # the brief, written now (it is what the builder follows); cached next to the session like any brief
     parts: list[str] = []
     try:
-        async for chunk in stream_brief(user, sid, BriefRequest(provider=bp, model=bm, target=target, include_transcript=False, regenerate=True)):
+        async for chunk in stream_brief(user, sid, BriefRequest(provider=bp, model=bm, target=target, include_transcript=False, regenerate=True), engine=provider if bp == "mock" and is_engine(provider) else None):
             parts.append(chunk)
     except ValueError as e:
         raise HTTPException(400, str(e))
@@ -1087,10 +1107,10 @@ async def create_direct_build(body: dict, user: User = CurrentUser):
         if not cred or cred.source == "none":
             raise HTTPException(400, f"Falta la API key de {provider}")
     req = BuildRequest(session_id=sid, provider=provider, model=model or (cred.model or ""), target=target, review_rounds=0, council=True, design=bool(body.get("design", True)),
-                       design_review=False, research=bool(refs), references=refs, deep_analysis=bool(body.get("deep_analysis")), platform=config["platform"], references_auto=bool(config.get("references_auto")), language=config.get("language") or "español rioplatense")
+                       design_review=False, research=bool(refs), auto_references=not refs and config["platform"] == "web" and "Referentes" not in str(config.get("context") or ""), references=refs, deep_analysis=bool(body.get("deep_analysis")), platform=config["platform"], references_auto=bool(config.get("references_auto")), language=config.get("language") or "español rioplatense")
     b = start_build(user, req, cred, brief, title, agents, eff)
     b.chat.insert(0, {"role": "system", "text": "Vía rápida: brief escrito desde tu pedido (sin consejo) y construcción directa.", "ts": _t.time()})
-    return {"session_id": sid, "id": b.id, "brief_by": f"{bp} · {bm}"}
+    return {"session_id": sid, "id": b.id, "brief_by": provider if bp == "mock" and is_engine(provider) else f"{bp} · {bm}"}
 
 
 # ---------------------------------------------------------------------------- in-app builder
@@ -1107,7 +1127,7 @@ async def research_job_start(body: dict, user: User = CurrentUser):
     refs = [r.strip() for r in body.get("references", []) if isinstance(r, str) and r.strip()] if isinstance(body.get("references"), list) else []
     if not refs:
         raise HTTPException(400, "Sin referencias")
-    return research_jobs.start(user, refs, str(body.get("brief") or ""), bool(body.get("deep_analysis")))
+    return research_jobs.start(user, refs, str(body.get("brief") or ""), bool(body.get("deep_analysis")), bool(body.get("hidden")))
 
 
 @app.get("/api/research/jobs/{jid}")
@@ -1995,9 +2015,26 @@ async def build_resume(build_id: str, body: dict, user: User = CurrentUser):
 async def build_design_approve(build_id: str, body: dict | None = None, user: User = CurrentUser):
     """The user approved the mockup: the build goes on to write code."""
     b = _build(user, build_id, (body or {}).get("session_id"))
-    if b.status != "design_review":
+    if b.status != "design_review" or b.directions:
         raise HTTPException(409, "Esta construcción no está esperando aprobación del diseño")
     b.approve_design()
+    return {"ok": True}
+
+
+@app.post("/api/builds/{build_id}/design/direction")
+async def build_design_direction(build_id: str, body: dict, user: User = CurrentUser):
+    """The person picked one of the three directions (index), or none of them (feedback: three more with what they said)."""
+    b = _build(user, build_id, body.get("session_id"))
+    if b.status != "design_review" or not b.directions:
+        raise HTTPException(409, "Esta construcción no está esperando que elijas una dirección")
+    fb = str(body.get("feedback") or "").strip()
+    idx = body.get("index")
+    if isinstance(idx, int) and 0 <= idx < len(b.directions):
+        b.choose_direction(idx, fb)
+    elif fb:
+        b.redo_design(fb)
+    else:
+        raise HTTPException(400, "Elegí una dirección o contá qué buscás")
     return {"ok": True}
 
 
@@ -2392,12 +2429,21 @@ def skills_catalog_translate_status(user: User = CurrentUser):
 
 
 @app.post("/api/skills/suggest")
-def skills_suggest(body: SuggestBody, user: User = CurrentUser):
-    """Catalog skills a task needs, per role: {role_id: [skill…]} plus a general list."""
-    per_role = {}
+async def skills_suggest(body: SuggestBody, user: User = CurrentUser):
+    """Catalog skills a task needs, per role: {role_id: [skill…]} plus a general list. A word search finds the candidates and a
+    model chooses among them; with no model available, the word search's own best."""
+    shortlist = {}
     for r in body.roles:
         grp = ROLE_GROUP_TO_CATALOG.get(r.get("group") or "", None)
-        per_role[r.get("id")] = catalog.suggest(f"{body.text}\n{r.get('mandate', '')}", k=body.k, role_group=grp)  # the mandate says what the role needs; its title only adds noise
+        shortlist[r.get("id")] = catalog.suggest(f"{body.text}\n{r.get('mandate', '')}", k=25, role_group=grp)  # the mandate says what the role needs; its title only adds noise
+    per_role = {k: v[:body.k] for k, v in shortlist.items()}
+    eff = keystore.creds(user.id)
+    bp, bm = _brief_writer(eff, "", "")
+    if bp != "mock" and any(shortlist.values()):
+        try:
+            per_role = await asyncio.wait_for(catalog.pick_for_roles(body.text, body.roles, shortlist, body.k, bp, bm, eff[bp]), 45) or per_role
+        except Exception:
+            log.exception("skills suggest")
     return {"general": catalog.suggest(body.text, k=body.k * 2), "per_role": per_role}
 
 
@@ -2660,6 +2706,10 @@ async def _startup():
     cloudmod.resume_watchers()  # Muse Cloud apps still deploying on Railway get their «is it up yet?» watcher back
     spawn(incidentsmod.monitor())  # published apps: their errors go to the builder, fixed and published again
     spawn(adtiermod.daily_loop())  # AdTier: videos whose embed stopped working are unpublished
+    if os.getenv("RAILWAY_ENVIRONMENT"):  # the inspiration library fills itself on the server's disk, a site at a time
+        from . import inspiration
+
+        spawn(inspiration.fill_in_background())
 
 
 # ================================================================================================ Muse Cloud · git propio, publicar, base de datos, migrar
@@ -5134,6 +5184,36 @@ def _meta_open(user: User) -> bool:
 def _operator(user: User) -> None:
     if not _is_admin(user):
         raise HTTPException(403)
+
+
+@app.get("/api/admin/inspiration")
+def admin_inspiration(user: User = CurrentUser):
+    """How the inspiration library is doing, and the businesses waiting for someone to add examples by hand."""
+    from . import inspiration
+
+    if not _is_admin(user):
+        raise HTTPException(403, "Solo para administradores")
+    return inspiration.status()
+
+
+@app.post("/api/admin/inspiration")
+async def admin_inspiration_add(body: dict, user: User = CurrentUser):
+    """A capture picked by hand for a shelf: {rubro, name, image (data URL), done}."""
+    import base64
+
+    from . import inspiration
+
+    if not _is_admin(user):
+        raise HTTPException(403, "Solo para administradores")
+    rubro, name = str(body.get("rubro") or "").strip(), str(body.get("name") or "").strip()
+    m = re.match(r"^data:image/png;base64,(.+)$", str(body.get("image") or ""), re.S)
+    if not rubro or rubro not in inspiration.known_rubros() or not name or not m:
+        raise HTTPException(400, "Falta el rubro, el nombre o una imagen PNG")
+    png = base64.b64decode(m.group(1))
+    if len(png) > 8_000_000:
+        raise HTTPException(400, "La imagen pesa más de 8 MB")
+    inspiration.add_by_hand(rubro, name, png, done=bool(body.get("done")))
+    return inspiration.status()
 
 
 @app.get("/api/admin/backoffice")

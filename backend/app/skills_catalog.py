@@ -19,12 +19,16 @@ import subprocess
 import threading
 import time
 from pathlib import Path
+from urllib.parse import quote
+from urllib.request import urlopen
 
 from .config import DATA_DIR
 
 ROOT = DATA_DIR.parent / "skills-catalog"
 SOURCES_DIR = ROOT / "sources"
 INDEX_PATH = ROOT / "index.json"
+BUNDLED_INDEX = Path(__file__).resolve().parents[1] / "skills_catalog_index.json"  # ships with the code: the sources are 3 GB and a server has none
+CACHED_BODIES = ROOT / "cached"
 TRANSLATIONS_PATH = ROOT / "translations.json"  # {skill_id: {"name_es", "description_es"}}
 TRANSLATE: dict = {"running": False, "done": 0, "total": 0, "error": None, "finished": None}
 ROOT.mkdir(parents=True, exist_ok=True)
@@ -288,6 +292,13 @@ async def translate_missing(provider: str, model: str, cred) -> None:
         TRANSLATE["finished"] = time.time()
 
 
+def _bundled() -> list[dict]:
+    try:
+        return json.loads(BUNDLED_INDEX.read_text())
+    except (OSError, ValueError):
+        return []
+
+
 def index() -> list[dict]:
     global _cache
     if _cache is None:
@@ -297,12 +308,29 @@ def index() -> list[dict]:
             except json.JSONDecodeError:
                 _cache = build_index()
         else:
-            _cache = build_index() if any(SOURCES_DIR.iterdir()) else []
+            _cache = build_index() if SOURCES_DIR.is_dir() and any(SOURCES_DIR.iterdir()) else _bundled()
     return _cache
 
 
 def get(skill_id: str) -> dict | None:
     return next((s for s in index() if s["id"] == skill_id), None)
+
+
+def _remote_body(s: dict) -> str | None:
+    cached = CACHED_BODIES / f"{_slug(s['id'])}.md"
+    try:
+        return cached.read_text()[:MAX_BODY]
+    except OSError:
+        pass
+    in_repo = s["file"].split("/", 1)[1] if "/" in s["file"] else "SKILL.md"
+    try:
+        with urlopen(f"https://raw.githubusercontent.com/{s['repo']}/HEAD/{quote(in_repo)}", timeout=10) as r:
+            _meta, text = _frontmatter(r.read(400_000).decode("utf-8", "replace"))
+    except OSError:
+        return None
+    CACHED_BODIES.mkdir(parents=True, exist_ok=True)
+    cached.write_text(text.strip())
+    return text.strip()[:MAX_BODY]
 
 
 def body(skill_id: str) -> str | None:
@@ -313,8 +341,8 @@ def body(skill_id: str) -> str | None:
     f = SOURCES_DIR / s["file"]
     try:
         _meta, text = _frontmatter(f.read_text(errors="ignore"))
-    except OSError:
-        return None
+    except OSError:  # a server without the sources reads that one skill from its repo, once
+        return _remote_body(s)
     extras = [str(p.relative_to(f.parent)) for p in f.parent.rglob("*") if p.is_file() and p.name != "SKILL.md" and not any(x in p.parts for x in SKIP)][:40]
     tail = ("\n\n(Archivos que acompañan a esta skill en su repositorio: " + ", ".join(extras) + ")") if extras else ""
     return (text.strip()[:MAX_BODY] + tail)
@@ -459,3 +487,40 @@ def suggest(text: str, k: int = 5, role_group: str | None = None) -> list[dict]:
         scored.append((score, s))
     scored.sort(key=lambda x: (-x[0], x[1]["name"]))
     return [dict(localized(s), score=round(sc, 1)) for sc, s in scored[:k]]
+
+
+PICK_SYSTEM = """Armás un equipo de IA para una tarea. A cada rol le pasás, de una lista de candidatas, solo las skills que de verdad le sirven para ESA tarea.
+La lista sale de una búsqueda por palabras y trae coincidencias falsas: «hackernews» para un hackathon o «barbados vat» para una barbería no sirven. Si ninguna sirve para un rol, dejalo vacío. Mejor pocas y buenas.
+Respondé SOLO con JSON: {{"id del rol": ["id de skill", ...]}}, como máximo {k} por rol."""
+
+
+def parse_picks(text: str) -> dict[str, list[str]] | None:
+    m = re.search(r"\{.*\}", text or "", re.S)
+    try:
+        d = json.loads(m.group(0)) if m else None
+    except ValueError:
+        return None
+    return {str(k): [str(x) for x in v] for k, v in d.items() if isinstance(v, list)} if isinstance(d, dict) else None
+
+
+async def pick_for_roles(task: str, roles: list[dict], shortlist: dict[str, list[dict]], k: int, provider: str, model: str, cred) -> dict[str, list[dict]] | None:
+    """A model chooses among what the word search found, because the word search alone is not trustworthy. None if it can't answer."""
+    from .providers import CallResult, MockContext, stream
+
+    rows = []
+    for r in roles:
+        cands = "\n".join(f"- {c['id']}: {c['name']}. {str(c.get('description') or '')[:140]}" for c in shortlist.get(r.get("id"), []))
+        rows.append(f"ROL {r.get('id')} ({r.get('label') or ''}): {r.get('mandate') or ''}\nCandidatas:\n{cands or '(ninguna)'}")
+    user = f"TAREA:\n{task[:6000]}\n\n" + "\n\n".join(rows)
+    parts: list[str] = []
+    async for kind, delta in stream(provider, model, PICK_SYSTEM.format(k=k), user, temperature=0, max_tokens=1500, result=CallResult(), mock=MockContext("Skills", [("x", "x")], "skills", script="{}"), cred=cred):
+        if kind == "text":
+            parts.append(delta)
+    picks = parse_picks("".join(parts))
+    if picks is None:
+        return None
+    out = {}
+    for r in roles:
+        known = {c["id"]: c for c in shortlist.get(r.get("id"), [])}
+        out[r.get("id")] = [{**known[i], "score": 100} for i in picks.get(str(r.get("id")), []) if i in known][:k]
+    return out

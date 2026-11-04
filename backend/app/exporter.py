@@ -316,7 +316,41 @@ Empezá por la Etapa 1 y mostrame el plan antes de escribir código.
 ```"""
 
 
-async def stream_brief(user: User, session_id: str, req: BriefRequest) -> AsyncIterator[str]:
+SCOPE_SYSTEM = """Antes de construir, leés lo que pidió una persona sin formación técnica. Buscá UNA sola cosa: una contradicción real, o una decisión que cambie mucho cuánto hay que construir y que no se pueda decidir con criterio (por ejemplo: «sin servidor» junto con «que los datos se guarden para todos»).
+Si se puede decidir con criterio, no preguntes: casi siempre se puede. Nunca preguntes colores, nombres ni gustos.
+Respondé SOLO con JSON. Sin nada que aclarar: {{"pregunta": null}}. Si hay que aclarar: {{"pregunta": "una pregunta corta, en palabras simples", "opciones": ["2 o 3 respuestas cortas, que digan qué se va a construir"]}}. Idioma: {language}."""
+
+
+def parse_scope_question(text: str) -> dict | None:
+    m = re.search(r"\{.*\}", text or "", re.S)
+    try:
+        d = json.loads(m.group(0)) if m else None
+    except ValueError:
+        return None
+    if not isinstance(d, dict) or not d.get("pregunta"):
+        return None
+    options = [str(o).strip()[:140] for o in (d.get("opciones") or []) if str(o).strip()][:3]
+    return {"question": str(d["pregunta"]).strip()[:300], "options": options} if len(options) >= 2 else None
+
+
+async def scope_question(user: User, topic: str, language: str, provider: str, model: str, engine: str | None = None) -> dict | None:
+    """The one question worth asking before a long build; None (keep going) when there is none or nobody can read the request."""
+    system = SCOPE_SYSTEM.format(language=language)
+    if engine:
+        from .local_engine import ask_engine
+
+        return parse_scope_question((await ask_engine(user.id, engine, system, topic[:12000])).get("text") or "")
+    cred = keystore.creds(user.id).get(provider)
+    if provider not in PROVIDERS or PROVIDERS[provider].kind == "mock" or not cred or cred.source == "none":
+        return None
+    parts: list[str] = []
+    async for kind, delta in stream(provider, model, system, topic[:12000], temperature=0, max_tokens=400, result=CallResult(), mock=MockContext("Arquitecto", [("x", "x")], topic[:60], script='{"pregunta": null}'), cred=cred):
+        if kind == "text":
+            parts.append(delta)
+    return parse_scope_question("".join(parts))
+
+
+async def stream_brief(user: User, session_id: str, req: BriefRequest, engine: str | None = None) -> AsyncIterator[str]:
     path = session_path(user, session_id)
     cache = path.with_suffix(f".brief.{req.target}.md")
     data = json.loads(path.read_text())
@@ -339,7 +373,7 @@ async def stream_brief(user: User, session_id: str, req: BriefRequest) -> AsyncI
     if cfg.get("mode") == "direct":
         # the fast lane: no debate, the (prompt-engineered) request is the whole input
         user_msg = ("PEDIDO DEL USUARIO (ya pasó por prompt engineering; no hubo debate de equipo). Convertilo en el brief completo: donde el pedido no decide algo, "
-                    "decidilo vos con el criterio de un equipo senior y marcalo como «(supuesto)». Las secciones «Decisiones del debate» y «Desacuerdos» pasan a ser "
+                    "decidilo vos con el criterio de un equipo senior y marcalo como «(supuesto)». Lo que el pedido decide o excluye manda, y el alcance es el mínimo que lo cumple: sin cuentas, servidor, panel ni integraciones que el pedido no necesite. El brief no se contradice: si en el Alcance no hay servidor, el stack y la arquitectura tampoco. Las secciones «Decisiones del debate» y «Desacuerdos» pasan a ser "
                     "«Decisiones tomadas» y «Alternativas descartadas», con el porqué.\n\n" + str(cfg.get("topic") or ""))
         if cfg.get("context") and "Referentes" not in str(cfg.get("context")):
             user_msg += f"\n\nCONTEXTO ADJUNTO POR EL USUARIO:\n{str(cfg['context'])[:20000]}"
@@ -366,6 +400,19 @@ async def stream_brief(user: User, session_id: str, req: BriefRequest) -> AsyncI
         f"para {TARGETS[req.target]['label']} · {time.strftime('%Y-%m-%d %H:%M')} -->\n\n"
     )
     yield header
+    if engine:  # no API key: the subscription writes it, instead of the simulated brief
+        from .local_engine import ask_engine
+
+        try:
+            text = ((await ask_engine(user.id, engine, system, user_msg)).get("text") or "").strip()
+        except ValueError:
+            text = ""
+        if text:
+            yield text
+            if len(re.findall(r"^## \d+\.", text, re.M)) >= 12:
+                cache.write_text(header + text)
+            yield appendix
+            return
     parts: list[str] = []
     result = CallResult()
     mock = MockContext("Arquitecto", [("x", "x")], cfg["topic"], script=_mock_brief(data, req.target))

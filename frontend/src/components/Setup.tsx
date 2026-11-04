@@ -226,9 +226,14 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
     updateAgent(i, patch)
   }
 
+  // a new role shows first, without changing the team's order (the first of the list is the default judge)
+  const [addedRoles, setAddedRoles] = useState<string[]>([])
+  const shownAgents = () => cfg.agents.map((a, i) => ({ a, i })).sort((x, y) => { const ax = addedRoles.indexOf(x.a.id), ay = addedRoles.indexOf(y.a.id); return (ax < 0 ? Infinity : ax) - (ay < 0 ? Infinity : ay) || x.i - y.i })
   const addAgent = () => {
     const p = providers.find((x) => x.configured && x.id !== 'mock') ?? providers.find((x) => x.id === 'mock')!
     const n = cfg.agents.length + 1
+    setAddedRoles((ids) => [`agente-${n}`, ...ids])
+    teamRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     setCfg((c) => ({ ...c, agents: [...c.agents, { id: `agente-${n}`, name: `Agente ${n}`, provider: p.id, model: p.default_model, persona: '', color: p.id === 'mock' ? PALETTE[(n - 1) % PALETTE.length] : null }] }))
   }
 
@@ -245,6 +250,14 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
 
   /** Benchmark the references first, with the reverse-engineering screen; then the team intro; then the council. */
   const [directBusy, setDirectBusy] = useState(false)
+  const [scopeQ, setScopeQ] = useState<{ question: string; options: string[] } | null>(null)
+  const answerScope = (answer: string | null) => {
+    const q = scopeQ
+    setScopeQ(null)
+    const topic = answer && q ? `${cfg.topic}\n\nAclaración de la persona. ${q.question} ${answer}` : cfg.topic
+    setCfg((c) => ({ ...c, topic }))
+    void research(true, topic)
+  }
   // how the user wants to build: alone with the builder (direct) or with the whole team (council first)
   const [lane, setLaneState] = useState<'direct' | 'team' | null>(() => { if (HACKATHON_MODE) return 'team'; try { const v = localStorage.getItem('tably.lane'); return v === 'direct' || v === 'team' ? v : null } catch { return null } })  // hackathon edition: only the development-team lane
   const [showAllProviders, setShowAllProviders] = useState(false)  // Muse first: the other providers' chips stay behind a link
@@ -256,14 +269,22 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
     setTimeout(() => document.querySelector('[data-lane]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
   }
   const setLane = (l: 'direct' | 'team' | null) => { if (HACKATHON_MODE) l = 'team'; setLaneState(l); if (l) offerTour(l); try { if (l) localStorage.setItem('tably.lane', l); else localStorage.removeItem('tably.lane') } catch { /* private mode */ } }
-  const research = async (direct = false) => {
+  const research = async (direct = false, settledTopic?: string) => {
     if (!validate()) return
+    if (direct && settledTopic === undefined) {
+      // one question before a long build, only when the request contradicts itself; if the check fails, the build goes on
+      setBusy(true)
+      const q = await api.directCheck({ topic: cfg.topic, provider: builder.provider, model: builder.model, language: cfg.language }).catch(() => null)
+      setBusy(false)
+      if (q?.question && q.options?.length) { setScopeQ({ question: q.question, options: q.options }); return }
+    }
+    const asked = settledTopic === undefined ? cfg : { ...cfg, topic: settledTopic }
     let context = cfg.context ?? null
     const refs = effectiveRefs(cfg)
     if (refs.length) {
       setBusy(true)
       try {
-        const job = await api.researchJobStart(refs, `${cfg.title ?? ''}\n\n${cfg.topic}`, !!cfg.deep_analysis)
+        const job = await api.researchJobStart(refs, `${cfg.title ?? ''}\n\n${asked.topic}`, !!cfg.deep_analysis, !(cfg.references ?? []).some((r) => r.trim()))
         useBuild.getState().set({ researching: { refs, hidden: !(cfg.references ?? []).some((r) => r.trim()), started: Date.now(), visited: [], finished: false }, activity: [] })
         const md = await new Promise<string>((resolve) => {
           const tick = async () => {
@@ -294,7 +315,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
       setDirectBusy(true)
       setOpening(T('Escribiendo el brief y arrancando el constructor…', 'Writing the brief and starting the builder…'))
       try {
-        await onDirect({ ...cfg, references: effectiveRefs(cfg), references_auto: !(cfg.references ?? []).some((r) => r.trim()), context, builder: builder.provider ? builder : undefined })
+        await onDirect({ ...asked, references: effectiveRefs(cfg), references_auto: !(cfg.references ?? []).some((r) => r.trim()), context, builder: builder.provider ? builder : undefined })
       } catch (e) {
         setError((e as Error).message)
         setOpening(null)
@@ -461,6 +482,18 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
 
   return (
     <div className="h-full overflow-y-auto scroll-thin arena-bg">
+      {scopeQ && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-line bg-paper p-5 shadow-xl">
+            <div className="text-[11px] font-semibold text-ink-3">{T('Una pregunta antes de construir', 'One question before building')}</div>
+            <p className="mt-1 text-[17px] font-semibold leading-snug text-ink">{scopeQ.question}</p>
+            <div className="mt-4 flex flex-col gap-2">
+              {scopeQ.options.map((o) => <button key={o} type="button" onClick={() => answerScope(o)} className="rounded-xl border border-line bg-surface px-4 py-2.5 text-left text-sm font-medium text-ink transition hover:border-accent hover:bg-accent-soft">{o}</button>)}
+            </div>
+            <button type="button" onClick={() => answerScope(null)} className="mt-3 text-[12.5px] text-ink-3 underline transition hover:text-ink">{T('Seguir sin responder: que decida el equipo', 'Go on without answering: let the team decide')}</button>
+          </div>
+        </div>
+      )}
       <AnimatePresence>{booting ? <HomeLoader key="loader" /> : opening ? <HomeLoader key="opening" caption={opening} /> : null}</AnimatePresence>
       {laneAsk && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm" onClick={() => setLaneAsk(false)}>
@@ -723,7 +756,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
                   </div>
                 </div>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {cfg.agents.map((a, i) => {
+                  {shownAgents().map(({ a, i }) => {
                     const r = museReco(a)
                     const ok = isMuseReco(a)
                     return (
@@ -861,7 +894,7 @@ export default function Setup({ user, onSettings, onAudit, onStart, onDirect, on
               <button disabled={cfg.agents.length >= 8} onClick={addAgent} className="ml-2 flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[13px] font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-40" title={T('Sumar un rol al equipo (hasta 8)', 'Add a role to the team (up to 8)')}><Plus size={15} />{T('Agregar rol', 'Add role')}</button>
             </div>
             <div className="mt-3 space-y-3">
-              {cfg.agents.map(renderAgentCard)}
+              {shownAgents().map(({ a, i }) => renderAgentCard(a, i))}
             </div>
             {/* with a small team the panel has room to spare: invite more roles instead of leaving it blank */}
             {cfg.agents.length < 4 && (
