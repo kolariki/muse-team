@@ -1,6 +1,6 @@
 # Muse Team × Meta Global AI Developer Hackathon
 
-**Track:** Indie Developer · **Problem statement:** Build for Your World · **Building period:** Oct 27 – Nov 4, 2026
+**Track:** Startups · **Problem statement:** Build for Your World · **Building period:** Oct 27 – Nov 4, 2026
 
 Muse Team is the Muse-only edition of an existing product (Tably Team): a platform where a team of AI agents with roles (CEO, CTO, Head of Engineering, Product, Design, QA) debates an idea, researches reference apps, designs the screens, writes the code, reviews it and publishes the app. The hackathon rules allow startups to build on an existing codebase as long as the new work is clearly identified. This file is that identification.
 
